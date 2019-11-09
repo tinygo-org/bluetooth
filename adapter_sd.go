@@ -18,7 +18,12 @@ import "C"
 import (
 	"device/arm"
 	"device/nrf"
+	"errors"
 	"unsafe"
+)
+
+var (
+	ErrNotDefaultAdapter = errors.New("bluetooth: not the default adapter")
 )
 
 //export assertHandler
@@ -52,15 +57,21 @@ func init() {
 // Adapter is a dummy adapter: it represents the connection to the (only)
 // SoftDevice on the chip.
 type Adapter struct {
+	isDefault bool
+	handler   func(Event)
 }
 
 // DefaultAdapter is an adapter to the default Bluetooth stack on a given
 // target.
-var DefaultAdapter = &Adapter{}
+var DefaultAdapter = &Adapter{isDefault: true}
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
 func (a *Adapter) Enable() error {
+	if !a.isDefault {
+		return ErrNotDefaultAdapter
+	}
+
 	// Enable the IRQ that handles all events.
 	arm.EnableIRQ(nrf.IRQ_SWI2)
 	arm.SetPriority(nrf.IRQ_SWI2, 192)
@@ -96,7 +107,23 @@ func (a *Adapter) Enable() error {
 }
 
 func handleEvent() {
-	// TODO: do something with the events.
+	handler := DefaultAdapter.handler
+	if handler == nil {
+		return
+	}
+	id := eventBuf.header.evt_id
+	switch {
+	case id >= C.BLE_GAP_EVT_BASE && id <= C.BLE_GAP_EVT_LAST:
+		gapEvent := GAPEvent{
+			Connection: Connection(eventBuf.evt.unionfield_gap_evt().conn_handle),
+		}
+		switch id {
+		case C.BLE_GAP_EVT_CONNECTED:
+			handler(&ConnectEvent{GAPEvent: gapEvent})
+		case C.BLE_GAP_EVT_DISCONNECTED:
+			handler(&DisconnectEvent{GAPEvent: gapEvent})
+		}
+	}
 }
 
 //go:export SWI2_EGU2_IRQHandler
