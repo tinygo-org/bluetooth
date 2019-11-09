@@ -62,9 +62,15 @@ type Adapter struct {
 	charWriteHandlers []charWriteHandler
 }
 
-// DefaultAdapter is an adapter to the default Bluetooth stack on a given
+// defaultAdapter is an adapter to the default Bluetooth stack on a given
 // target.
-var DefaultAdapter = &Adapter{isDefault: true}
+var defaultAdapter = Adapter{isDefault: true}
+
+// DefaultAdapter returns the default adapter on the current system. On Nordic
+// chips, it will return the SoftDevice interface.
+func DefaultAdapter() (*Adapter, error) {
+	return &defaultAdapter, nil
+}
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
@@ -108,7 +114,7 @@ func (a *Adapter) Enable() error {
 }
 
 func handleEvent() {
-	handler := DefaultAdapter.handler
+	handler := defaultAdapter.handler
 	if handler == nil {
 		return
 	}
@@ -131,7 +137,7 @@ func handleEvent() {
 			writeEvent := gattsEvent.params.unionfield_write()
 			len := writeEvent.len - writeEvent.offset
 			data := (*[255]byte)(unsafe.Pointer(&writeEvent.data[0]))[:len:len]
-			handler := DefaultAdapter.getCharWriteHandler(writeEvent.handle)
+			handler := defaultAdapter.getCharWriteHandler(writeEvent.handle)
 			if handler != nil {
 				handler.callback(Connection(gattsEvent.conn_handle), int(writeEvent.offset), data)
 			}

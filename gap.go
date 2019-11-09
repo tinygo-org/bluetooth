@@ -1,10 +1,5 @@
 package bluetooth
 
-// Advertisement encapsulates a single advertisement instance.
-type Advertisement struct {
-	handle uint8
-}
-
 // AdvertiseOptions configures everything related to BLE advertisements.
 type AdvertiseOptions struct {
 	Interval AdvertiseInterval

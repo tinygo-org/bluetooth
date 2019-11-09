@@ -11,7 +11,8 @@ var advPayload = []byte("\x02\x01\x06" + "\x07\x09TinyGo")
 
 func main() {
 	println("starting")
-	adapter := bluetooth.DefaultAdapter
+	adapter, err := bluetooth.DefaultAdapter()
+	must("get default adapter", err)
 	adapter.SetEventHandler(handleBluetoothEvents)
 	must("enable SD", adapter.Enable())
 	adv := adapter.NewAdvertisement()

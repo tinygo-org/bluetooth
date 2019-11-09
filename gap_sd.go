@@ -11,6 +11,11 @@ package bluetooth
 */
 import "C"
 
+// Advertisement encapsulates a single advertisement instance.
+type Advertisement struct {
+	handle uint8
+}
+
 // NewAdvertisement creates a new advertisement instance but does not configure
 // it. It can be called before the SoftDevice has been initialized.
 func (a *Adapter) NewAdvertisement() *Advertisement {

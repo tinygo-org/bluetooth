@@ -10,7 +10,8 @@ import (
 var advPayload = []byte("\x02\x01\x06" + "\x07\x09TinyGo")
 
 func main() {
-	adapter := bluetooth.DefaultAdapter
+	adapter, err := bluetooth.DefaultAdapter()
+	must("get default adapter", err)
 	must("enable SD", adapter.Enable())
 	adv := adapter.NewAdvertisement()
 	options := &bluetooth.AdvertiseOptions{
