@@ -47,7 +47,9 @@ func (a *Adapter) AddService(service *Service) error {
 		if errCode != 0 {
 			return Error(errCode)
 		}
-		char.handle = handles.value_handle
+		if char.Handle != nil {
+			char.Handle.handle = handles.value_handle
+		}
 	}
 	return makeError(errCode)
 }

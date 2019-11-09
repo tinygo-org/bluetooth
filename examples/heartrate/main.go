@@ -20,12 +20,14 @@ func main() {
 	must("config adv", adv.Configure(advPayload, nil, options))
 	must("start adv", adv.Start())
 
+	var heartRateMeasurement bluetooth.Characteristic
 	must("add service", adapter.AddService(&bluetooth.Service{
 		UUID: bluetooth.New16BitUUID(0x180D), // Heart Rate
-		Characteristics: []bluetooth.Characteristic{
-			bluetooth.Characteristic{
-				UUID:  bluetooth.New16BitUUID(0x2A37), // Heart Rate Measurement
-				Value: []byte{0, 75},                  // 75bpm
+		Characteristics: []bluetooth.CharacteristicConfig{
+			{
+				Handle: &heartRateMeasurement,
+				UUID:   bluetooth.New16BitUUID(0x2A37), // Heart Rate Measurement
+				Value:  []byte{0, 75},                  // 75bpm
 			},
 		},
 	}))
