@@ -22,8 +22,9 @@ type Characteristic struct {
 type CharacteristicConfig struct {
 	Handle *Characteristic
 	UUID
-	Value []byte
-	Flags CharacteristicPermissions
+	Value      []byte
+	Flags      CharacteristicPermissions
+	WriteEvent func(client Connection, offset int, value []byte)
 }
 
 // Handle returns the numeric handle for this characteristic. This is used

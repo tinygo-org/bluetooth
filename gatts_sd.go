@@ -55,6 +55,36 @@ func (a *Adapter) AddService(service *Service) error {
 			char.Handle.handle = handles.value_handle
 			char.Handle.permissions = char.Flags
 		}
+		if char.Flags.Write() && char.WriteEvent != nil {
+			a.charWriteHandlers = append(a.charWriteHandlers, charWriteHandler{
+				handle:   handles.value_handle,
+				callback: char.WriteEvent,
+			})
+		}
 	}
 	return makeError(errCode)
+}
+
+// charWriteHandler contains a handler->callback mapping for characteristic
+// writes.
+type charWriteHandler struct {
+	handle   uint16
+	callback func(connection Connection, offset int, value []byte)
+}
+
+// getCharWriteHandler returns a characteristic write handler if one matches the
+// handle, or nil otherwise.
+func (a *Adapter) getCharWriteHandler(handle uint16) *charWriteHandler {
+	// Look through all handlers for a match.
+	// There is probably a way to do this more efficiently (with a hashmap for
+	// example) but the number of event handlers is likely low and improving
+	// this does not need an API change.
+	for i := range a.charWriteHandlers {
+		h := &a.charWriteHandlers[i]
+		if h.handle == handle {
+			// Handler found.
+			return h
+		}
+	}
+	return nil // not found
 }

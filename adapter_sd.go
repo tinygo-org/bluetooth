@@ -57,8 +57,9 @@ func init() {
 // Adapter is a dummy adapter: it represents the connection to the (only)
 // SoftDevice on the chip.
 type Adapter struct {
-	isDefault bool
-	handler   func(Event)
+	isDefault         bool
+	handler           func(Event)
+	charWriteHandlers []charWriteHandler
 }
 
 // DefaultAdapter is an adapter to the default Bluetooth stack on a given
@@ -122,6 +123,18 @@ func handleEvent() {
 			handler(&ConnectEvent{GAPEvent: gapEvent})
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			handler(&DisconnectEvent{GAPEvent: gapEvent})
+		}
+	case id >= C.BLE_GATTS_EVT_BASE && id <= C.BLE_GATTS_EVT_LAST:
+		gattsEvent := eventBuf.evt.unionfield_gatts_evt()
+		switch id {
+		case C.BLE_GATTS_EVT_WRITE:
+			writeEvent := gattsEvent.params.unionfield_write()
+			len := writeEvent.len - writeEvent.offset
+			data := (*[255]byte)(unsafe.Pointer(&writeEvent.data[0]))[:len:len]
+			handler := DefaultAdapter.getCharWriteHandler(writeEvent.handle)
+			if handler != nil {
+				handler.callback(Connection(gattsEvent.conn_handle), int(writeEvent.offset), data)
+			}
 		}
 	}
 }
