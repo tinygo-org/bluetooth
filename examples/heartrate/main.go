@@ -28,6 +28,7 @@ func main() {
 				Handle: &heartRateMeasurement,
 				UUID:   bluetooth.New16BitUUID(0x2A37), // Heart Rate Measurement
 				Value:  []byte{0, 75},                  // 75bpm
+				Flags:  bluetooth.CharacteristicReadPermission,
 			},
 		},
 	}))

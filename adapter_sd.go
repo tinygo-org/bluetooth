@@ -34,7 +34,7 @@ var clockConfig C.nrf_clock_lf_cfg_t = C.nrf_clock_lf_cfg_t{
 }
 
 var (
-	secModeOpen       C.ble_gap_conn_sec_mode_t
+	secModeOpen       C.ble_gap_conn_sec_mode_t // No security is needed (aka open link).
 	defaultDeviceName = [6]byte{'T', 'i', 'n', 'y', 'G', 'o'}
 )
 

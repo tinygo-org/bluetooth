@@ -22,8 +22,12 @@ func (a *Adapter) AddService(service *Service) error {
 	}
 	for _, char := range service.Characteristics {
 		metadata := C.ble_gatts_char_md_t{}
-		metadata.char_props.set_bitfield_read(1)
-		metadata.char_props.set_bitfield_write(1)
+		metadata.char_props.set_bitfield_broadcast(uint8(char.Flags>>0) & 1)
+		metadata.char_props.set_bitfield_read(uint8(char.Flags>>1) & 1)
+		metadata.char_props.set_bitfield_write_wo_resp(uint8(char.Flags>>2) & 1)
+		metadata.char_props.set_bitfield_write(uint8(char.Flags>>3) & 1)
+		metadata.char_props.set_bitfield_notify(uint8(char.Flags>>4) & 1)
+		metadata.char_props.set_bitfield_indicate(uint8(char.Flags>>5) & 1)
 		handles := C.ble_gatts_char_handles_t{}
 		charUUID, errCode := char.UUID.shortUUID()
 		if errCode != 0 {
@@ -49,6 +53,7 @@ func (a *Adapter) AddService(service *Service) error {
 		}
 		if char.Handle != nil {
 			char.Handle.handle = handles.value_handle
+			char.Handle.permissions = char.Flags
 		}
 	}
 	return makeError(errCode)
