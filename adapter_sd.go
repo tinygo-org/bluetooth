@@ -114,13 +114,13 @@ func (a *Adapter) Enable() error {
 }
 
 func handleEvent() {
-	handler := defaultAdapter.handler
-	if handler == nil {
-		return
-	}
 	id := eventBuf.header.evt_id
 	switch {
 	case id >= C.BLE_GAP_EVT_BASE && id <= C.BLE_GAP_EVT_LAST:
+		handler := defaultAdapter.handler
+		if handler == nil {
+			return
+		}
 		gapEvent := GAPEvent{
 			Connection: Connection(eventBuf.evt.unionfield_gap_evt().conn_handle),
 		}
