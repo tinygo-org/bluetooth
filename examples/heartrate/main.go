@@ -9,6 +9,9 @@ import (
 // flags + local name
 var advPayload = []byte("\x02\x01\x06" + "\x07\x09TinyGo")
 
+// TODO: use atomics to access this value.
+var heartRate uint8 = 75 // 75bpm
+
 func main() {
 	println("starting")
 	adapter, err := bluetooth.DefaultAdapter()
@@ -29,16 +32,26 @@ func main() {
 			{
 				Handle: &heartRateMeasurement,
 				UUID:   bluetooth.New16BitUUID(0x2A37), // Heart Rate Measurement
-				Value:  []byte{0, 75},                  // 75bpm
-				Flags:  bluetooth.CharacteristicReadPermission,
+				Value:  []byte{0, heartRate},
+				Flags:  bluetooth.CharacteristicReadPermission | bluetooth.CharacteristicWritePermission,
+				WriteEvent: func(client bluetooth.Connection, offset int, value []byte) {
+					if offset != 0 || len(value) < 2 {
+						return
+					}
+					if value[1] != 0 { // avoid divide by zero
+						heartRate = value[1]
+						println("heart rate is now:", heartRate)
+					}
+				},
 			},
 		},
 	}))
 
-	println("sleeping")
+	nextBeat := time.Now()
 	for {
-		// Sleep forever.
-		time.Sleep(time.Hour)
+		nextBeat = nextBeat.Add(time.Minute / time.Duration(heartRate))
+		println("tick", time.Now().Format("04:05.000"))
+		time.Sleep(nextBeat.Sub(time.Now()))
 	}
 }
 
