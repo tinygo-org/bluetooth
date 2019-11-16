@@ -7,7 +7,7 @@ package bluetooth
 // [4]uint32 instead of a [16]byte for efficiency.
 type UUID [4]uint32
 
-// New16bitUUID returns a new 128-bit UUID based on a 16-bit UUID.
+// New16BitUUID returns a new 128-bit UUID based on a 16-bit UUID.
 //
 // Note: only use registered UUIDs. See
 // https://www.bluetooth.com/specifications/gatt/services/ for a list.

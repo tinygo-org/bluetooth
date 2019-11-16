@@ -11,6 +11,8 @@ package bluetooth
 */
 import "C"
 
+// AddService creates a new service with the characteristics listed in the
+// Service struct.
 func (a *Adapter) AddService(service *Service) error {
 	uuid, errCode := service.UUID.shortUUID()
 	if errCode != 0 {
