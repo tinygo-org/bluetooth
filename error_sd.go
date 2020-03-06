@@ -1,4 +1,4 @@
-// +build softdevice,s132v6
+// +build softdevice
 
 package bluetooth
 

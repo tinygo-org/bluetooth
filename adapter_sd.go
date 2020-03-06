@@ -1,4 +1,4 @@
-// +build softdevice,s132v6
+// +build softdevice
 
 package bluetooth
 
@@ -7,9 +7,9 @@ package bluetooth
 // static functions).
 #define SVCALL_AS_NORMAL_FUNCTION
 
-#include "s132_nrf52_6.1.1/s132_nrf52_6.1.1_API/include/nrf_sdm.h"
-#include "s132_nrf52_6.1.1/s132_nrf52_6.1.1_API/include/ble.h"
-#include "s132_nrf52_6.1.1/s132_nrf52_6.1.1_API/include/ble_gap.h"
+#include "nrf_sdm.h"
+#include "ble.h"
+#include "ble_gap.h"
 
 void assertHandler(void);
 */
