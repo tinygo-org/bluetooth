@@ -141,6 +141,16 @@ func handleEvent() {
 			if handler != nil {
 				handler.callback(Connection(gattsEvent.conn_handle), int(writeEvent.offset), data)
 			}
+		case C.BLE_GATTS_EVT_SYS_ATTR_MISSING:
+			// This event is generated when reading the Generic Attribute
+			// service. It appears to be necessary for bonded devices.
+			// From the docs:
+			// > If the pointer is NULL, the system attribute info is
+			// > initialized, assuming that the application does not have any
+			// > previously saved system attribute data for this device.
+			// Maybe we should look at the error, but as there's not really a
+			// way to handle it, ignore it.
+			C.sd_ble_gatts_sys_attr_set(gattsEvent.conn_handle, nil, 0, 0)
 		}
 	}
 }
