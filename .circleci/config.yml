@@ -1,0 +1,13 @@
+version: 2
+
+jobs:
+  build:
+    docker:
+      - image: tinygo/tinygo-dev
+    working_directory: /usr/local/go/src/github.com/aykevl/go-bluetooth
+    steps:
+      - checkout
+      - run: tinygo version
+      - run:
+          name: "Run smoke tests"
+          command: make smoketest

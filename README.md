@@ -1,5 +1,7 @@
 # Go Bluetooth
 
+[![CircleCI](https://circleci.com/gh/aykevl/go-bluetooth/tree/master.svg?style=svg)](https://circleci.com/gh/aykevl/go-bluetooth/tree/master)
+
 Bluetooth API for embedded devices.
 
 This package attempts to build a cross-system Bluetooth API written in Go. It
