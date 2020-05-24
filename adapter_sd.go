@@ -73,6 +73,9 @@ func DefaultAdapter() (*Adapter, error) {
 	return &defaultAdapter, nil
 }
 
+//go:extern __app_ram_base
+var appRAMBase [0]uint32
+
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
 func (a *Adapter) Enable() error {
@@ -89,8 +92,7 @@ func (a *Adapter) Enable() error {
 		return Error(errCode)
 	}
 
-	appRAMBase := uint32(0x200039c0)
-	errCode = C.sd_ble_enable(&appRAMBase)
+	errCode = C.sd_ble_enable((*uint32)(unsafe.Pointer(&appRAMBase)))
 	if errCode != 0 {
 		return Error(errCode)
 	}
