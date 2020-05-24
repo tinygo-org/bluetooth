@@ -11,16 +11,17 @@ import (
 //
 // TODO: add support for characteristics on Linux.
 func (a *Adapter) AddService(s *Service) error {
-	app, err := service.NewApp(a.id)
+	app, err := service.NewApp(service.AppOptions{
+		AdapterID: a.id,
+	})
 	if err != nil {
 		return err
 	}
 
-	bluezService, err := app.NewService()
+	bluezService, err := app.NewService(s.UUID.String())
 	if err != nil {
 		return err
 	}
-	bluezService.Properties.UUID = s.UUID.String()
 
 	// TODO: add support for characteristics
 
