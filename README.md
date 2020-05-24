@@ -18,6 +18,7 @@ As you can see above, there is support for some chips from Nordic Semiconductors
 
   * The [nRF52832](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52832) with the [S132](https://www.nordicsemi.com/Software-and-Tools/Software/S132) SoftDevice (version 6).
   * The [nRF52840](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52840) with the [S140](https://www.nordicsemi.com/Software-and-Tools/Software/S140) SoftDevice (version 7).
+  * The [nRF51822](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF51822) with the [S110](https://www.nordicsemi.com/Software-and-Tools/Software/S110) SoftDevice (version 8). This SoftDevice does not support all features (e.g. scanning).
 
 These chips are supported through [TinyGo](https://tinygo.org/).
 
@@ -35,6 +36,14 @@ After that, don't reset the board but instead flash a new program to it. For exa
     tinygo flash -target=pca10040-s132v6 ./examples/heartrate
 
 Flashing will normally reset the board.
+
+For boards that use the CMSIS-DAP interface (such as the [BBC micro:bit](https://microbit.org/)), this works a bit different. Flashing the SoftDevice is done by simply copying the .hex file to the device, for example (on Linux):
+
+    cp path/to/softdevice.hex /media/yourusername/MICROBIT/
+
+Flashing will then need to be done a bit differently, using the CMSIS-DAP interface instead of the mass-storage interface normally used by TinyGo:
+
+    tinygo flash -target=microbit-s110v8 -programmer=cmsis-dap ./examples/heartrate
 
 ## License
 

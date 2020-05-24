@@ -14,6 +14,8 @@ smoketest-tinygo:
 	# Test some more boards that are not tested above.
 	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/advertisement
 	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-s110v8       ./examples/advertisement
+	@md5sum test.hex
 
 smoketest-linux:
 	# Test on Linux.

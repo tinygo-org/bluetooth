@@ -1,4 +1,4 @@
-// +build softdevice
+// +build softdevice,!s110v8
 
 package bluetooth
 
