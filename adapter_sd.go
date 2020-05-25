@@ -121,14 +121,24 @@ func handleEvent() {
 		if handler == nil {
 			return
 		}
+		connHandle := eventBuf.evt.unionfield_gap_evt().conn_handle
 		gapEvent := GAPEvent{
-			Connection: Connection(eventBuf.evt.unionfield_gap_evt().conn_handle),
+			Connection: Connection(connHandle),
 		}
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
 			handler(&ConnectEvent{GAPEvent: gapEvent})
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			handler(&DisconnectEvent{GAPEvent: gapEvent})
+		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
+			// Respond with the default PPCP connection parameters by passing
+			// nil:
+			// > If NULL is provided on a peripheral role, the parameters in the
+			// > PPCP characteristic of the GAP service will be used instead. If
+			// > NULL is provided on a central role and in response to a
+			// > BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST, the peripheral request
+			// > will be rejected
+			C.sd_ble_gap_conn_param_update(connHandle, nil)
 		default:
 			if debug {
 				println("unknown GAP event:", id)
