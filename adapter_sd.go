@@ -139,6 +139,10 @@ func handleEvent() {
 			// > BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST, the peripheral request
 			// > will be rejected
 			C.sd_ble_gap_conn_param_update(connHandle, nil)
+		case C.BLE_GAP_EVT_DATA_LENGTH_UPDATE_REQUEST:
+			// We need to respond with sd_ble_gap_data_length_update. Setting
+			// both parameters to nil will make sure we send the default values.
+			C.sd_ble_gap_data_length_update(connHandle, nil, nil)
 		default:
 			if debug {
 				println("unknown GAP event:", id)
