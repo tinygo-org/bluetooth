@@ -93,17 +93,17 @@ func (uuid UUID) String() string {
 		// First nibble.
 		nibble := c >> 4
 		if nibble <= 9 {
-			s += string(nibble+'0')
+			s += string(nibble + '0')
 		} else {
-			s += string(nibble+'A'-10)
+			s += string(nibble + 'A' - 10)
 		}
 
 		// Second nibble.
 		nibble = c & 0x0f
 		if nibble <= 9 {
-			s += string(nibble+'0')
+			s += string(nibble + '0')
 		} else {
-			s += string(nibble+'A'-10)
+			s += string(nibble + 'A' - 10)
 		}
 	}
 
