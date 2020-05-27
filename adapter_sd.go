@@ -117,19 +117,21 @@ func handleEvent() {
 	id := eventBuf.header.evt_id
 	switch {
 	case id >= C.BLE_GAP_EVT_BASE && id <= C.BLE_GAP_EVT_LAST:
-		handler := defaultAdapter.handler
-		if handler == nil {
-			return
-		}
 		connHandle := eventBuf.evt.unionfield_gap_evt().conn_handle
 		gapEvent := GAPEvent{
 			Connection: Connection(connHandle),
 		}
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
-			handler(&ConnectEvent{GAPEvent: gapEvent})
+			handler := defaultAdapter.handler
+			if handler != nil {
+				handler(&ConnectEvent{GAPEvent: gapEvent})
+			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
-			handler(&DisconnectEvent{GAPEvent: gapEvent})
+			handler := defaultAdapter.handler
+			if handler != nil {
+				handler(&DisconnectEvent{GAPEvent: gapEvent})
+			}
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
 			// nil:
