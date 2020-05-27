@@ -58,6 +58,7 @@ func init() {
 // SoftDevice on the chip.
 type Adapter struct {
 	isDefault         bool
+	scanning          bool
 	handler           func(Event)
 	charWriteHandlers []charWriteHandler
 }
@@ -117,21 +118,34 @@ func handleEvent() {
 	id := eventBuf.header.evt_id
 	switch {
 	case id >= C.BLE_GAP_EVT_BASE && id <= C.BLE_GAP_EVT_LAST:
-		connHandle := eventBuf.evt.unionfield_gap_evt().conn_handle
-		gapEvent := GAPEvent{
-			Connection: Connection(connHandle),
-		}
+		gapEvent := eventBuf.evt.unionfield_gap_evt()
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
 			handler := defaultAdapter.handler
 			if handler != nil {
-				handler(&ConnectEvent{GAPEvent: gapEvent})
+				handler(&ConnectEvent{GAPEvent: GAPEvent{Connection(gapEvent.conn_handle)}})
 			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			handler := defaultAdapter.handler
 			if handler != nil {
-				handler(&DisconnectEvent{GAPEvent: gapEvent})
+				handler(&DisconnectEvent{GAPEvent: GAPEvent{Connection(gapEvent.conn_handle)}})
 			}
+		case C.BLE_GAP_EVT_ADV_REPORT:
+			advReport := gapEvent.params.unionfield_adv_report()
+			if debug && &scanReportBuffer.data[0] != advReport.data.p_data {
+				// Sanity check.
+				panic("scanReportBuffer != advReport.p_data")
+			}
+			// Prepare the globalScanResult, which will be passed to the
+			// callback.
+			scanReportBuffer.len = byte(advReport.data.len)
+			globalScanResult.RSSI = int16(advReport.rssi)
+			globalScanResult.Address = advReport.peer_addr.addr
+			globalScanResult.AdvertisementPayload = &scanReportBuffer
+			// Signal to the main thread that there was a scan report.
+			// Scanning will be resumed (from the main thread) once the scan
+			// report has been processed.
+			gotScanReport.Set(1)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
 			// nil:
@@ -140,11 +154,11 @@ func handleEvent() {
 			// > NULL is provided on a central role and in response to a
 			// > BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST, the peripheral request
 			// > will be rejected
-			C.sd_ble_gap_conn_param_update(connHandle, nil)
+			C.sd_ble_gap_conn_param_update(gapEvent.conn_handle, nil)
 		case C.BLE_GAP_EVT_DATA_LENGTH_UPDATE_REQUEST:
 			// We need to respond with sd_ble_gap_data_length_update. Setting
 			// both parameters to nil will make sure we send the default values.
-			C.sd_ble_gap_data_length_update(connHandle, nil, nil)
+			C.sd_ble_gap_data_length_update(gapEvent.conn_handle, nil, nil)
 		default:
 			if debug {
 				println("unknown GAP event:", id)

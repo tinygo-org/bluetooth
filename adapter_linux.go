@@ -8,9 +8,10 @@ import (
 )
 
 type Adapter struct {
-	adapter *adapter.Adapter1
-	id      string
-	handler func(Event)
+	adapter    *adapter.Adapter1
+	id         string
+	handler    func(Event)
+	cancelScan func()
 }
 
 // DefaultAdapter returns the default adapter on the current system. On Linux,
