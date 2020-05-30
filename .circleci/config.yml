@@ -9,5 +9,16 @@ jobs:
       - checkout
       - run: tinygo version
       - run:
-          name: "Run smoke tests"
-          command: make smoketest
+          name: "Run TinyGo smoke tests"
+          command: make smoketest-tinygo
+      - run:
+          name: "Run Linux smoke tests"
+          command: make smoketest-linux
+      - run:
+          name: "Install Windows cross compiler"
+          command: |
+            # Install the tools themselves.
+            apt-get install -y gcc-mingw-w64-x86-64
+      - run:
+          name: "Run Windows smoke tests"
+          command: make smoketest-windows
