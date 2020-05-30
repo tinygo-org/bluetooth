@@ -1,28 +1,43 @@
 # Go Bluetooth
 
 [![CircleCI](https://circleci.com/gh/aykevl/go-bluetooth/tree/master.svg?style=svg)](https://circleci.com/gh/aykevl/go-bluetooth/tree/master)
+[![GoDoc](https://godoc.org/github.com/aykevl/go-bluetooth?status.svg)](https://godoc.org/github.com/aykevl/go-bluetooth)
 
-Bluetooth API for embedded devices.
+This package attempts to build a cross-platform Bluetooth Low Energy module for Go. It currently supports the following systems:
 
-This package attempts to build a cross-system Bluetooth API written in Go. It
-specifically targets embedded devices that are supported by
-[TinyGo](https://tinygo.org/).
+|                       | Windows            | Linux              | Nordic chips       |
+| --------------------- | ------------------ | ------------------ | ------------------ |
+| Scanning              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Advertisement         | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Local services        | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Local characteristics | :x:                | :x:                | :heavy_check_mark: |
 
-At the moment, there is only support for the
-[S132](https://www.nordicsemi.com/Software-and-Tools/Software/S132)
-SoftDevice (binary driver) on Nordic Semiconductors devices.
+## Baremetal support
 
-## Flashing the SoftDevice
+As you can see above, there is support for some chips from Nordic Semiconductors. At the moment the following chips are supported:
 
-Flashing the SoftDevice can be tricky. If you have
-[nrfjprog](https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Command-Line-Tools)
-installed, you can erase the flash and flash the new BLE firmware using the
-following commands.
+  * The [nRF52832](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52832) with the [S132](https://www.nordicsemi.com/Software-and-Tools/Software/S132) SoftDevice (version 6).
+  * The [nRF52840](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52840) with the [S140](https://www.nordicsemi.com/Software-and-Tools/Software/S140) SoftDevice (version 7).
+
+These chips are supported through [TinyGo](https://tinygo.org/).
+
+The SoftDevice is a binary blob that implements the BLE stack. There are other (open source) BLE stacks, but the SoftDevices are pretty solid and have all the qualifications you might need. Other BLE stacks might be added in the future.
+
+### Flashing the SoftDevice
+
+Flashing the SoftDevice can be tricky. If you have [nrfjprog](https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Command-Line-Tools) installed, you can erase the flash and flash the new BLE firmware using the following commands. Replace the path to the hex file with the correct SoftDevice, for example `s132_nrf52_6.1.1/s132_nrf52_6.1.1_softdevice.hex` for S132 version 6.
 
     nrfjprog -f nrf52 --eraseall
-    nrfjprog -f nrf52 --program s132_nrf52_6.1.1/s132_nrf52_6.1.1_softdevice.hex
+    nrfjprog -f nrf52 --program path/to/softdevice.hex
 
-After that, don't reset the board but instead flash a new program to it. For
-example, you can flash the Heart Rate Sensor example using `tinygo`:
+After that, don't reset the board but instead flash a new program to it. For example, you can flash the Heart Rate Sensor example using `tinygo` (modify the `-target` flag as needed for your board):
 
     tinygo flash -target=pca10040-s132v6 ./examples/heartrate
+
+Flashing will normally reset the board.
+
+## License
+
+This project is licensed under the BSD 3-clause license, see the LICENSE file for details.
+
+The SoftDevices from Nordic are licensed under a different license, check the license file in the SoftDevice source directory.
