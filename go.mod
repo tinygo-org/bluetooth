@@ -1,4 +1,4 @@
-module github.com/aykevl/go-bluetooth
+module github.com/tinygo-org/bluetooth
 
 go 1.14
 

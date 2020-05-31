@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/aykevl/go-bluetooth"
+	"github.com/tinygo-org/bluetooth"
 )
 
 func main() {

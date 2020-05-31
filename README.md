@@ -1,7 +1,7 @@
 # Go Bluetooth
 
-[![CircleCI](https://circleci.com/gh/aykevl/go-bluetooth/tree/master.svg?style=svg)](https://circleci.com/gh/aykevl/go-bluetooth/tree/master)
-[![GoDoc](https://godoc.org/github.com/aykevl/go-bluetooth?status.svg)](https://godoc.org/github.com/aykevl/go-bluetooth)
+[![CircleCI](https://circleci.com/gh/tinygo-org/bluetooth/tree/master.svg?style=svg)](https://circleci.com/gh/tinygo-org/bluetooth/tree/master)
+[![GoDoc](https://godoc.org/github.com/tinygo-org/bluetooth?status.svg)](https://godoc.org/github.com/tinygo-org/bluetooth)
 
 This package attempts to build a cross-platform Bluetooth Low Energy module for Go. It currently supports the following systems:
 

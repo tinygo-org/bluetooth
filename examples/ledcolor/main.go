@@ -4,7 +4,7 @@ import (
 	"machine"
 	"time"
 
-	"github.com/aykevl/go-bluetooth"
+	"github.com/tinygo-org/bluetooth"
 )
 
 // flags + local name

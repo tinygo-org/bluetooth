@@ -1,7 +1,7 @@
 package bluetooth
 
 import (
-	"github.com/aykevl/go-bluetooth/winbt"
+	"github.com/tinygo-org/bluetooth/winbt"
 )
 
 // Scan starts a BLE scan. It is stopped by a call to StopScan. A common pattern
