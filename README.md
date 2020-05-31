@@ -46,6 +46,17 @@ Flashing will then need to be done a bit differently, using the CMSIS-DAP interf
 
     tinygo flash -target=microbit-s110v8 -programmer=cmsis-dap ./examples/heartrate
 
+## API stability
+
+**The API is not stable!** Because many features are not yet implemented and some platforms (e.g. MacOS) are not yet supported, it's hard to say what a good API will be. Therefore, if you want stability you should pick a particular git commit and use that. Go modules can be useful for this purpose.
+
+Some things that will probably change:
+
+  * Add options to the `Scan` method, for example to filter on UUID.
+  * Change advertisement configuration to accept structured BLE packets instead of raw packets.
+  * Connect/disconnect events.
+  * The behavior around advertisement. Nordic SoftDevices stop advertising when a device connects, which is somewhat unintuitive.
+
 ## License
 
 This project is licensed under the BSD 3-clause license, see the LICENSE file for details.
