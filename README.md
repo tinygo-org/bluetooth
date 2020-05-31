@@ -7,6 +7,7 @@ This package attempts to build a cross-platform Bluetooth Low Energy module for 
 
 |                       | Windows            | Linux              | Nordic chips       |
 | --------------------- | ------------------ | ------------------ | ------------------ |
+| API used              | WinRT              | BlueZ (over D-Bus) | SoftDevice         |
 | Scanning              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Advertisement         | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Local services        | :x:                | :heavy_check_mark: | :heavy_check_mark: |
