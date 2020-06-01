@@ -14,27 +14,21 @@ type Adapter struct {
 	cancelScan func()
 }
 
-// DefaultAdapter returns the default adapter on the current system. On Linux,
-// it will return the first adapter available.
-func DefaultAdapter() (*Adapter, error) {
-	adapter, err := api.GetDefaultAdapter()
-	if err != nil {
-		return nil, err
-	}
-	adapterID, err := adapter.GetAdapterID()
-	if err != nil {
-		return nil, err
-	}
-	return &Adapter{
-		adapter: adapter,
-		id:      adapterID,
-	}, nil
-}
+// DefaultAdapter is the default adapter on the system. On Linux, it is the
+// first adapter available.
+//
+// Make sure to call Enable() before using it to initialize the adapter.
+var DefaultAdapter = &Adapter{}
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
-//
-// The Linux implementation is a no-op.
-func (a *Adapter) Enable() error {
+func (a *Adapter) Enable() (err error) {
+	if a.id == "" {
+		a.adapter, err = api.GetDefaultAdapter()
+		if err != nil {
+			return
+		}
+		a.id, err = a.adapter.GetAdapterID()
+	}
 	return nil
 }

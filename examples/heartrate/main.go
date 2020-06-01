@@ -9,15 +9,15 @@ import (
 // flags + local name
 var advPayload = []byte("\x02\x01\x06" + "\x07\x09TinyGo")
 
+var adapter = bluetooth.DefaultAdapter
+
 // TODO: use atomics to access this value.
 var heartRate uint8 = 75 // 75bpm
 
 func main() {
 	println("starting")
-	adapter, err := bluetooth.DefaultAdapter()
-	must("get default adapter", err)
 	adapter.SetEventHandler(handleBluetoothEvents)
-	must("enable SD", adapter.Enable())
+	must("enable BLE stack", adapter.Enable())
 	adv := adapter.NewAdvertisement()
 	options := &bluetooth.AdvertiseOptions{
 		Interval: bluetooth.NewAdvertiseInterval(100),

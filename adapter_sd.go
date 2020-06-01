@@ -38,15 +38,11 @@ type Adapter struct {
 	charWriteHandlers []charWriteHandler
 }
 
-// defaultAdapter is an adapter to the default Bluetooth stack on a given
-// target.
-var defaultAdapter = Adapter{isDefault: true}
-
-// DefaultAdapter returns the default adapter on the current system. On Nordic
-// chips, it will return the SoftDevice interface.
-func DefaultAdapter() (*Adapter, error) {
-	return &defaultAdapter, nil
-}
+// DefaultAdapter is the default adapter on the current system. On Nordic chips,
+// it will return the SoftDevice interface.
+//
+// Make sure to call Enable() before using it to initialize the adapter.
+var DefaultAdapter = Adapter{isDefault: true}
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).

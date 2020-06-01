@@ -10,6 +10,8 @@ import (
 // flags + local name
 var advPayload = []byte("\x02\x01\x06" + "\x0b\x09LED colors")
 
+var adapter = bluetooth.DefaultAdapter
+
 // TODO: use atomics to access this value.
 var ledColor = [3]byte{0xff, 0x00, 0x00} // start out with red
 var leds = [3]machine.Pin{machine.LED_RED, machine.LED_GREEN, machine.LED_BLUE}
@@ -22,10 +24,8 @@ var (
 
 func main() {
 	println("starting")
-	adapter, err := bluetooth.DefaultAdapter()
-	must("get default adapter", err)
 	adapter.SetEventHandler(handleBluetoothEvents)
-	must("enable SD", adapter.Enable())
+	must("enable BLE stack", adapter.Enable())
 	adv := adapter.NewAdvertisement()
 	options := &bluetooth.AdvertiseOptions{
 		Interval: bluetooth.NewAdvertiseInterval(100),

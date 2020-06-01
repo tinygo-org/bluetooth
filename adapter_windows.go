@@ -10,12 +10,10 @@ type Adapter struct {
 	watcher *winbt.IBluetoothLEAdvertisementWatcher
 }
 
-var defaultAdapter Adapter
-
-// DefaultAdapter returns the default adapter on the current system.
-func DefaultAdapter() (*Adapter, error) {
-	return &defaultAdapter, nil
-}
+// DefaultAdapter is the default adapter on the system.
+//
+// Make sure to call Enable() before using it to initialize the adapter.
+var DefaultAdapter = Adapter{}
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).

@@ -46,12 +46,12 @@ func handleEvent() {
 		gapEvent := eventBuf.evt.unionfield_gap_evt()
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
-			handler := defaultAdapter.handler
+			handler := DefaultAdapter.handler
 			if handler != nil {
 				handler(&ConnectEvent{GAPEvent: GAPEvent{Connection(gapEvent.conn_handle)}})
 			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
-			handler := defaultAdapter.handler
+			handler := DefaultAdapter.handler
 			if handler != nil {
 				handler(&DisconnectEvent{GAPEvent: GAPEvent{Connection(gapEvent.conn_handle)}})
 			}
@@ -76,7 +76,7 @@ func handleEvent() {
 			writeEvent := gattsEvent.params.unionfield_write()
 			len := writeEvent.len - writeEvent.offset
 			data := (*[255]byte)(unsafe.Pointer(&writeEvent.data[0]))[:len:len]
-			handler := defaultAdapter.getCharWriteHandler(writeEvent.handle)
+			handler := DefaultAdapter.getCharWriteHandler(writeEvent.handle)
 			if handler != nil {
 				handler.callback(Connection(gattsEvent.conn_handle), int(writeEvent.offset), data)
 			}

@@ -9,10 +9,10 @@ import (
 // flags + local name
 var advPayload = []byte("\x02\x01\x06" + "\x07\x09TinyGo")
 
+var adapter = bluetooth.DefaultAdapter
+
 func main() {
-	adapter, err := bluetooth.DefaultAdapter()
-	must("get default adapter", err)
-	must("enable SD", adapter.Enable())
+	must("enable BLE stack", adapter.Enable())
 	adv := adapter.NewAdvertisement()
 	options := &bluetooth.AdvertiseOptions{
 		Interval: bluetooth.NewAdvertiseInterval(100),

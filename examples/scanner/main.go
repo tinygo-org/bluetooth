@@ -4,15 +4,15 @@ import (
 	"github.com/tinygo-org/bluetooth"
 )
 
+var adapter = bluetooth.DefaultAdapter
+
 func main() {
 	// Enable BLE interface.
-	adapter, err := bluetooth.DefaultAdapter()
-	must("get default adapter", err)
-	must("enable adapter", adapter.Enable())
+	must("enable BLE stack", adapter.Enable())
 
 	// Start scanning.
 	println("scanning...")
-	err = adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
+	err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
 		println("found device:", device.Address.String(), device.RSSI, device.LocalName())
 	})
 	must("start scan", err)
