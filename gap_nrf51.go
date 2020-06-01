@@ -13,7 +13,7 @@ import "C"
 
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
-	interval AdvertiseInterval
+	interval AdvertisementInterval
 }
 
 var globalAdvertisement Advertisement
@@ -28,22 +28,15 @@ func (a *Adapter) NewAdvertisement() *Advertisement {
 }
 
 // Configure this advertisement. Must be called after SoftDevice initialization.
-func (a *Advertisement) Configure(broadcastData, scanResponseData []byte, options *AdvertiseOptions) error {
-	var (
-		p_data    *byte
-		dlen      byte
-		p_sr_data *byte
-		srdlen    byte
-	)
-	if broadcastData != nil {
-		p_data = &broadcastData[0]
-		dlen = uint8(len(broadcastData))
+func (a *Advertisement) Configure(options AdvertisementOptions) error {
+	var payload rawAdvertisementPayload
+	payload.addFlags(0x06)
+	if options.LocalName != "" {
+		if !payload.addCompleteLocalName(options.LocalName) {
+			return errAdvertisementPacketTooBig
+		}
 	}
-	if scanResponseData != nil {
-		p_sr_data = &scanResponseData[0]
-		srdlen = uint8(len(scanResponseData))
-	}
-	errCode := C.sd_ble_gap_adv_data_set(p_data, dlen, p_sr_data, srdlen)
+	errCode := C.sd_ble_gap_adv_data_set(&payload.data[0], payload.len, nil, 0)
 	a.interval = options.Interval
 	return makeError(errCode)
 }

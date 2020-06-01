@@ -53,7 +53,6 @@ Flashing will then need to be done a bit differently, using the CMSIS-DAP interf
 Some things that will probably change:
 
   * Add options to the `Scan` method, for example to filter on UUID.
-  * Change advertisement configuration to accept structured BLE packets instead of raw packets.
   * Connect/disconnect events.
   * The behavior around advertisement. Nordic SoftDevices stop advertising when a device connects, which is somewhat unintuitive.
 

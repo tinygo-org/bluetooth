@@ -3,24 +3,31 @@ package bluetooth
 import "errors"
 
 var (
-	errScanning                      = errors.New("bluetooth: a scan is already in progress")
-	errNotScanning                   = errors.New("bluetooth: there is no scan in progress")
-	errMalformedAdvertisementPayload = errors.New("bluetooth: malformed advertisement packet")
+	errScanning                  = errors.New("bluetooth: a scan is already in progress")
+	errNotScanning               = errors.New("bluetooth: there is no scan in progress")
+	errAdvertisementPacketTooBig = errors.New("bluetooth: advertisement packet overflows")
 )
 
-// AdvertiseOptions configures everything related to BLE advertisements.
-type AdvertiseOptions struct {
-	Interval AdvertiseInterval
+// AdvertisementOptions configures an advertisement instance. More options may
+// be added over time.
+type AdvertisementOptions struct {
+	// The (complete) local name that will be advertised. Optional, omitted if
+	// this is a zero-length string.
+	LocalName string
+
+	// Interval in BLE-specific units. Create an interval by using
+	// NewAdvertiseInterval.
+	Interval AdvertisementInterval
 }
 
-// AdvertiseInterval is the advertisement interval in 0.625µs units.
-type AdvertiseInterval uint32
+// AdvertisementInterval is the advertisement interval in 0.625µs units.
+type AdvertisementInterval uint32
 
-// NewAdvertiseInterval returns a new advertisement interval, based on an
+// NewAdvertisementInterval returns a new advertisement interval, based on an
 // interval in milliseconds.
-func NewAdvertiseInterval(intervalMillis uint32) AdvertiseInterval {
+func NewAdvertisementInterval(intervalMillis uint32) AdvertisementInterval {
 	// Convert an interval to units of
-	return AdvertiseInterval(intervalMillis * 8 / 5)
+	return AdvertisementInterval(intervalMillis * 8 / 5)
 }
 
 // Connection is a numeric identifier that indicates a connection handle.
@@ -145,4 +152,32 @@ func (buf *rawAdvertisementPayload) LocalName() string {
 		return string(b)
 	}
 	return ""
+}
+
+// addFlags adds a flags field to the advertisement buffer. It returns true on
+// success (the flags can be added) and false on failure.
+func (buf *rawAdvertisementPayload) addFlags(flags byte) (ok bool) {
+	if int(buf.len)+3 > len(buf.data) {
+		return false // flags don't fit
+	}
+
+	buf.data[buf.len] = 2       // length of field (including type)
+	buf.data[buf.len+1] = 0x01  // type, 0x01 means Flags
+	buf.data[buf.len+2] = flags // the flags
+	buf.len += 3
+	return true
+}
+
+// addFlags adds the Complete Local Name field to the advertisement buffer. It
+// returns true on success (the name fits) and false on failure.
+func (buf *rawAdvertisementPayload) addCompleteLocalName(name string) (ok bool) {
+	if int(buf.len)+len(name)+2 > len(buf.data) {
+		return false // name doesn't fit
+	}
+
+	buf.data[buf.len] = byte(len(name) + 1) // length of field (including type)
+	buf.data[buf.len+1] = 9                 // type, 0x09 means Complete Local name
+	copy(buf.data[buf.len+2:], name)        // copy the name into the buffer
+	buf.len += byte(len(name) + 2)
+	return true
 }

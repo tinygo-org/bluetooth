@@ -3,16 +3,10 @@
 package bluetooth
 
 import (
-	"errors"
-
 	"github.com/muka/go-bluetooth/api"
 	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 	"github.com/muka/go-bluetooth/bluez/profile/advertising"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
-)
-
-var (
-	ErrMalformedAdvertisement = errors.New("bluetooth: malformed advertisement packet")
 )
 
 // Advertisement encapsulates a single advertisement instance.
@@ -31,39 +25,17 @@ func (a *Adapter) NewAdvertisement() *Advertisement {
 }
 
 // Configure this advertisement.
-func (a *Advertisement) Configure(broadcastData, scanResponseData []byte, options *AdvertiseOptions) error {
+//
+// On Linux with BlueZ, it is not possible to set the advertisement interval.
+func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	if a.advertisement != nil {
 		panic("todo: configure advertisement a second time")
 	}
-	if scanResponseData != nil {
-		panic("todo: scan response data")
-	}
 
-	// Quick-and-dirty advertisement packet parser.
 	a.properties = &advertising.LEAdvertisement1Properties{
-		Type:    advertising.AdvertisementTypeBroadcast,
-		Timeout: 1<<16 - 1,
-	}
-	for len(broadcastData) != 0 {
-		if len(broadcastData) < 2 {
-			return ErrMalformedAdvertisement
-		}
-		fieldLength := broadcastData[0]
-		fieldType := broadcastData[1]
-		fieldValue := broadcastData[2 : fieldLength+1]
-		if int(fieldLength) > len(broadcastData) {
-			return ErrMalformedAdvertisement
-		}
-		switch fieldType {
-		case 1:
-			// BLE advertisement flags. Ignore.
-		case 9:
-			// Complete Local Name.
-			a.properties.LocalName = string(fieldValue)
-		default:
-			return ErrMalformedAdvertisement
-		}
-		broadcastData = broadcastData[fieldLength+1:]
+		Type:      advertising.AdvertisementTypeBroadcast,
+		Timeout:   1<<16 - 1,
+		LocalName: options.LocalName,
 	}
 
 	return nil

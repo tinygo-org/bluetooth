@@ -37,19 +37,18 @@ func (a *Adapter) NewAdvertisement() *Advertisement {
 }
 
 // Configure this advertisement. Must be called after SoftDevice initialization.
-func (a *Advertisement) Configure(broadcastData, scanResponseData []byte, options *AdvertiseOptions) error {
+func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	data := C.ble_gap_adv_data_t{}
-	if broadcastData != nil {
-		data.adv_data = C.ble_data_t{
-			p_data: &broadcastData[0],
-			len:    uint16(len(broadcastData)),
+	var payload rawAdvertisementPayload
+	payload.addFlags(0x06)
+	if options.LocalName != "" {
+		if !payload.addCompleteLocalName(options.LocalName) {
+			return errAdvertisementPacketTooBig
 		}
 	}
-	if scanResponseData != nil {
-		data.scan_rsp_data = C.ble_data_t{
-			p_data: &scanResponseData[0],
-			len:    uint16(len(scanResponseData)),
-		}
+	data.adv_data = C.ble_data_t{
+		p_data: &payload.data[0],
+		len:    uint16(payload.len),
 	}
 	params := C.ble_gap_adv_params_t{
 		properties: C.ble_gap_adv_properties_t{

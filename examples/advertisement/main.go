@@ -6,18 +6,15 @@ import (
 	"github.com/tinygo-org/bluetooth"
 )
 
-// flags + local name
-var advPayload = []byte("\x02\x01\x06" + "\x07\x09TinyGo")
-
 var adapter = bluetooth.DefaultAdapter
 
 func main() {
 	must("enable BLE stack", adapter.Enable())
 	adv := adapter.NewAdvertisement()
-	options := &bluetooth.AdvertiseOptions{
-		Interval: bluetooth.NewAdvertiseInterval(100),
-	}
-	must("config adv", adv.Configure(advPayload, nil, options))
+	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
+		LocalName: "Go Bluetooth",
+		Interval:  bluetooth.NewAdvertisementInterval(100),
+	}))
 	must("start adv", adv.Start())
 
 	println("advertising...")
