@@ -28,15 +28,20 @@ type Advertisement struct {
 	handle uint8
 }
 
-// NewAdvertisement creates a new advertisement instance but does not configure
-// it. It can be called before the SoftDevice has been initialized.
-func (a *Adapter) NewAdvertisement() *Advertisement {
-	return &Advertisement{
-		handle: C.BLE_GAP_ADV_SET_HANDLE_NOT_SET,
-	}
+// The nrf528xx devices only seem to support one advertisement instance. The way
+// multiple advertisements are implemented is by changing the packet data
+// frequently.
+var defaultAdvertisement = Advertisement{
+	handle: C.BLE_GAP_ADV_SET_HANDLE_NOT_SET,
 }
 
-// Configure this advertisement. Must be called after SoftDevice initialization.
+// DefaultAdvertisement returns the default advertisement instance but does not
+// configure it.
+func (a *Adapter) DefaultAdvertisement() *Advertisement {
+	return &defaultAdvertisement
+}
+
+// Configure this advertisement.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	data := C.ble_gap_adv_data_t{}
 	var payload rawAdvertisementPayload

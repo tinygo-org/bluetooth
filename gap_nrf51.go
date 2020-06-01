@@ -16,18 +16,15 @@ type Advertisement struct {
 	interval AdvertisementInterval
 }
 
-var globalAdvertisement Advertisement
+var defaultAdvertisement Advertisement
 
-// NewAdvertisement creates a new advertisement instance but does not configure
-// it. It can be called before the SoftDevice has been initialized.
-//
-// On the nrf51 only one advertisement is allowed at a given time, therefore
-// this is a singleton.
-func (a *Adapter) NewAdvertisement() *Advertisement {
-	return &globalAdvertisement
+// DefaultAdvertisement returns the default advertisement instance but does not
+// configure it.
+func (a *Adapter) DefaultAdvertisement() *Advertisement {
+	return &defaultAdvertisement
 }
 
-// Configure this advertisement. Must be called after SoftDevice initialization.
+// Configure this advertisement.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	var payload rawAdvertisementPayload
 	payload.addFlags(0x06)

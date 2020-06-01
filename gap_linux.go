@@ -16,12 +16,15 @@ type Advertisement struct {
 	properties    *advertising.LEAdvertisement1Properties
 }
 
-// NewAdvertisement creates a new advertisement instance but does not configure
-// it.
-func (a *Adapter) NewAdvertisement() *Advertisement {
-	return &Advertisement{
-		adapter: a,
+// DefaultAdvertisement returns the default advertisement instance but does not
+// configure it.
+func (a *Adapter) DefaultAdvertisement() *Advertisement {
+	if a.defaultAdvertisement == nil {
+		a.defaultAdvertisement = &Advertisement{
+			adapter: a,
+		}
 	}
+	return a.defaultAdvertisement
 }
 
 // Configure this advertisement.

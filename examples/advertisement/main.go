@@ -10,7 +10,7 @@ var adapter = bluetooth.DefaultAdapter
 
 func main() {
 	must("enable BLE stack", adapter.Enable())
-	adv := adapter.NewAdvertisement()
+	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName: "Go Bluetooth",
 		Interval:  bluetooth.NewAdvertisementInterval(100),
