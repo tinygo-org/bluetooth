@@ -10,7 +10,6 @@ import (
 type Adapter struct {
 	adapter              *adapter.Adapter1
 	id                   string
-	handler              func(Event)
 	cancelScan           func()
 	defaultAdvertisement *Advertisement
 }

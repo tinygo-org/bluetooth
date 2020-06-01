@@ -34,7 +34,6 @@ func init() {
 type Adapter struct {
 	isDefault         bool
 	scanning          bool
-	handler           func(Event)
 	charWriteHandlers []charWriteHandler
 }
 

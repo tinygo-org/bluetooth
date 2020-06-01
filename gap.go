@@ -33,21 +33,6 @@ func NewAdvertisementInterval(intervalMillis uint32) AdvertisementInterval {
 // Connection is a numeric identifier that indicates a connection handle.
 type Connection uint16
 
-// GAPEvent is a base (embeddable) event for all GAP events.
-type GAPEvent struct {
-	Connection Connection
-}
-
-// ConnectEvent occurs when a remote device connects to this device.
-type ConnectEvent struct {
-	GAPEvent
-}
-
-// DisconnectEvent occurs when a remote device disconnects from this device.
-type DisconnectEvent struct {
-	GAPEvent
-}
-
 // ScanResult contains information from when an advertisement packet was
 // received. It is passed as a parameter to the callback of the Scan method.
 type ScanResult struct {

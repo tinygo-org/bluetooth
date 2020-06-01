@@ -6,7 +6,6 @@ import (
 )
 
 type Adapter struct {
-	handler func(Event)
 	watcher *winbt.IBluetoothLEAdvertisementWatcher
 }
 

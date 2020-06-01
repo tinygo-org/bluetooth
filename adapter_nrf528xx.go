@@ -49,15 +49,19 @@ func handleEvent() {
 		gapEvent := eventBuf.evt.unionfield_gap_evt()
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
-			handler := DefaultAdapter.handler
-			if handler != nil {
-				handler(&ConnectEvent{GAPEvent: GAPEvent{Connection(gapEvent.conn_handle)}})
-			}
+			// This event is ignored for now. It might be useful for the API
+			// user, but until there is a good use case it's best left out.
 		case C.BLE_GAP_EVT_DISCONNECTED:
-			handler := DefaultAdapter.handler
-			if handler != nil {
-				handler(&DisconnectEvent{GAPEvent: GAPEvent{Connection(gapEvent.conn_handle)}})
+			if defaultAdvertisement.isAdvertising.Get() != 0 {
+				// The advertisement was running but was automatically stopped
+				// by the connection event.
+				// Note that it cannot be restarted during connect like this,
+				// because it would need to be reconfigured as a non-connectable
+				// advertisement. That's left as a future addition, if
+				// necessary.
+				C.sd_ble_gap_adv_start(defaultAdvertisement.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 			}
+			// Ignore this event otherwise.
 		case C.BLE_GAP_EVT_ADV_REPORT:
 			advReport := gapEvent.params.unionfield_adv_report()
 			if debug && &scanReportBuffer.data[0] != advReport.data.p_data {

@@ -25,7 +25,8 @@ var (
 
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
-	handle uint8
+	handle        uint8
+	isAdvertising volatile.Register8
 }
 
 // The nrf528xx devices only seem to support one advertisement instance. The way
@@ -67,6 +68,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 
 // Start advertisement. May only be called after it has been configured.
 func (a *Advertisement) Start() error {
+	a.isAdvertising.Set(1)
 	errCode := C.sd_ble_gap_adv_start(a.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 	return makeError(errCode)
 }

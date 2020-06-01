@@ -21,7 +21,6 @@ var (
 
 func main() {
 	println("starting")
-	adapter.SetEventHandler(handleBluetoothEvents)
 	must("enable BLE stack", adapter.Enable())
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
@@ -70,17 +69,5 @@ func main() {
 func must(action string, err error) {
 	if err != nil {
 		panic("failed to " + action + ": " + err.Error())
-	}
-}
-
-// handleBluetoothEvents prints BLE events as they happen.
-func handleBluetoothEvents(evt bluetooth.Event) {
-	switch evt := evt.(type) {
-	case *bluetooth.ConnectEvent:
-		println("evt: connected", evt.Connection)
-	case *bluetooth.DisconnectEvent:
-		println("evt: disconnected", evt.Connection)
-	default:
-		println("evt: unknown")
 	}
 }

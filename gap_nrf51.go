@@ -11,9 +11,12 @@ package bluetooth
 */
 import "C"
 
+import "runtime/volatile"
+
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
-	interval AdvertisementInterval
+	interval      AdvertisementInterval
+	isAdvertising volatile.Register8
 }
 
 var defaultAdvertisement Advertisement
@@ -40,12 +43,19 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 
 // Start advertisement. May only be called after it has been configured.
 func (a *Advertisement) Start() error {
+	a.isAdvertising.Set(1)
+	errCode := a.start()
+	return makeError(errCode)
+}
+
+// Low-level version of Start. Used to restart advertisement when a connection
+// is lost.
+func (a *Advertisement) start() uint32 {
 	params := C.ble_gap_adv_params_t{
 		_type:    C.BLE_GAP_ADV_TYPE_ADV_IND,
 		fp:       C.BLE_GAP_ADV_FP_ANY,
 		interval: uint16(a.interval),
 		timeout:  0, // no timeout
 	}
-	errCode := C.sd_ble_gap_adv_start(&params)
-	return makeError(errCode)
+	return C.sd_ble_gap_adv_start(&params)
 }
