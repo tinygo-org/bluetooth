@@ -41,7 +41,7 @@ type Adapter struct {
 // it will return the SoftDevice interface.
 //
 // Make sure to call Enable() before using it to initialize the adapter.
-var DefaultAdapter = Adapter{isDefault: true}
+var DefaultAdapter = &Adapter{isDefault: true}
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
