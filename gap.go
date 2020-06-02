@@ -15,6 +15,11 @@ type AdvertisementOptions struct {
 	// this is a zero-length string.
 	LocalName string
 
+	// ServiceUUIDs are the services (16-bit or 128-bit) that are broadcast as
+	// part of the advertisement packet, in data types such as "complete list of
+	// 128-bit UUIDs".
+	ServiceUUIDs []UUID
+
 	// Interval in BLE-specific units. Create an interval by using
 	// NewAdvertiseInterval.
 	Interval AdvertisementInterval
@@ -139,6 +144,29 @@ func (buf *rawAdvertisementPayload) LocalName() string {
 	return ""
 }
 
+// addFromOptions constructs a new advertisement payload (assumed to be empty
+// before the call) from the advertisement options. It returns true if it fits,
+// false otherwise.
+func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions) (ok bool) {
+	buf.addFlags(0x06)
+	if options.LocalName != "" {
+		if !buf.addCompleteLocalName(options.LocalName) {
+			return false
+		}
+	}
+	// TODO: if there are multiple 16-bit UUIDs, they should be listed in
+	// one field.
+	// This is not possible for 128-bit service UUIDs (at least not in
+	// legacy advertising) because of the 31-byte advertisement packet
+	// limit.
+	for _, uuid := range options.ServiceUUIDs {
+		if !buf.addServiceUUID(uuid) {
+			return false
+		}
+	}
+	return true
+}
+
 // addFlags adds a flags field to the advertisement buffer. It returns true on
 // success (the flags can be added) and false on failure.
 func (buf *rawAdvertisementPayload) addFlags(flags byte) (ok bool) {
@@ -153,8 +181,8 @@ func (buf *rawAdvertisementPayload) addFlags(flags byte) (ok bool) {
 	return true
 }
 
-// addFlags adds the Complete Local Name field to the advertisement buffer. It
-// returns true on success (the name fits) and false on failure.
+// addCompleteLocalName adds the Complete Local Name field to the advertisement
+// buffer. It returns true on success (the name fits) and false on failure.
 func (buf *rawAdvertisementPayload) addCompleteLocalName(name string) (ok bool) {
 	if int(buf.len)+len(name)+2 > len(buf.data) {
 		return false // name doesn't fit
@@ -165,4 +193,34 @@ func (buf *rawAdvertisementPayload) addCompleteLocalName(name string) (ok bool) 
 	copy(buf.data[buf.len+2:], name)        // copy the name into the buffer
 	buf.len += byte(len(name) + 2)
 	return true
+}
+
+// addServiceUUID adds a Service Class UUID (16-bit or 128-bit). It has
+// currently only been designed for adding single UUIDs: multiple UUIDs are
+// stored in separate fields without joining them together in one field.
+func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
+	// Don't bother with 32-bit UUID support, it doesn't seem to be used in
+	// practice.
+	if uuid.Is16Bit() {
+		if int(buf.len)+4 > len(buf.data) {
+			return false // UUID doesn't fit.
+		}
+		shortUUID := uuid.Get16Bit()
+		buf.data[buf.len+0] = 3    // length of field, including type
+		buf.data[buf.len+1] = 0x03 // type, 0x03 means "Complete List of 16-bit Service Class UUIDs"
+		buf.data[buf.len+2] = byte(shortUUID)
+		buf.data[buf.len+3] = byte(shortUUID >> 8)
+		buf.len += 4
+		return true
+	} else {
+		if int(buf.len)+18 > len(buf.data) {
+			return false // UUID doesn't fit.
+		}
+		buf.data[buf.len+0] = 17   // length of field, including type
+		buf.data[buf.len+1] = 0x07 // type, 0x07 means "Complete List of 128-bit Service Class UUIDs"
+		rawUUID := uuid.Bytes()
+		copy(buf.data[buf.len+2:], rawUUID[:])
+		buf.len += 18
+		return true
+	}
 }

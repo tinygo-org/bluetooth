@@ -29,13 +29,12 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 
 // Configure this advertisement.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
+	// Construct payload.
 	var payload rawAdvertisementPayload
-	payload.addFlags(0x06)
-	if options.LocalName != "" {
-		if !payload.addCompleteLocalName(options.LocalName) {
-			return errAdvertisementPacketTooBig
-		}
+	if !payload.addFromOptions(options) {
+		return errAdvertisementPacketTooBig
 	}
+
 	errCode := C.sd_ble_gap_adv_data_set(&payload.data[0], payload.len, nil, 0)
 	a.interval = options.Interval
 	return makeError(errCode)

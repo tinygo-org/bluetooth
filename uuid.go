@@ -48,9 +48,17 @@ func (uuid UUID) Is16Bit() bool {
 	return uuid.Is32Bit() && uuid[3] == uint32(uint16(uuid[3]))
 }
 
-// Is32Bit returns whether this UUID is a 32-bit BLE UUID.
+// Is32Bit returns whether this UUID is a 32-bit or 16-bit BLE UUID.
 func (uuid UUID) Is32Bit() bool {
 	return uuid[0] == 0x5F9B34FB && uuid[1] == 0x80000080 && uuid[2] == 0x00001000
+}
+
+// Get16Bit returns the 16-bit version of this UUID. This is only valid if it
+// actually is a 16-bit UUID, see Is16Bit.
+func (uuid UUID) Get16Bit() uint16 {
+	// Note: using a Get* function as a getter because method names can't start
+	// with a number.
+	return uint16(uuid[3])
 }
 
 // Bytes returns a 16-byte array containing the raw UUID.

@@ -16,8 +16,9 @@ func main() {
 	must("enable BLE stack", adapter.Enable())
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
-		LocalName: "Go HRS",
-		Interval:  bluetooth.NewAdvertisementInterval(100),
+		LocalName:    "Go HRS",
+		ServiceUUIDs: []bluetooth.UUID{bluetooth.New16BitUUID(0x2A37)},
+		Interval:     bluetooth.NewAdvertisementInterval(100),
 	}))
 	must("start adv", adv.Start())
 

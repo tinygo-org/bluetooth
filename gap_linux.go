@@ -40,6 +40,9 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		Timeout:   1<<16 - 1,
 		LocalName: options.LocalName,
 	}
+	for _, uuid := range options.ServiceUUIDs {
+		a.properties.ServiceUUIDs = append(a.properties.ServiceUUIDs, uuid.String())
+	}
 
 	return nil
 }

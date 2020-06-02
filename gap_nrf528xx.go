@@ -44,14 +44,13 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 
 // Configure this advertisement.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
-	data := C.ble_gap_adv_data_t{}
+	// Construct payload.
 	var payload rawAdvertisementPayload
-	payload.addFlags(0x06)
-	if options.LocalName != "" {
-		if !payload.addCompleteLocalName(options.LocalName) {
-			return errAdvertisementPacketTooBig
-		}
+	if !payload.addFromOptions(options) {
+		return errAdvertisementPacketTooBig
 	}
+
+	data := C.ble_gap_adv_data_t{}
 	data.adv_data = C.ble_data_t{
 		p_data: &payload.data[0],
 		len:    uint16(payload.len),
