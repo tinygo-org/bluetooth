@@ -11,7 +11,7 @@ This package attempts to build a cross-platform Bluetooth Low Energy module for 
 | Scanning              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Advertisement         | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Local services        | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Local characteristics | :x:                | :x:                | :heavy_check_mark: |
+| Local characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 
 ## Baremetal support
 

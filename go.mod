@@ -4,5 +4,5 @@ go 1.14
 
 require (
 	github.com/go-ole/go-ole v1.2.4
-	github.com/muka/go-bluetooth v0.0.0-20200518110738-ed2c87e2f9fa
+	github.com/muka/go-bluetooth v0.0.0-20200601103727-d7408229e514
 )
