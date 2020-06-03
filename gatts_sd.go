@@ -11,6 +11,13 @@ package bluetooth
 */
 import "C"
 
+// Characteristic is a single characteristic in a service. It has an UUID and a
+// value.
+type Characteristic struct {
+	handle      uint16
+	permissions CharacteristicPermissions
+}
+
 // AddService creates a new service with the characteristics listed in the
 // Service struct.
 func (a *Adapter) AddService(service *Service) error {
@@ -43,12 +50,13 @@ func (a *Adapter) AddService(service *Service) error {
 			},
 			init_len:  uint16(len(char.Value)),
 			init_offs: 0,
-			max_len:   uint16(len(char.Value)),
+			max_len:   20, // This is a conservative maximum length.
 		}
 		if len(char.Value) != 0 {
 			value.p_value = &char.Value[0]
 		}
 		value.p_attr_md.set_bitfield_vloc(C.BLE_GATTS_VLOC_STACK)
+		value.p_attr_md.set_bitfield_vlen(1)
 		errCode = C.sd_ble_gatts_characteristic_add(service.handle, &metadata, &value, &handles)
 		if errCode != 0 {
 			return Error(errCode)
@@ -89,4 +97,49 @@ func (a *Adapter) getCharWriteHandler(handle uint16) *charWriteHandler {
 		}
 	}
 	return nil // not found
+}
+
+// Write replaces the characteristic value with a new value.
+func (c *Characteristic) Write(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		// Nothing to write.
+		return 0, nil
+	}
+
+	connHandle := currentConnection.Get()
+	if connHandle != C.BLE_CONN_HANDLE_INVALID {
+		// There is a connected central.
+		p_len := uint16(len(p))
+		errCode := C.sd_ble_gatts_hvx(connHandle, &C.ble_gatts_hvx_params_t{
+			handle: c.handle,
+			_type:  C.BLE_GATT_HVX_NOTIFICATION,
+			p_len:  &p_len,
+			p_data: &p[0],
+		})
+
+		// Check for some expected errors. Don't report them as errors, but
+		// instead fall through and do a normal characteristic value update.
+		// Only return (and possibly report an error) in other cases.
+		//
+		// TODO: improve CGo so that the C constant can be used.
+		if errCode == 0x0008 { // C.NRF_ERROR_INVALID_STATE
+			// May happen when the central has unsubscribed from the
+			// characteristic.
+		} else if errCode == 0x3401 { // C.BLE_ERROR_GATTS_SYS_ATTR_MISSING
+			// May happen when the central is not subscribed to this
+			// characteristic.
+		} else {
+			return int(p_len), makeError(errCode)
+		}
+	}
+
+	errCode := C.sd_ble_gatts_value_set(C.BLE_CONN_HANDLE_INVALID, c.handle, &C.ble_gatts_value_t{
+		len:     uint16(len(p)),
+		p_value: &p[0],
+	})
+	if errCode != 0 {
+		return 0, Error(errCode)
+	}
+
+	return len(p), nil
 }

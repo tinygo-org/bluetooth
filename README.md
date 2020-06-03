@@ -12,6 +12,7 @@ This package attempts to build a cross-platform Bluetooth Low Energy module for 
 | Advertisement         | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Local services        | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Local characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Send notifications    | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 
 ## Baremetal support
 
@@ -53,6 +54,7 @@ Flashing will then need to be done a bit differently, using the CMSIS-DAP interf
 Some things that will probably change:
 
   * Add options to the `Scan` method, for example to filter on UUID.
+  * Extra options to the `Enable` function, to request particular features (such as the number of peripheral connections supported).
 
 ## License
 

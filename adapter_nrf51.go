@@ -46,8 +46,7 @@ func handleEvent() {
 		gapEvent := eventBuf.evt.unionfield_gap_evt()
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
-			// This event is ignored for now. It might be useful for the API
-			// user, but until there is a good use case it's best left out.
+			currentConnection.Reg = gapEvent.conn_handle
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
@@ -58,7 +57,7 @@ func handleEvent() {
 				// necessary.
 				defaultAdvertisement.start()
 			}
-			// Ignore this event otherwise.
+			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
 			// nil:

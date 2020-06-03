@@ -7,13 +7,6 @@ type Service struct {
 	Characteristics []CharacteristicConfig
 }
 
-// Characteristic is a single characteristic in a service. It has an UUID and a
-// value.
-type Characteristic struct {
-	handle      uint16
-	permissions CharacteristicPermissions
-}
-
 // CharacteristicConfig contains some parameters for the configuration of a
 // single characteristic.
 //
@@ -25,12 +18,6 @@ type CharacteristicConfig struct {
 	Value      []byte
 	Flags      CharacteristicPermissions
 	WriteEvent func(client Connection, offset int, value []byte)
-}
-
-// Handle returns the numeric handle for this characteristic. This is used
-// internally in the Bluetooth stack to identify this characteristic.
-func (c *Characteristic) Handle() uint16 {
-	return c.handle
 }
 
 // CharacteristicPermissions lists a number of basic permissions/capabilities

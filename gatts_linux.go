@@ -7,6 +7,13 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/gatt"
 )
 
+// Characteristic is a single characteristic in a service. It has an UUID and a
+// value.
+type Characteristic struct {
+	handle      *service.Char
+	permissions CharacteristicPermissions
+}
+
 // AddService creates a new service with the characteristics listed in the
 // Service struct.
 func (a *Adapter) AddService(s *Service) error {
@@ -50,6 +57,11 @@ func (a *Adapter) AddService(s *Service) error {
 		}
 		bluezChar.Properties.Value = char.Value
 
+		if char.Handle != nil {
+			char.Handle.handle = bluezChar
+			char.Handle.permissions = char.Flags
+		}
+
 		// Do a callback when the value changes.
 		if char.WriteEvent != nil {
 			callback := char.WriteEvent
@@ -72,4 +84,17 @@ func (a *Adapter) AddService(s *Service) error {
 	}
 
 	return app.Run()
+}
+
+// Write replaces the characteristic value with a new value.
+func (c *Characteristic) Write(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return 0, nil // nothing to do
+	}
+
+	gattError := c.handle.WriteValue(p, nil)
+	if gattError != nil {
+		return 0, gattError
+	}
+	return len(p), nil
 }

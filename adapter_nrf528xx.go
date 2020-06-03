@@ -49,8 +49,7 @@ func handleEvent() {
 		gapEvent := eventBuf.evt.unionfield_gap_evt()
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
-			// This event is ignored for now. It might be useful for the API
-			// user, but until there is a good use case it's best left out.
+			currentConnection.Reg = gapEvent.conn_handle
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
@@ -61,7 +60,7 @@ func handleEvent() {
 				// necessary.
 				C.sd_ble_gap_adv_start(defaultAdvertisement.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 			}
-			// Ignore this event otherwise.
+			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
 		case C.BLE_GAP_EVT_ADV_REPORT:
 			advReport := gapEvent.params.unionfield_adv_report()
 			if debug && &scanReportBuffer.data[0] != advReport.data.p_data {

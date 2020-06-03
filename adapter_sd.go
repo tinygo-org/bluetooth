@@ -6,6 +6,7 @@ import (
 	"device/nrf"
 	"errors"
 	"runtime/interrupt"
+	"runtime/volatile"
 	"unsafe"
 )
 
@@ -17,6 +18,9 @@ var (
 	secModeOpen       C.ble_gap_conn_sec_mode_t // No security is needed (aka open link).
 	defaultDeviceName = [6]byte{'T', 'i', 'n', 'y', 'G', 'o'}
 )
+
+// There can only be one connection at a time in the default configuration.
+var currentConnection = volatile.Register16{C.BLE_CONN_HANDLE_INVALID}
 
 // Globally allocated buffer for incoming SoftDevice events.
 var eventBuf struct {
