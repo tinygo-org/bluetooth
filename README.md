@@ -56,6 +56,13 @@ Some things that will probably change:
   * Add options to the `Scan` method, for example to filter on UUID.
   * Extra options to the `Enable` function, to request particular features (such as the number of peripheral connections supported).
 
+This package will probably remain unstable until the following has been implemented:
+
+  * Scan filters. For example, to filter on service UUID.
+  * Bonding and private addresses.
+  * Usable support on at least two desktop operating systems.
+  * Maybe some Bluetooth Classic support, such as A2DP.
+
 ## License
 
 This project is licensed under the BSD 3-clause license, see the LICENSE file for details.
