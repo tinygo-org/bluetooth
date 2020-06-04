@@ -1,6 +1,9 @@
 package bluetooth
 
-import "errors"
+import (
+	"errors"
+	"time"
+)
 
 var (
 	errScanning                  = errors.New("bluetooth: a scan is already in progress")
@@ -28,11 +31,12 @@ type AdvertisementOptions struct {
 // AdvertisementInterval is the advertisement interval in 0.625µs units.
 type AdvertisementInterval uint32
 
-// NewAdvertisementInterval returns a new advertisement interval, based on an
-// interval in milliseconds.
-func NewAdvertisementInterval(intervalMillis uint32) AdvertisementInterval {
-	// Convert an interval to units of
-	return AdvertisementInterval(intervalMillis * 8 / 5)
+// NewAdvertisementInterval returns a new advertisement interval. Advertisement
+// intervals are in units of 0.625µs, so the precision will not be greater than
+// that.
+func NewAdvertisementInterval(interval time.Duration) AdvertisementInterval {
+	// Convert an interval to units of 0.625µs.
+	return AdvertisementInterval(uint64(interval / (625 * time.Microsecond)))
 }
 
 // Connection is a numeric identifier that indicates a connection handle.

@@ -13,7 +13,7 @@ func main() {
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName: "Go Bluetooth",
-		Interval:  bluetooth.NewAdvertisementInterval(100),
+		Interval:  bluetooth.NewAdvertisementInterval(100 * time.Millisecond),
 	}))
 	must("start adv", adv.Start())
 

@@ -5,6 +5,7 @@ package bluetooth
 import (
 	"device/arm"
 	"runtime/volatile"
+	"time"
 )
 
 /*
@@ -86,8 +87,8 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	scanParams := C.ble_gap_scan_params_t{}
 	scanParams.set_bitfield_extended(0)
 	scanParams.set_bitfield_active(0)
-	scanParams.interval = 100 * 1000 / 625 // 100ms in 625µs units
-	scanParams.window = 100 * 1000 / 625   // 100ms in 625µs units
+	scanParams.interval = uint16(NewAdvertisementInterval(100 * time.Millisecond))
+	scanParams.window = uint16(NewAdvertisementInterval(100 * time.Millisecond))
 	scanParams.timeout = C.BLE_GAP_SCAN_TIMEOUT_UNLIMITED
 	scanReportBufferInfo := C.ble_data_t{
 		p_data: &scanReportBuffer.data[0],
