@@ -156,7 +156,7 @@ func makeScanResult(dev *device.Device1) ScanResult {
 
 	return ScanResult{
 		RSSI:    dev.Properties.RSSI,
-		Address: addr,
+		Address: Address{addr, false}, // the 'IsRandom' bit is not supported
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
 				LocalName: dev.Properties.Name,
