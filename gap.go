@@ -88,6 +88,11 @@ type AdvertisementPayload interface {
 	// they may be identified.
 	LocalName() string
 
+	// HasServiceUUID returns true whether the given UUID is present in the
+	// advertisement payload as a Service Class UUID. It checks both 16-bit
+	// UUIDs and 128-bit UUIDs.
+	HasServiceUUID(UUID) bool
+
 	// Bytes returns the raw advertisement packet, if available. It returns nil
 	// if this data is not available.
 	Bytes() []byte
@@ -98,6 +103,11 @@ type AdvertisementFields struct {
 	// The LocalName part of the advertisement (either the complete local name
 	// or the shortened local name).
 	LocalName string
+
+	// ServiceUUIDs are the services (16-bit or 128-bit) that are broadcast as
+	// part of the advertisement packet, in data types such as "complete list of
+	// 128-bit UUIDs".
+	ServiceUUIDs []UUID
 }
 
 // advertisementFields wraps AdvertisementFields to implement the
@@ -111,6 +121,17 @@ type advertisementFields struct {
 // LocalName returns the underlying LocalName field.
 func (p *advertisementFields) LocalName() string {
 	return p.AdvertisementFields.LocalName
+}
+
+// HasServiceUUID returns true whether the given UUID is present in the
+// advertisement payload as a Service Class UUID.
+func (p *advertisementFields) HasServiceUUID(uuid UUID) bool {
+	for _, u := range p.AdvertisementFields.ServiceUUIDs {
+		if u == uuid {
+			return true
+		}
+	}
+	return false
 }
 
 // Bytes returns nil, as structured advertisement data does not have the
@@ -134,6 +155,9 @@ func (buf *rawAdvertisementPayload) Bytes() []byte {
 }
 
 // findField returns the data of a specific field in the advertisement packet.
+//
+// See this list of field types:
+// https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile/
 func (buf *rawAdvertisementPayload) findField(fieldType byte) []byte {
 	data := buf.Bytes()
 	for len(data) >= 2 {
@@ -155,15 +179,53 @@ func (buf *rawAdvertisementPayload) findField(fieldType byte) []byte {
 func (buf *rawAdvertisementPayload) LocalName() string {
 	b := buf.findField(9) // Complete Local Name
 	if len(b) != 0 {
-		println("complete")
 		return string(b)
 	}
 	b = buf.findField(8) // Shortened Local Name
 	if len(b) != 0 {
-		println("shortened")
 		return string(b)
 	}
 	return ""
+}
+
+// HasServiceUUID returns true whether the given UUID is present in the
+// advertisement payload as a Service Class UUID. It checks both 16-bit UUIDs
+// and 128-bit UUIDs.
+func (buf *rawAdvertisementPayload) HasServiceUUID(uuid UUID) bool {
+	if uuid.Is16Bit() {
+		b := buf.findField(0x03) // Complete List of 16-bit Service Class UUIDs
+		if len(b) == 0 {
+			b = buf.findField(0x02) // Incomplete List of 16-bit Service Class UUIDs
+		}
+		uuid := uuid.Get16Bit()
+		for i := 0; i < len(b)/2; i++ {
+			foundUUID := uint16(b[i*2]) | (uint16(b[i*2+1]) << 8)
+			if uuid == foundUUID {
+				return true
+			}
+		}
+		return false
+	} else {
+		b := buf.findField(0x07) // Complete List of 128-bit Service Class UUIDs
+		if len(b) == 0 {
+			b = buf.findField(0x06) // Incomplete List of 128-bit Service Class UUIDs
+		}
+		uuidBuf1 := uuid.Bytes()
+		for i := 0; i < len(b)/16; i++ {
+			uuidBuf2 := b[i*16 : i*16+16]
+			match := true
+			for i, c := range uuidBuf1 {
+				if c != uuidBuf2[i] {
+					match = false
+					break
+				}
+			}
+			if match {
+				return true
+			}
+		}
+		return false
+	}
 }
 
 // addFromOptions constructs a new advertisement payload (assumed to be empty

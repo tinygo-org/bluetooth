@@ -36,6 +36,9 @@ func ParseMAC(s string) (mac MAC, err error) {
 		}
 		macIndex--
 	}
+	if macIndex != 0 {
+		err = errInvalidMAC
+	}
 	return
 }
 

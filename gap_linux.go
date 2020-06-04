@@ -154,12 +154,21 @@ func makeScanResult(dev *device.Device1) ScanResult {
 	// Assume the Address property is well-formed.
 	addr, _ := ParseMAC(dev.Properties.Address)
 
+	// Create a list of UUIDs.
+	var serviceUUIDs []UUID
+	for _, uuid := range dev.Properties.UUIDs {
+		// Assume the UUID is well-formed.
+		parsedUUID, _ := ParseUUID(uuid)
+		serviceUUIDs = append(serviceUUIDs, parsedUUID)
+	}
+
 	return ScanResult{
 		RSSI:    dev.Properties.RSSI,
 		Address: Address{addr, false}, // the 'IsRandom' bit is not supported
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
-				LocalName: dev.Properties.Name,
+				LocalName:    dev.Properties.Name,
+				ServiceUUIDs: serviceUUIDs,
 			},
 		},
 	}
