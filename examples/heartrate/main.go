@@ -18,7 +18,6 @@ func main() {
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName:    "Go HRS",
 		ServiceUUIDs: []bluetooth.UUID{bluetooth.New16BitUUID(0x2A37)},
-		Interval:     bluetooth.NewAdvertisementInterval(100 * time.Millisecond),
 	}))
 	must("start adv", adv.Start())
 

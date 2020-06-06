@@ -45,6 +45,14 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 
 // Configure this advertisement.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
+	// Fill empty options with reasonable defaults.
+	if options.Interval == 0 {
+		// Pick an advertisement interval recommended by Apple (section 35.5
+		// Advertising Interval):
+		// https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf
+		options.Interval = NewDuration(152500 * time.Microsecond) // 152.5ms
+	}
+
 	// Construct payload.
 	var payload rawAdvertisementPayload
 	if !payload.addFromOptions(options) {
@@ -87,8 +95,8 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	scanParams := C.ble_gap_scan_params_t{}
 	scanParams.set_bitfield_extended(0)
 	scanParams.set_bitfield_active(0)
-	scanParams.interval = uint16(NewAdvertisementInterval(100 * time.Millisecond))
-	scanParams.window = uint16(NewAdvertisementInterval(100 * time.Millisecond))
+	scanParams.interval = uint16(NewDuration(40 * time.Millisecond))
+	scanParams.window = uint16(NewDuration(30 * time.Millisecond))
 	scanParams.timeout = C.BLE_GAP_SCAN_TIMEOUT_UNLIMITED
 	scanReportBufferInfo := C.ble_data_t{
 		p_data: &scanReportBuffer.data[0],

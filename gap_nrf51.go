@@ -11,11 +11,14 @@ package bluetooth
 */
 import "C"
 
-import "runtime/volatile"
+import (
+	"runtime/volatile"
+	"time"
+)
 
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
-	interval      AdvertisementInterval
+	interval      Duration
 	isAdvertising volatile.Register8
 }
 
@@ -29,6 +32,14 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 
 // Configure this advertisement.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
+	// Fill empty options with reasonable defaults.
+	if options.Interval == 0 {
+		// Pick an advertisement interval recommended by Apple (section 35.5
+		// Advertising Interval):
+		// https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf
+		options.Interval = NewDuration(152500 * time.Microsecond) // 152.5ms
+	}
+
 	// Construct payload.
 	var payload rawAdvertisementPayload
 	if !payload.addFromOptions(options) {

@@ -23,20 +23,19 @@ type AdvertisementOptions struct {
 	// 128-bit UUIDs".
 	ServiceUUIDs []UUID
 
-	// Interval in BLE-specific units. Create an interval by using
-	// NewAdvertiseInterval.
-	Interval AdvertisementInterval
+	// Interval in BLE-specific units. Create an interval by using NewDuration.
+	Interval Duration
 }
 
-// AdvertisementInterval is the advertisement interval in 0.625µs units.
-type AdvertisementInterval uint32
+// Duration is the unit of time used in BLE, in 0.625µs units. This unit of time
+// is used throughout the BLE stack.
+type Duration uint16
 
-// NewAdvertisementInterval returns a new advertisement interval. Advertisement
-// intervals are in units of 0.625µs, so the precision will not be greater than
-// that.
-func NewAdvertisementInterval(interval time.Duration) AdvertisementInterval {
+// NewDuration returns a new Duration, in units of 0.625µs. It is used both for
+// advertisement intervals and for connection parameters.
+func NewDuration(interval time.Duration) Duration {
 	// Convert an interval to units of 0.625µs.
-	return AdvertisementInterval(uint64(interval / (625 * time.Microsecond)))
+	return Duration(uint64(interval / (625 * time.Microsecond)))
 }
 
 // Connection is a numeric identifier that indicates a connection handle.

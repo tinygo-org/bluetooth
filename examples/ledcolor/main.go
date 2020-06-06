@@ -25,7 +25,6 @@ func main() {
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName: "LED colors",
-		Interval:  bluetooth.NewAdvertisementInterval(100 * time.Millisecond),
 	}))
 	must("start adv", adv.Start())
 

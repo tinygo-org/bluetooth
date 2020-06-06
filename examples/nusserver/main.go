@@ -8,8 +8,6 @@ package main
 // Code to interact with a raw terminal is in separate files with build tags.
 
 import (
-	"time"
-
 	"github.com/tinygo-org/bluetooth"
 )
 
@@ -27,7 +25,6 @@ func main() {
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName:    "NUS", // Nordic UART Service
 		ServiceUUIDs: []bluetooth.UUID{serviceUUID},
-		Interval:     bluetooth.NewAdvertisementInterval(100 * time.Millisecond),
 	}))
 	must("start adv", adv.Start())
 
