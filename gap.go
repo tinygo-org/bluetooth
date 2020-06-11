@@ -54,8 +54,6 @@ type Address struct {
 	// random. Sometimes, it contains a hash.
 	// For more information:
 	// https://www.novelbits.io/bluetooth-address-privacy-ble/
-	//
-	// This field is unused under Windows and Linux.
 	IsRandom bool
 }
 

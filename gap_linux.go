@@ -163,8 +163,11 @@ func makeScanResult(dev *device.Device1) ScanResult {
 	}
 
 	return ScanResult{
-		RSSI:    dev.Properties.RSSI,
-		Address: Address{addr, false}, // the 'IsRandom' bit is not supported
+		RSSI: dev.Properties.RSSI,
+		Address: Address{
+			MAC:      addr,
+			IsRandom: dev.Properties.AddressType == "random",
+		},
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
 				LocalName:    dev.Properties.Name,

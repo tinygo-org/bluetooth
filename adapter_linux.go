@@ -1,5 +1,8 @@
 // +build !baremetal
 
+// Some documentation for the BlueZ D-Bus interface:
+// https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc
+
 package bluetooth
 
 import (
