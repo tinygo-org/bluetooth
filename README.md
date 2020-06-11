@@ -5,14 +5,17 @@
 
 This package attempts to build a cross-platform Bluetooth Low Energy module for Go. It currently supports the following systems:
 
-|                       | Windows            | Linux              | Nordic chips       |
-| --------------------- | ------------------ | ------------------ | ------------------ |
-| API used              | WinRT              | BlueZ (over D-Bus) | SoftDevice         |
-| Scanning              | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Advertisement         | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Local services        | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Local characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Send notifications    | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+|                                  | Windows            | Linux              | Nordic chips       |
+| -------------------------------- | ------------------ | ------------------ | ------------------ |
+| API used                         | WinRT              | BlueZ (over D-Bus) | SoftDevice         |
+| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Connect to peripheral            | :x:                | :x:                | :heavy_check_mark: |
+| Write peripheral characteristics | :x:                | :x:                | :heavy_check_mark: |
+| Receive notifications            | :x:                | :x:                | :heavy_check_mark: |
+| Advertisement                    | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Local services                   | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Local characteristics            | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Send notifications               | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 
 ## Baremetal support
 

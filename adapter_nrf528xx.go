@@ -8,6 +8,7 @@ package bluetooth
 #define SVCALL_AS_NORMAL_FUNCTION
 
 #include "nrf_sdm.h"
+#include "nrf_nvic.h"
 #include "ble.h"
 #include "ble_gap.h"
 
@@ -49,8 +50,32 @@ func handleEvent() {
 		gapEvent := eventBuf.evt.unionfield_gap_evt()
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
-			currentConnection.Reg = gapEvent.conn_handle
+			connectEvent := gapEvent.params.unionfield_connected()
+			switch connectEvent.role {
+			case C.BLE_GAP_ROLE_PERIPH:
+				if debug {
+					println("evt: connected in peripheral role")
+				}
+				currentConnection.Reg = gapEvent.conn_handle
+			case C.BLE_GAP_ROLE_CENTRAL:
+				if debug {
+					println("evt: connected in central role")
+				}
+				connectionAttempt.connectionHandle = gapEvent.conn_handle
+				connectionAttempt.state.Set(2) // connection was successful
+			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
+			if debug {
+				println("evt: disconnected")
+			}
+			// Clean up state for this connection.
+			for i, cb := range gattcNotificationCallbacks {
+				if cb.connectionHandle == currentConnection.Reg {
+					gattcNotificationCallbacks[i].valueHandle = 0 // 0 means invalid
+				}
+			}
+			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
+			// Auto-restart advertisement if needed.
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
 				// by the connection event.
@@ -60,7 +85,6 @@ func handleEvent() {
 				// necessary.
 				C.sd_ble_gap_adv_start(defaultAdvertisement.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 			}
-			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
 		case C.BLE_GAP_EVT_ADV_REPORT:
 			advReport := gapEvent.params.unionfield_adv_report()
 			if debug && &scanReportBuffer.data[0] != advReport.data.p_data {
@@ -124,6 +148,84 @@ func handleEvent() {
 		default:
 			if debug {
 				println("unknown GATTS event:", id, id-C.BLE_GATTS_EVT_BASE)
+			}
+		}
+	case id >= C.BLE_GATTC_EVT_BASE && id <= C.BLE_GATTC_EVT_LAST:
+		gattcEvent := eventBuf.evt.unionfield_gattc_evt()
+		switch id {
+		case C.BLE_GATTC_EVT_PRIM_SRVC_DISC_RSP:
+			discoveryEvent := gattcEvent.params.unionfield_prim_srvc_disc_rsp()
+			if debug {
+				println("evt: discovered primary service", discoveryEvent.count)
+			}
+			discoveringService.state.Set(2) // signal there is a result
+			if discoveryEvent.count >= 1 {
+				// Theoretically there may be more, but as we're only using
+				// sd_ble_gattc_primary_services_discover, there should only be
+				// one discovered service. Use the first as a sensible fallback.
+				discoveringService.startHandle.Set(discoveryEvent.services[0].handle_range.start_handle)
+				discoveringService.endHandle.Set(discoveryEvent.services[0].handle_range.end_handle)
+			} else {
+				// No service found.
+				discoveringService.startHandle.Set(0)
+			}
+		case C.BLE_GATTC_EVT_CHAR_DISC_RSP:
+			discoveryEvent := gattcEvent.params.unionfield_char_disc_rsp()
+			if debug {
+				println("evt: discovered characteristics", discoveryEvent.count)
+			}
+			if discoveryEvent.count >= 1 {
+				// There may be more, but for ease of implementing we only
+				// handle the first.
+				discoveringCharacteristic.handle_value.Set(discoveryEvent.chars[0].handle_value)
+				discoveringCharacteristic.char_props = discoveryEvent.chars[0].char_props
+				discoveringCharacteristic.uuid = discoveryEvent.chars[0].uuid
+			}
+		case C.BLE_GATTC_EVT_DESC_DISC_RSP:
+			discoveryEvent := gattcEvent.params.unionfield_desc_disc_rsp()
+			if debug {
+				println("evt: discovered descriptors", discoveryEvent.count)
+			}
+			if discoveryEvent.count >= 1 {
+				// There may be more, but for ease of implementing we only
+				// handle the first.
+				uuid := discoveryEvent.descs[0].uuid
+				if uuid._type == C.BLE_UUID_TYPE_BLE && uuid.uuid == 0x2902 {
+					// Found a CCCD (Client Characteristic Configuration
+					// Descriptor), which has a 16-bit UUID with value 0x2902).
+					discoveringCharacteristic.handle_value.Set(discoveryEvent.descs[0].handle)
+				} else {
+					// Found something else?
+					// TODO: handle this properly by continuing the scan. For
+					// now, give up if we found something other than a CCCD.
+					if debug {
+						println("  found some other descriptor (unimplemented)")
+					}
+				}
+			}
+		case C.BLE_GATTC_EVT_HVX:
+			hvxEvent := gattcEvent.params.unionfield_hvx()
+			switch hvxEvent._type {
+			case C.BLE_GATT_HVX_NOTIFICATION:
+				if debug {
+					println("evt: notification", hvxEvent.handle)
+				}
+				// Find the callback and call it (if there is any).
+				for _, callbackInfo := range gattcNotificationCallbacks {
+					if callbackInfo.valueHandle == hvxEvent.handle && callbackInfo.connectionHandle == gattcEvent.conn_handle {
+						// Create a Go slice from the data, to pass to the
+						// callback.
+						data := (*[255]byte)(unsafe.Pointer(&hvxEvent.data[0]))[:hvxEvent.len:hvxEvent.len]
+						if callbackInfo.callback != nil {
+							callbackInfo.callback(data)
+						}
+						break
+					}
+				}
+			}
+		default:
+			if debug {
+				println("unknown GATTC event:", id, id-C.BLE_GATTC_EVT_BASE)
 			}
 		}
 	default:

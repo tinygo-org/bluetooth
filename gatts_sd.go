@@ -66,10 +66,13 @@ func (a *Adapter) AddService(service *Service) error {
 			char.Handle.permissions = char.Flags
 		}
 		if char.Flags.Write() && char.WriteEvent != nil {
-			a.charWriteHandlers = append(a.charWriteHandlers, charWriteHandler{
+			handlers := append(a.charWriteHandlers, charWriteHandler{
 				handle:   handles.value_handle,
 				callback: char.WriteEvent,
 			})
+			mask := DisableInterrupts()
+			a.charWriteHandlers = handlers
+			RestoreInterrupts(mask)
 		}
 	}
 	return makeError(errCode)

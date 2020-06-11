@@ -96,3 +96,19 @@ func (a *Adapter) Enable() error {
 	errCode = C.sd_ble_gap_ppcp_set(&gapConnParams)
 	return makeError(errCode)
 }
+
+// DisableInterrupts must be used instead of disabling interrupts directly, to
+// play well with the SoftDevice. Restore interrupts to the previous state with
+// RestoreInterrupts.
+func DisableInterrupts() uintptr {
+	var is_nested_critical_region uint8
+	C.sd_nvic_critical_region_enter(&is_nested_critical_region)
+	return uintptr(is_nested_critical_region)
+}
+
+// RestoreInterrupts restores interrupts to the state before calling
+// DisableInterrupts. The mask parameter must be the value returned by
+// DisableInterrupts.
+func RestoreInterrupts(mask uintptr) {
+	C.sd_nvic_critical_region_exit(uint8(mask))
+}

@@ -7,4 +7,5 @@
 #define static
 
 #include "s110_nrf51_8.0.0/s110_nrf51_8.0.0_API/include/nrf_sdm.h"
+#include "s110_nrf51_8.0.0/s110_nrf51_8.0.0_API/include/nrf_soc.h"
 #include "s110_nrf51_8.0.0/s110_nrf51_8.0.0_API/include/ble.h"

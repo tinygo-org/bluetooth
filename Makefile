@@ -11,6 +11,8 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=reelboard-s140v7      ./examples/ledcolor
 	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/nusclient
+	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/nusserver
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/scanner
