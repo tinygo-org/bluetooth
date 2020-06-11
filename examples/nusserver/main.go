@@ -9,6 +9,7 @@ package main
 
 import (
 	"github.com/tinygo-org/bluetooth"
+	"github.com/tinygo-org/bluetooth/rawterm"
 )
 
 var (
@@ -38,12 +39,9 @@ func main() {
 				UUID:   rxUUID,
 				Flags:  bluetooth.CharacteristicWritePermission | bluetooth.CharacteristicWriteWithoutResponsePermission,
 				WriteEvent: func(client bluetooth.Connection, offset int, value []byte) {
+					txChar.Write(value)
 					for _, c := range value {
-						// TODO: echo these characters back.
-						putchar(c)
-						if c == '\r' {
-							putchar('\n')
-						}
+						rawterm.Putchar(c)
 					}
 				},
 			},
@@ -55,24 +53,20 @@ func main() {
 		},
 	}))
 
-	initTerminal()
-	defer restoreTerminal()
+	rawterm.Configure()
+	defer rawterm.Restore()
 	print("NUS console enabled, use Ctrl-X to exit\r\n")
 	var line []byte
 	for {
-		ch := getchar()
-		putchar(ch)
+		ch := rawterm.Getchar()
+		rawterm.Putchar(ch)
 		line = append(line, ch)
 
 		// Send the current line to the central.
 		if ch == '\x18' {
 			// The user pressed Ctrl-X, exit the terminal.
 			break
-		} else if ch == '\r' {
-			// Send another newline (consoles only seem to receive CR chars).
-			putchar('\n')
-			line = append(line, '\n')
-
+		} else if ch == '\n' {
 			sendbuf := line // copy buffer
 			// Reset the slice while keeping the buffer in place.
 			line = line[:0]
