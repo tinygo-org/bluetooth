@@ -3,8 +3,8 @@
 package bluetooth
 
 import (
+	"github.com/godbus/dbus/v5"
 	"github.com/muka/go-bluetooth/api"
-	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 	"github.com/muka/go-bluetooth/bluez/profile/advertising"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
@@ -68,9 +68,15 @@ func (a *Advertisement) Start() error {
 // possible some events are missed and perhaps even possible that some events
 // are duplicated.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
-	if a.cancelScan != nil {
+	if a.cancelChan != nil {
 		return errScanning
 	}
+
+	// Channel that will be closed when the scan is stopped.
+	// Detecting whether the scan is stopped can be done by doing a non-blocking
+	// read from it. If it succeeds, the scan is stopped.
+	cancelChan := make(chan struct{})
+	a.cancelChan = cancelChan
 
 	// This appears to be necessary to receive any BLE discovery results at all.
 	defer a.adapter.SetDiscoveryFilter(nil)
@@ -81,122 +87,142 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		return err
 	}
 
+	bus, err := dbus.SystemBus()
+	if err != nil {
+		return err
+	}
+
+	signal := make(chan *dbus.Signal)
+	bus.Signal(signal)
+	defer bus.RemoveSignal(signal)
+
+	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
+	bus.AddMatchSignal(propertiesChangedMatchOptions...)
+	defer bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
+
+	newObjectMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.ObjectManager")}
+	bus.AddMatchSignal(newObjectMatchOptions...)
+	defer bus.RemoveMatchSignal(newObjectMatchOptions...)
+
+	// Go through all connected devices and present the connected devices as
+	// scan results. Also save the properties so that the full list of
+	// properties is known on a PropertiesChanged signal. We can't present the
+	// list of cached devices as scan results as devices may be cached for a
+	// long time, long after they have moved out of range.
+	deviceList, err := a.adapter.GetDevices()
+	if err != nil {
+		return err
+	}
+	devices := make(map[dbus.ObjectPath]*device.Device1Properties)
+	for _, dev := range deviceList {
+		if dev.Properties.Connected {
+			callback(a, makeScanResult(dev.Properties))
+			select {
+			case <-cancelChan:
+				return nil
+			default:
+			}
+		}
+		devices[dev.Path()] = dev.Properties
+	}
+
 	// Instruct BlueZ to start discovering.
 	err = a.adapter.StartDiscovery()
 	if err != nil {
 		return err
 	}
 
-	// Listen for newly found devices.
-	discoveryChan, cancelChan, err := a.adapter.OnDeviceDiscovered()
-	if err != nil {
-		return err
-	}
-	a.cancelScan = cancelChan
-
-	// Obtain a list of cached devices to watch.
-	// BlueZ won't show advertisement data as it is discovered. Instead, it
-	// caches all the data and only produces events for changes. Worse: it
-	// doesn't seem to remove cached devices for a long time (3 minutes?) so
-	// simply reading the list of cached devices won't tell you what devices are
-	// actually around right now.
-	// Luckily, there is a workaround. When any value changes, you can be sure a
-	// new advertisement packet has been received. The RSSI value changes almost
-	// every time it seems so just watching property changes is enough to get a
-	// near-accurate view of the current state of the world around the listening
-	// device.
-	devices, err := a.adapter.GetDevices()
-	if err != nil {
-		return err
-	}
-	for _, dev := range devices {
-		a.startWatchingDevice(dev, callback)
-	}
-
-	// Iterate through new devices as they become visible.
-	for result := range discoveryChan {
-		if result.Type != adapter.DeviceAdded {
-			continue
+	for {
+		// Check whether the scan is stopped. This is necessary to avoid a race
+		// condition between the signal channel and the cancelScan channel when
+		// the callback calls StopScan() (no new callbacks may be called after
+		// StopScan is called).
+		select {
+		case <-cancelChan:
+			a.adapter.StopDiscovery()
+			return nil
+		default:
 		}
 
-		// We only got a DBus object path, so turn that into a Device1 object.
-		dev, err := device.NewDevice1(result.Path)
-		if err != nil || dev == nil {
+		select {
+		case sig := <-signal:
+			// This channel receives anything that we watch for, so we'll have
+			// to check for signals that are relevant to us.
+			switch sig.Name {
+			case "org.freedesktop.DBus.ObjectManager.InterfacesAdded":
+				objectPath := sig.Body[0].(dbus.ObjectPath)
+				interfaces := sig.Body[1].(map[string]map[string]dbus.Variant)
+				rawprops, ok := interfaces["org.bluez.Device1"]
+				if !ok {
+					continue
+				}
+				var props *device.Device1Properties
+				props, _ = props.FromDBusMap(rawprops)
+				devices[objectPath] = props
+				callback(a, makeScanResult(props))
+			case "org.freedesktop.DBus.Properties.PropertiesChanged":
+				interfaceName := sig.Body[0].(string)
+				if interfaceName != "org.bluez.Device1" {
+					continue
+				}
+				changes := sig.Body[1].(map[string]dbus.Variant)
+				props := devices[sig.Path]
+				for field, val := range changes {
+					switch field {
+					case "RSSI":
+						props.RSSI = val.Value().(int16)
+					case "Name":
+						props.Name = val.Value().(string)
+					case "UUIDs":
+						props.UUIDs = val.Value().([]string)
+					}
+				}
+				callback(a, makeScanResult(props))
+			}
+		case <-cancelChan:
 			continue
 		}
-
-		// Signal to the API client that a new device has been found.
-		callback(a, makeScanResult(dev))
-
-		// Start watching this new device for when there are property changes.
-		a.startWatchingDevice(dev, callback)
 	}
 
-	return nil
+	// unreachable
 }
 
 // StopScan stops any in-progress scan. It can be called from within a Scan
 // callback to stop the current scan. If no scan is in progress, an error will
 // be returned.
 func (a *Adapter) StopScan() error {
-	if a.cancelScan == nil {
+	if a.cancelChan == nil {
 		return errNotScanning
 	}
-	a.adapter.StopDiscovery()
-	cancel := a.cancelScan
-	a.cancelScan = nil
-	cancel()
+	close(a.cancelChan)
+	a.cancelChan = nil
 	return nil
 }
 
 // makeScanResult creates a ScanResult from a Device1 object.
-func makeScanResult(dev *device.Device1) ScanResult {
+func makeScanResult(props *device.Device1Properties) ScanResult {
 	// Assume the Address property is well-formed.
-	addr, _ := ParseMAC(dev.Properties.Address)
+	addr, _ := ParseMAC(props.Address)
 
 	// Create a list of UUIDs.
 	var serviceUUIDs []UUID
-	for _, uuid := range dev.Properties.UUIDs {
+	for _, uuid := range props.UUIDs {
 		// Assume the UUID is well-formed.
 		parsedUUID, _ := ParseUUID(uuid)
 		serviceUUIDs = append(serviceUUIDs, parsedUUID)
 	}
 
 	return ScanResult{
-		RSSI: dev.Properties.RSSI,
+		RSSI: props.RSSI,
 		Address: Address{
 			MAC:      addr,
-			IsRandom: dev.Properties.AddressType == "random",
+			IsRandom: props.AddressType == "random",
 		},
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
-				LocalName:    dev.Properties.Name,
+				LocalName:    props.Name,
 				ServiceUUIDs: serviceUUIDs,
 			},
 		},
 	}
-}
-
-// startWatchingDevice starts watching for property changes in the device.
-// Errors are ignored (for example, if watching the device failed).
-// The dev object will be owned by the function and will be modified as
-// properties change.
-func (a *Adapter) startWatchingDevice(dev *device.Device1, callback func(*Adapter, ScanResult)) {
-	ch, err := dev.WatchProperties()
-	if err != nil {
-		// Assume the device has disappeared or something.
-		return
-	}
-	go func() {
-		for change := range ch {
-			// Update the device with the changed property.
-			props, _ := dev.Properties.ToMap()
-			props[change.Name] = change.Value
-			dev.Properties, _ = dev.Properties.FromMap(props)
-
-			// Signal to the API client that a property changed, as if this was
-			// an incoming BLE advertisement packet.
-			callback(a, makeScanResult(dev))
-		}
-	}()
 }

@@ -13,7 +13,7 @@ import (
 type Adapter struct {
 	adapter              *adapter.Adapter1
 	id                   string
-	cancelScan           func()
+	cancelChan           chan struct{}
 	defaultAdvertisement *Advertisement
 }
 
