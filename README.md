@@ -9,9 +9,9 @@ This package attempts to build a cross-platform Bluetooth Low Energy module for 
 | -------------------------------- | ------------------ | ------------------ | ------------------ |
 | API used                         | WinRT              | BlueZ (over D-Bus) | SoftDevice         |
 | Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Connect to peripheral            | :x:                | :x:                | :heavy_check_mark: |
-| Write peripheral characteristics | :x:                | :x:                | :heavy_check_mark: |
-| Receive notifications            | :x:                | :x:                | :heavy_check_mark: |
+| Connect to peripheral            | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Write peripheral characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Receive notifications            | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Advertisement                    | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Local services                   | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 | Local characteristics            | :x:                | :heavy_check_mark: | :heavy_check_mark: |

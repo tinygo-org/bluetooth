@@ -3,6 +3,8 @@
 package bluetooth
 
 import (
+	"strings"
+
 	"github.com/godbus/dbus/v5"
 	"github.com/muka/go-bluetooth/api"
 	"github.com/muka/go-bluetooth/bluez/profile/advertising"
@@ -225,4 +227,33 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 			},
 		},
 	}
+}
+
+// Device is a connection to a remote peripheral.
+type Device struct {
+	device *device.Device1
+}
+
+// Connect starts a connection attempt to the given peripheral device address.
+//
+// On Linux and Windows, the IsRandom part of the address is ignored.
+func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
+	dev, err := device.NewDevice1(devicePath)
+	if err != nil {
+		return nil, err
+	}
+
+	if !dev.Properties.Connected {
+		// Not yet connected, so do it now.
+		// The properties have just been read so this is fresh data.
+		err := dev.Connect()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &Device{
+		device: dev,
+	}, nil
 }
