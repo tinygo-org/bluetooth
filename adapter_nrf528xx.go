@@ -24,10 +24,10 @@ func assertHandler() {
 }
 
 var clockConfig C.nrf_clock_lf_cfg_t = C.nrf_clock_lf_cfg_t{
-	source:       C.NRF_CLOCK_LF_SRC_SYNTH,
-	rc_ctiv:      0,
-	rc_temp_ctiv: 0,
-	accuracy:     0,
+	source:       C.NRF_CLOCK_LF_SRC_RC,
+	rc_ctiv:      16,
+	rc_temp_ctiv: 2,
+	accuracy:     C.NRF_CLOCK_LF_ACCURACY_500_PPM,
 }
 
 func (a *Adapter) enable() error {
