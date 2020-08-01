@@ -16,23 +16,30 @@ void assertHandler(void);
 */
 import "C"
 
-import "unsafe"
+import (
+	"machine"
+	"unsafe"
+)
 
 //export assertHandler
 func assertHandler() {
 	println("SoftDevice assert")
 }
 
-var clockConfig C.nrf_clock_lf_cfg_t = C.nrf_clock_lf_cfg_t{
-	source:       C.NRF_CLOCK_LF_SRC_RC,
-	rc_ctiv:      16,
-	rc_temp_ctiv: 2,
-	accuracy:     C.NRF_CLOCK_LF_ACCURACY_500_PPM,
+var clockConfigXtal C.nrf_clock_lf_cfg_t = C.nrf_clock_lf_cfg_t{
+	source:       C.NRF_CLOCK_LF_SRC_XTAL,
+	rc_ctiv:      0,
+	rc_temp_ctiv: 0,
+	accuracy:     C.NRF_CLOCK_LF_ACCURACY_250_PPM,
 }
 
 func (a *Adapter) enable() error {
 	// Enable the SoftDevice.
-	errCode := C.sd_softdevice_enable(&clockConfig, C.nrf_fault_handler_t(C.assertHandler))
+	var clockConfig *C.nrf_clock_lf_cfg_t
+	if machine.HasLowFrequencyCrystal {
+		clockConfig = &clockConfigXtal
+	}
+	errCode := C.sd_softdevice_enable(clockConfig, C.nrf_fault_handler_t(C.assertHandler))
 	if errCode != 0 {
 		return Error(errCode)
 	}
