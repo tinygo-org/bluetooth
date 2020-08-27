@@ -35,3 +35,7 @@ smoketest-linux:
 smoketest-windows:
 	# Test on Windows.
 	GOOS=windows CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o /tmp/go-build-discard ./examples/scanner
+
+smoketest-macos:
+	# Test on macos.
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/scanner
