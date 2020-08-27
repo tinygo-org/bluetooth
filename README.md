@@ -5,17 +5,17 @@
 
 This package attempts to build a cross-platform Bluetooth Low Energy module for Go. It currently supports the following systems:
 
-|                                  | Windows            | Linux              | Nordic chips       |
-| -------------------------------- | ------------------ | ------------------ | ------------------ |
-| API used                         | WinRT              | BlueZ (over D-Bus) | SoftDevice         |
-| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Connect to peripheral            | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Write peripheral characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Receive notifications            | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Advertisement                    | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Local services                   | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Local characteristics            | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Send notifications               | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+|                                  | Windows            | Linux              | Nordic chips       | macOS              |
+| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ |
+| API used                         | WinRT              | BlueZ (over D-Bus) | SoftDevice         | CoreBluetooth      |
+| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Connect to peripheral            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Write peripheral characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Receive notifications            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Advertisement                    | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Local services                   | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Local characteristics            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Send notifications               | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 
 ## Baremetal support
 
