@@ -47,8 +47,9 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 		var result ScanResult
 		result.RSSI = args.RawSignalStrengthInDBm()
 		addr := args.BluetoothAddress()
-		for i := range result.Address.MAC {
-			result.Address.MAC[i] = byte(addr)
+		adr := result.Address.(Address)
+		for i := range adr.MAC {
+			adr.MAC[i] = byte(addr)
 			addr >>= 8
 		}
 		// Note: the IsRandom bit is never set.
