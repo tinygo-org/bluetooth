@@ -1,4 +1,4 @@
-version: 2
+version: 2.1
 
 jobs:
   build:
@@ -22,3 +22,24 @@ jobs:
       - run:
           name: "Run Windows smoke tests"
           command: make smoketest-windows
+  build-macos:
+    macos:
+      xcode: "10.1.0"
+    steps:
+      - checkout
+      - run:
+          name: "Install dependencies"
+          command: |
+            curl https://dl.google.com/go/go1.14.darwin-amd64.tar.gz -o go1.14.darwin-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go1.14.darwin-amd64.tar.gz
+            ln -s /usr/local/go/bin/go /usr/local/bin/go
+      - run: go version
+      - run:
+          name: "Run macOS smoke tests"
+          command: make smoketest-macos
+
+workflows:
+  test-all:
+    jobs:
+      - build
+      - build-macos
