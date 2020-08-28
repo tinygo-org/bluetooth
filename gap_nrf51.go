@@ -16,6 +16,29 @@ import (
 	"time"
 )
 
+// Address contains a Bluetooth address, which is a MAC address plus some extra
+// information.
+type Address struct {
+	// The MAC address of a Bluetooth device.
+	MAC
+	isRandom bool
+}
+
+// IsRandom if the address is randomly created.
+func (ad Address) IsRandom() bool {
+	return ad.isRandom
+}
+
+// SetRandom if is a random address.
+func (ad Address) SetRandom(val bool) {
+	ad.isRandom = val
+}
+
+// Set the address
+func (ad Address) Set(val interface{}) {
+	ad.MAC = val.(MAC)
+}
+
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
 	interval      Duration

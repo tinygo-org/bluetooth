@@ -36,6 +36,7 @@ func (a *Adapter) Enable() error {
 
 // CentralManager delegate functions
 
+// CentralManagerDidUpdateState when central manager state updated.
 func (a *Adapter) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
 }
 
@@ -88,15 +89,16 @@ func (a *Adapter) CentralDidUnsubscribe(pmgr cbgo.PeripheralManager, cent cbgo.C
 
 // makeScanResult creates a ScanResult when peripheral is found.
 func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) ScanResult {
-	// TODO: figure out the peripheral info.
+	var u [16]byte
+	copy(u[:], prph.Identifier())
+	uuid := NewUUID(u)
 
 	// TODO: create a list of serviceUUIDs.
 
 	return ScanResult{
-		RSSI:    int16(rssi),
+		RSSI: int16(rssi),
 		Address: Address{
-			// TODO: fill in this info
-			//MAC:      prph.Identifier(),
+			UUID: uuid,
 			//IsRandom: prph.Identifier == "random",
 		},
 		AdvertisementPayload: &advertisementFields{
