@@ -6,6 +6,30 @@ import (
 	"github.com/JuulLabs-OSS/cbgo"
 )
 
+// Address contains a Bluetooth address, which is a MAC address plus some extra
+// information.
+type Address struct {
+	// UUID if this is macOS.
+	UUID
+
+	isRandom bool
+}
+
+// IsRandom if the address is randomly created.
+func (ad Address) IsRandom() bool {
+	return ad.isRandom
+}
+
+// SetRandom if is a random address.
+func (ad Address) SetRandom(val bool) {
+	ad.isRandom = val
+}
+
+// Set the address
+func (ad Address) Set(val interface{}) {
+	ad.UUID = val.(UUID)
+}
+
 // Scan starts a BLE scan. It is stopped by a call to StopScan. A common pattern
 // is to cancel the scan when a particular device has been found.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {

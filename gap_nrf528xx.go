@@ -27,6 +27,29 @@ var (
 	globalScanResult ScanResult
 )
 
+// Address contains a Bluetooth address, which is a MAC address plus some extra
+// information.
+type Address struct {
+	// The MAC address of a Bluetooth device.
+	MAC
+	isRandom bool
+}
+
+// IsRandom if the address is randomly created.
+func (ad Address) IsRandom() bool {
+	return ad.isRandom
+}
+
+// SetRandom if is a random address.
+func (ad Address) SetRandom(val bool) {
+	ad.isRandom = val
+}
+
+// Set the address
+func (ad Address) Set(val interface{}) {
+	ad.MAC = val.(MAC)
+}
+
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
 	handle        uint8
@@ -169,12 +192,13 @@ var connectionAttempt struct {
 // connection attempt at once and that the address parameter must have the
 // IsRandom bit set correctly. This bit is set correctly for scan results, so
 // you can reuse that address directly.
-func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, error) {
+	adr := address.(Address)
 	// Construct an address object as used in the SoftDevice.
 	var addr C.ble_gap_addr_t
-	addr.addr = address.MAC
-	if address.IsRandom {
-		switch address.MAC[5] >> 6 {
+	addr.addr = adr.MAC
+	if address.IsRandom() {
+		switch adr.MAC[5] >> 6 {
 		case 0b11:
 			addr.set_bitfield_addr_type(C.BLE_GAP_ADDR_TYPE_RANDOM_STATIC)
 		case 0b01:

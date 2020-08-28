@@ -41,11 +41,14 @@ func NewDuration(interval time.Duration) Duration {
 // Connection is a numeric identifier that indicates a connection handle.
 type Connection uint16
 
-// Address contains a Bluetooth address, which is a MAC address plus some extra
+// Addresser contains a Bluetooth address, which is a MAC address plus some extra
 // information.
-type Address struct {
-	// The MAC address of a Bluetooth device.
-	MAC
+type Addresser interface {
+	// String of the address
+	String() string
+
+	// Set the address
+	Set(val interface{})
 
 	// Is this address a random address?
 	// Bluetooth addresses are roughly split in two kinds: public
@@ -54,14 +57,16 @@ type Address struct {
 	// random. Sometimes, it contains a hash.
 	// For more information:
 	// https://www.novelbits.io/bluetooth-address-privacy-ble/
-	IsRandom bool
+	// Set the address
+	SetRandom(bool)
+	IsRandom() bool
 }
 
 // ScanResult contains information from when an advertisement packet was
 // received. It is passed as a parameter to the callback of the Scan method.
 type ScanResult struct {
 	// Bluetooth address of the scanned device.
-	Address Address
+	Address Addresser
 
 	// RSSI the last time a packet from this device has been received.
 	RSSI int16

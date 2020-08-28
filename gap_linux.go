@@ -11,6 +11,29 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
 
+// Address contains a Bluetooth address, which is a MAC address plus some extra
+// information.
+type Address struct {
+	// The MAC address of a Bluetooth device.
+	MAC
+	isRandom bool
+}
+
+// IsRandom if the address is randomly created.
+func (ad Address) IsRandom() bool {
+	return ad.isRandom
+}
+
+// SetRandom if is a random address.
+func (ad Address) SetRandom(val bool) {
+	ad.isRandom = val
+}
+
+// Set the address
+func (ad Address) Set(val interface{}) {
+	ad.MAC = val.(MAC)
+}
+
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
 	adapter       *Adapter
@@ -218,7 +241,7 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 		RSSI: props.RSSI,
 		Address: Address{
 			MAC:      addr,
-			IsRandom: props.AddressType == "random",
+			isRandom: props.AddressType == "random",
 		},
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
@@ -237,8 +260,9 @@ type Device struct {
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // On Linux and Windows, the IsRandom part of the address is ignored.
-func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
-	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
+func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, error) {
+	adr := address.(Address)
+	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(adr.MAC.String(), ":", "_", -1))
 	dev, err := device.NewDevice1(devicePath)
 	if err != nil {
 		return nil, err
