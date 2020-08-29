@@ -81,7 +81,11 @@ func (a *Adapter) StopScan() error {
 type Device struct {
 	cbgo.PeripheralDelegateBase
 
-	cm cbgo.CentralManager
+	cm   cbgo.CentralManager
+	prph cbgo.Peripheral
+
+	servicesChan chan error
+	charsChan    chan error
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -101,7 +105,10 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 	select {
 	case p := <-a.connectChan:
 		d := &Device{
-			cm: a.cm,
+			cm:           a.cm,
+			prph:         p,
+			servicesChan: make(chan error),
+			charsChan:    make(chan error),
 		}
 
 		p.SetDelegate(d)
@@ -111,23 +118,27 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 	}
 }
 
+// Peripheral returns the Device's cbgo.Peripheral
+func (d *Device) Peripheral() (prph cbgo.Peripheral) {
+	return d.prph
+}
+
+// CharsChan returns the Device's charsChan channel used for
+// blocking on discovering the characteristics for a service.
+func (d *Device) CharsChan() chan error {
+	return d.charsChan
+}
+
 // Peripheral delegate functions
 
+// DidDiscoverServices is called when the services for a Peripheral
+// have been discovered.
 func (d *Device) DidDiscoverServices(prph cbgo.Peripheral, err error) {
+	d.servicesChan <- nil
 }
+
+// DidDiscoverCharacteristics is called when the characteristics for a Service
+// for a Peripheral have been discovered.
 func (d *Device) DidDiscoverCharacteristics(prph cbgo.Peripheral, svc cbgo.Service, err error) {
-}
-func (d *Device) DidDiscoverDescriptors(prph cbgo.Peripheral, chr cbgo.Characteristic, err error) {
-}
-func (d *Device) DidUpdateValueForCharacteristic(prph cbgo.Peripheral, chr cbgo.Characteristic, err error) {
-}
-func (d *Device) DidUpdateValueForDescriptor(prph cbgo.Peripheral, dsc cbgo.Descriptor, err error) {
-}
-func (d *Device) DidWriteValueForCharacteristic(prph cbgo.Peripheral, chr cbgo.Characteristic, err error) {
-}
-func (d *Device) DidWriteValueForDescriptor(prph cbgo.Peripheral, dsc cbgo.Descriptor, err error) {
-}
-func (d *Device) DidUpdateNotificationState(prph cbgo.Peripheral, chr cbgo.Characteristic, err error) {
-}
-func (d *Device) DidReadRSSI(prph cbgo.Peripheral, rssi int, err error) {
+	d.charsChan <- nil
 }
