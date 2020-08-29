@@ -9,8 +9,8 @@ import (
 
 // Adapter is a connection to BLE devices.
 type Adapter struct {
-	cbgo.CentralManagerDelegateBase
-	cbgo.PeripheralManagerDelegateBase
+	cmd *centralManagerDelegate
+	pmd *peripheralManagerDelegate
 
 	cm cbgo.CentralManager
 	pm cbgo.PeripheralManager
@@ -39,7 +39,9 @@ func (a *Adapter) Enable() error {
 
 	// wait until powered
 	a.poweredChan = make(chan error)
-	a.cm.SetDelegate(a)
+
+	a.cmd = &centralManagerDelegate{a: a}
+	a.cm.SetDelegate(a.cmd)
 	select {
 	case <-a.poweredChan:
 	case <-time.NewTimer(10 * time.Second).C:
@@ -48,36 +50,43 @@ func (a *Adapter) Enable() error {
 	a.poweredChan = nil
 
 	// wait until powered?
-	//a.pm.SetDelegate(a)
+	a.pmd = &peripheralManagerDelegate{a: a}
+	a.pm.SetDelegate(a.pmd)
 
 	return nil
 }
 
 // CentralManager delegate functions
 
+type centralManagerDelegate struct {
+	cbgo.CentralManagerDelegateBase
+
+	a *Adapter
+}
+
 // CentralManagerDidUpdateState when central manager state updated.
-func (a *Adapter) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
+func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
 	// powered on?
 	if cmgr.State() == cbgo.ManagerStatePoweredOn {
-		close(a.poweredChan)
+		close(cmd.a.poweredChan)
 	}
 
 	// TODO: handle other state changes.
 }
 
 // DidDiscoverPeripheral when peripheral is discovered.
-func (a *Adapter) DidDiscoverPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral,
+func (cmd *centralManagerDelegate) DidDiscoverPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral,
 	advFields cbgo.AdvFields, rssi int) {
-	if a.peripheralFoundHandler != nil {
+	if cmd.a.peripheralFoundHandler != nil {
 		sr := makeScanResult(prph, advFields, rssi)
-		a.peripheralFoundHandler(a, sr)
+		cmd.a.peripheralFoundHandler(cmd.a, sr)
 	}
 }
 
 // DidConnectPeripheral when peripheral is connected.
-func (a *Adapter) DidConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral) {
+func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral) {
 	// Unblock now that we're connected.
-	a.connectChan <- prph
+	cmd.a.connectChan <- prph
 }
 
 // makeScanResult creates a ScanResult when peripheral is found.
@@ -103,4 +112,12 @@ func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) Sc
 			},
 		},
 	}
+}
+
+// PeripheralManager delegate functions
+
+type peripheralManagerDelegate struct {
+	cbgo.PeripheralManagerDelegateBase
+
+	a *Adapter
 }
