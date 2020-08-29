@@ -1,6 +1,6 @@
 # Go Bluetooth
 
-[![CircleCI](https://circleci.com/gh/tinygo-org/bluetooth/tree/master.svg?style=svg)](https://circleci.com/gh/tinygo-org/bluetooth/tree/master)
+[![CircleCI](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev)
 [![GoDoc](https://godoc.org/github.com/tinygo-org/bluetooth?status.svg)](https://godoc.org/github.com/tinygo-org/bluetooth)
 
 This package attempts to build a cross-platform Bluetooth Low Energy module for Go. It currently supports the following systems:
@@ -11,7 +11,7 @@ This package attempts to build a cross-platform Bluetooth Low Energy module for 
 | Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Connect to peripheral            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Write peripheral characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Receive notifications            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Receive notifications            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Advertisement                    | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | Local services                   | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
 | Local characteristics            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
@@ -52,7 +52,7 @@ Flashing will then need to be done a bit differently, using the CMSIS-DAP interf
 
 ## API stability
 
-**The API is not stable!** Because many features are not yet implemented and some platforms (e.g. MacOS) are not yet supported, it's hard to say what a good API will be. Therefore, if you want stability you should pick a particular git commit and use that. Go modules can be useful for this purpose.
+**The API is not stable!** Because many features are not yet implemented and some platforms (e.g. Windows and macOS) are not yet fully supported, it's hard to say what a good API will be. Therefore, if you want stability you should pick a particular git commit and use that. Go modules can be useful for this purpose.
 
 Some things that will probably change:
 

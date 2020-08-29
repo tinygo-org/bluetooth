@@ -85,6 +85,9 @@ type Device struct {
 
 	servicesChan chan error
 	charsChan    chan error
+
+	services        map[UUID]*DeviceService
+	characteristics map[UUID]*DeviceCharacteristic
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -142,5 +145,10 @@ func (pd *peripheralDelegate) DidDiscoverCharacteristics(prph cbgo.Peripheral, s
 // DidUpdateValueForCharacteristic is called when the characteristic for a Service
 // for a Peripheral receives a notification with a new value.
 func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripheral, chr cbgo.Characteristic, err error) {
-	// TODO: implement this
+	uuid, _ := ParseUUID(chr.UUID().String())
+	if char, ok := pd.d.characteristics[uuid]; ok {
+		if char != nil && char.callback != nil {
+			go char.callback(chr.Value())
+		}
+	}
 }
