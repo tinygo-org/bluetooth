@@ -11,27 +11,9 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
 
-// Address contains a Bluetooth address, which is a MAC address plus some extra
-// information.
+// Address contains a Bluetooth MAC address.
 type Address struct {
-	// The MAC address of a Bluetooth device.
-	MAC
-	isRandom bool
-}
-
-// IsRandom if the address is randomly created.
-func (ad Address) IsRandom() bool {
-	return ad.isRandom
-}
-
-// SetRandom if is a random address.
-func (ad Address) SetRandom(val bool) {
-	ad.isRandom = val
-}
-
-// Set the address
-func (ad Address) Set(val interface{}) {
-	ad.MAC = val.(MAC)
+	MACAddress
 }
 
 // Advertisement encapsulates a single advertisement instance.
@@ -237,12 +219,13 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 		serviceUUIDs = append(serviceUUIDs, parsedUUID)
 	}
 
+	a := Address{}
+	a.Set(addr)
+	a.SetRandom(props.AddressType == "random")
+
 	return ScanResult{
-		RSSI: props.RSSI,
-		Address: Address{
-			MAC:      addr,
-			isRandom: props.AddressType == "random",
-		},
+		RSSI:    props.RSSI,
+		Address: a,
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
 				LocalName:    props.Name,
