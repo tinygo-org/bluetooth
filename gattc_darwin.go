@@ -48,11 +48,6 @@ type DeviceService struct {
 	service cbgo.Service
 }
 
-// Device returns the Device for this service.
-func (s *DeviceService) Device() *Device {
-	return s.device
-}
-
 // DiscoverCharacteristics discovers characteristics in this service. Pass a
 // list of characteristic UUIDs you are interested in to this function. Either a
 // list of all requested services is returned, or if some services could not be
@@ -66,11 +61,11 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		cbuuids = append(cbuuids, uuid)
 	}
 
-	s.Device().Peripheral().DiscoverCharacteristics(cbuuids, s.service)
+	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
 	// wait on channel for characteristic discovery
 	select {
-	case <-s.Device().CharsChan():
+	case <-s.device.charsChan:
 		chars := []DeviceCharacteristic{}
 		for _, dchar := range s.service.Characteristics() {
 			uuid, _ := ParseUUID(dchar.UUID().String())
@@ -103,7 +98,7 @@ type DeviceCharacteristic struct {
 // writes can be in flight at any given time. This call is also known as a
 // "write command" (as opposed to a write request).
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
-	c.service.Device().Peripheral().WriteCharacteristic(p, c.characteristic, false)
+	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
 }
@@ -116,6 +111,9 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	if callback == nil {
 		return errors.New("must provide a callback for EnableNotifications")
 	}
+
+	c.callback = callback
+	c.service.device.prph.SetNotify(true, c.characteristic)
 
 	return nil
 }

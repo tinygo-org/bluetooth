@@ -78,7 +78,7 @@ func (a *Adapter) StopScan() error {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	cbgo.PeripheralDelegateBase
+	delegate *peripheralDelegate
 
 	cm   cbgo.CentralManager
 	prph cbgo.Peripheral
@@ -110,34 +110,37 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 			charsChan:    make(chan error),
 		}
 
-		p.SetDelegate(d)
+		d.delegate = &peripheralDelegate{d: d}
+		p.SetDelegate(d.delegate)
+
 		return d, nil
 	case <-time.NewTimer(10 * time.Second).C:
 		return nil, errors.New("timeout on Connect")
 	}
 }
 
-// Peripheral returns the Device's cbgo.Peripheral
-func (d *Device) Peripheral() (prph cbgo.Peripheral) {
-	return d.prph
-}
-
-// CharsChan returns the Device's charsChan channel used for
-// blocking on discovering the characteristics for a service.
-func (d *Device) CharsChan() chan error {
-	return d.charsChan
-}
-
 // Peripheral delegate functions
+
+type peripheralDelegate struct {
+	cbgo.PeripheralDelegateBase
+
+	d *Device
+}
 
 // DidDiscoverServices is called when the services for a Peripheral
 // have been discovered.
-func (d *Device) DidDiscoverServices(prph cbgo.Peripheral, err error) {
-	d.servicesChan <- nil
+func (pd *peripheralDelegate) DidDiscoverServices(prph cbgo.Peripheral, err error) {
+	pd.d.servicesChan <- nil
 }
 
 // DidDiscoverCharacteristics is called when the characteristics for a Service
 // for a Peripheral have been discovered.
-func (d *Device) DidDiscoverCharacteristics(prph cbgo.Peripheral, svc cbgo.Service, err error) {
-	d.charsChan <- nil
+func (pd *peripheralDelegate) DidDiscoverCharacteristics(prph cbgo.Peripheral, svc cbgo.Service, err error) {
+	pd.d.charsChan <- nil
+}
+
+// DidUpdateValueForCharacteristic is called when the characteristic for a Service
+// for a Peripheral receives a notification with a new value.
+func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripheral, chr cbgo.Characteristic, err error) {
+	// TODO: implement this
 }
