@@ -4,27 +4,9 @@ import (
 	"github.com/tinygo-org/bluetooth/winbt"
 )
 
-// Address contains a Bluetooth address, which is a MAC address plus some extra
-// information.
+// Address contains a Bluetooth MAC address.
 type Address struct {
-	// The MAC address of a Bluetooth device.
-	MAC
-	isRandom bool
-}
-
-// IsRandom if the address is randomly created.
-func (ad Address) IsRandom() bool {
-	return ad.isRandom
-}
-
-// SetRandom if is a random address.
-func (ad Address) SetRandom(val bool) {
-	ad.isRandom = val
-}
-
-// Set the address
-func (ad Address) Set(val interface{}) {
-	ad.MAC = val.(MAC)
+	MACAddress
 }
 
 // Scan starts a BLE scan. It is stopped by a call to StopScan. A common pattern

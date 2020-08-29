@@ -11,6 +11,28 @@ var (
 	errAdvertisementPacketTooBig = errors.New("bluetooth: advertisement packet overflows")
 )
 
+// MACAddress contains a Bluetooth address which is a MAC address.
+type MACAddress struct {
+	// MAC address of the Bluetooth device.
+	MAC
+	isRandom bool
+}
+
+// IsRandom if the address is randomly created.
+func (mac MACAddress) IsRandom() bool {
+	return mac.isRandom
+}
+
+// SetRandom if is a random address.
+func (mac MACAddress) SetRandom(val bool) {
+	mac.isRandom = val
+}
+
+// Set the address
+func (mac MACAddress) Set(val interface{}) {
+	mac.MAC = val.(MAC)
+}
+
 // AdvertisementOptions configures an advertisement instance. More options may
 // be added over time.
 type AdvertisementOptions struct {

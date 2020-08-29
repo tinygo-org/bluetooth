@@ -8,8 +8,7 @@ import (
 	"github.com/JuulLabs-OSS/cbgo"
 )
 
-// Address contains a Bluetooth address, which on macOS instead of a MAC address
-// is instead a UUID.
+// Address contains a Bluetooth address which on macOS is a UUID.
 type Address struct {
 	// UUID since this is macOS.
 	UUID
