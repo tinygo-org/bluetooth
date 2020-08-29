@@ -20,6 +20,9 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 	d.prph.DiscoverServices(cbuuids)
 
+	// clear cache of services
+	d.services = make(map[UUID]*DeviceService)
+
 	// wait on channel for service discovery
 	select {
 	case <-d.servicesChan:
@@ -32,6 +35,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 				service: dsvc,
 			}
 			svcs = append(svcs, svc)
+			d.services[svc.UUID] = &svc
 		}
 		return svcs, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -63,6 +67,9 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
+	// clear cache of characteristics
+	s.device.characteristics = make(map[UUID]*DeviceCharacteristic)
+
 	// wait on channel for characteristic discovery
 	select {
 	case <-s.device.charsChan:
@@ -75,6 +82,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 				characteristic: dchar,
 			}
 			chars = append(chars, char)
+			s.device.characteristics[char.UUID] = &char
 		}
 		return chars, nil
 	case <-time.NewTimer(10 * time.Second).C:
