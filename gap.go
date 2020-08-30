@@ -15,6 +15,7 @@ var (
 type MACAddress struct {
 	// MAC address of the Bluetooth device.
 	MAC
+
 	isRandom bool
 }
 
@@ -30,7 +31,8 @@ func (mac MACAddress) SetRandom(val bool) {
 
 // Set the address
 func (mac MACAddress) Set(val interface{}) {
-	mac.MAC = val.(MAC)
+	m := val.(MAC)
+	mac.MAC = m
 }
 
 // AdvertisementOptions configures an advertisement instance. More options may
