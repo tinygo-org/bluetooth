@@ -219,7 +219,7 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 		serviceUUIDs = append(serviceUUIDs, parsedUUID)
 	}
 
-	a := &Address{MACAddress{MAC: addr}}
+	a := Address{MACAddress{MAC: addr}}
 	a.SetRandom(props.AddressType == "random")
 
 	return ScanResult{
