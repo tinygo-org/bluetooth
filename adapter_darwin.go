@@ -99,7 +99,8 @@ func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) Sc
 		serviceUUIDs = append(serviceUUIDs, parsedUUID)
 	}
 
-	// It is never a random address on macOS.
+	// Peripheral UUID is randomized on macOS, which means to
+	// different centrals it will appear to have a different UUID.
 	return ScanResult{
 		RSSI: int16(rssi),
 		Address: Address{
