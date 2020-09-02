@@ -23,8 +23,7 @@ type DeviceService struct {
 // is returned (of the same length as the requested UUIDs and in the same
 // order), or if some services could not be discovered an error is returned.
 //
-// Passing a nil slice of UUIDs will currently result in zero services being
-// returned, but this may be changed in the future to return a complete list of
+// Passing a nil slice of UUIDs will return a complete list of
 // services.
 //
 // On Linux with BlueZ, this just waits for the ServicesResolved signal (if
@@ -42,7 +41,8 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	services := make([]DeviceService, len(uuids))
+	services := []DeviceService{}
+	uuidServices := make(map[string]string)
 	servicesFound := 0
 
 	// Iterate through all objects managed by BlueZ, hoping to find the services
@@ -67,24 +67,38 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		if err != nil {
 			return nil, err
 		}
-		for i, uuid := range uuids {
-			if service.Properties.UUID != uuid.String() {
-				// Not one of the services we're looking for.
+
+		if len(uuids) > 0 {
+			found := false
+			for _, uuid := range uuids {
+				if service.Properties.UUID == uuid.String() {
+					// One of the services we're looking for.
+					found = true
+					break
+				}
+			}
+			if !found {
 				continue
 			}
-			if services[i].service != nil {
-				// There is more than one service with the same UUID?
-				// Don't overwrite it, to keep the servicesFound count correct.
-				continue
-			}
-			services[i].UUID = uuid
-			services[i].service = service
-			servicesFound++
-			break
 		}
+
+		if _, ok := uuidServices[service.Properties.UUID]; ok {
+			// There is more than one service with the same UUID?
+			// Don't overwrite it, to keep the servicesFound count correct.
+			continue
+		}
+
+		uuid, _ := ParseUUID(service.Properties.UUID)
+		ds := DeviceService{UUID: uuid,
+			service: service,
+		}
+
+		services = append(services, ds)
+		servicesFound++
+		uuidServices[service.Properties.UUID] = service.Properties.UUID
 	}
 
-	if servicesFound != len(uuids) {
+	if servicesFound <= len(uuids) {
 		return nil, errors.New("bluetooth: could not find some services")
 	}
 
@@ -106,11 +120,11 @@ type DeviceCharacteristic struct {
 // slice has the same length as the UUID slice with characteristics in the same
 // order in the slice as in the requested UUID list.
 //
-// Passing a nil slice of UUIDs will currently result in zero characteristics
-// being returned, but this may be changed in the future to return a complete
+// Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
 func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
-	chars := make([]DeviceCharacteristic, len(uuids))
+	chars := []DeviceCharacteristic{}
+	uuidChars := make(map[string]string)
 	characteristicsFound := 0
 
 	// Iterate through all objects managed by BlueZ, hoping to find the
@@ -135,24 +149,38 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		if err != nil {
 			return nil, err
 		}
-		for i, uuid := range uuids {
-			if char.Properties.UUID != uuid.String() {
-				// Not one of the characteristics we're looking for.
+
+		if len(uuids) > 0 {
+			found := false
+			for _, uuid := range uuids {
+				if char.Properties.UUID == uuid.String() {
+					// One of the services we're looking for.
+					found = true
+					break
+				}
+			}
+			if !found {
 				continue
 			}
-			if chars[i].characteristic != nil {
-				// There is more than one characteristic with the same UUID?
-				// Don't overwrite it, to keep the servicesFound count correct.
-				continue
-			}
-			chars[i].UUID = uuid
-			chars[i].characteristic = char
-			characteristicsFound++
-			break
 		}
+
+		if _, ok := uuidChars[char.Properties.UUID]; ok {
+			// There is more than one characteristic with the same UUID?
+			// Don't overwrite it, to keep the servicesFound count correct.
+			continue
+		}
+
+		uuid, _ := ParseUUID(char.Properties.UUID)
+		dc := DeviceCharacteristic{UUID: uuid,
+			characteristic: char,
+		}
+
+		chars = append(chars, dc)
+		characteristicsFound++
+		uuidChars[char.Properties.UUID] = char.Properties.UUID
 	}
 
-	if characteristicsFound != len(uuids) {
+	if characteristicsFound < len(uuids) {
 		return nil, errors.New("bluetooth: could not find some characteristics")
 	}
 

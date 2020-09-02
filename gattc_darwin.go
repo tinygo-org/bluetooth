@@ -11,6 +11,9 @@ import (
 // UUIDs you are interested in to this function. Either a slice of all services
 // is returned (of the same length as the requested UUIDs and in the same
 // order), or if some services could not be discovered an error is returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of
+// services.
 func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	cbuuids := []cbgo.UUID{}
 	for _, u := range uuids {
@@ -58,6 +61,9 @@ type DeviceService struct {
 // discovered an error is returned. If there is no error, the characteristics
 // slice has the same length as the UUID slice with characteristics in the same
 // order in the slice as in the requested UUID list.
+//
+// Passing a nil slice of UUIDs will return a complete list of
+// characteristics.
 func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
 	cbuuids := []cbgo.UUID{}
 	for _, u := range uuids {
