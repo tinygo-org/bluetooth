@@ -13,6 +13,8 @@ import (
 
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
+	UUID
+
 	service *gatt.GattService1
 }
 
@@ -75,6 +77,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 				// Don't overwrite it, to keep the servicesFound count correct.
 				continue
 			}
+			services[i].UUID = uuid
 			services[i].service = service
 			servicesFound++
 			break
@@ -91,6 +94,8 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
 // device.
 type DeviceCharacteristic struct {
+	UUID
+
 	characteristic *gatt.GattCharacteristic1
 }
 
@@ -140,6 +145,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 				// Don't overwrite it, to keep the servicesFound count correct.
 				continue
 			}
+			chars[i].UUID = uuid
 			chars[i].characteristic = char
 			characteristicsFound++
 			break
