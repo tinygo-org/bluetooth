@@ -1,35 +1,94 @@
 # Go Bluetooth
 
+[![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/github.com/tinygo-org/bluetooth)](https://pkg.go.dev/pkg.go.dev/github.com/tinygo-org/bluetooth)
 [![CircleCI](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev)
-[![GoDoc](https://godoc.org/github.com/tinygo-org/bluetooth?status.svg)](https://godoc.org/github.com/tinygo-org/bluetooth)
 
-This package attempts to build a cross-platform Bluetooth Low Energy module for Go. It currently supports the following systems:
+This package provides a cross-platform Bluetooth Low Energy module for Go that can be used on operating systems such as Linux, macOS, and Windows. 
 
-|                                  | Windows            | Linux              | Nordic chips       | macOS              |
+It can also be used running "bare metal" on microcontrollers such as those produced by Nordic Semiconductor.
+
+This example scans for peripheral devices and then displays information about them as they are discovered:
+
+```go
+package main
+
+import (
+	"github.com/tinygo-org/bluetooth"
+)
+
+var adapter = bluetooth.DefaultAdapter
+
+func main() {
+	// Enable BLE interface.
+	must("enable BLE stack", adapter.Enable())
+
+	// Start scanning.
+	println("scanning...")
+	err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
+		println("found device:", device.Address.String(), device.RSSI, device.LocalName())
+	})
+	must("start scan", err)
+}
+
+func must(action string, err error) {
+	if err != nil {
+		panic("failed to " + action + ": " + err.Error())
+	}
+}
+```
+
+## Current support
+
+|                                  | Linux              | macOS              | Windows            | Nordic Semi        |
 | -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ |
-| API used                         | WinRT              | BlueZ (over D-Bus) | SoftDevice         | CoreBluetooth      |
+| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         |
 | Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Connect to peripheral            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Write peripheral characteristics | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Receive notifications            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Advertisement                    | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Local services                   | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Local characteristics            | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
-| Send notifications               | :x:                | :heavy_check_mark: | :heavy_check_mark: | :x:                |
+| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: |
+| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: |
+| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: |
+| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
+| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
+| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
+| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
 
-## Baremetal support
+## Linux
 
-As you can see above, there is support for some chips from Nordic Semiconductors. At the moment the following chips are supported:
+The current support for Linux uses BlueZ via the D-Bus interface. It should work with most distros that support BlueZ such as Ubuntu, Debian, Fedora, and Arch Linux, among others. Linux can be used both as a BLE central as well as BLE peripheral.
 
-  * The [nRF52832](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52832) with the [S132](https://www.nordicsemi.com/Software-and-Tools/Software/S132) SoftDevice (version 6).
-  * The [nRF52840](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52840) with the [S140](https://www.nordicsemi.com/Software-and-Tools/Software/S140) SoftDevice (version 6 and 7).
-  * The [nRF51822](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF51822) with the [S110](https://www.nordicsemi.com/Software-and-Tools/Software/S110) SoftDevice (version 8). This SoftDevice does not support all features (e.g. scanning).
+## macOS
+
+The current macOS support uses the CoreBluetooth libraries provided by macOS. As a result, it should work with most versions of macOS, although it will require compiling using whatever specific version of XCode is required by your version of the operating system. The macOS support only can only act as a BLE central at this time, with some additional development support needed for full functionality.
+
+## Windows
+
+The Windows support is still experimental, and needs additional development to be useful.
+
+## Nordic Semiconductor
+
+As you can see above, there is bare metal support for several chips from Nordic Semiconductors.
 
 These chips are supported through [TinyGo](https://tinygo.org/).
 
-The SoftDevice is a binary blob that implements the BLE stack. There are other (open source) BLE stacks, but the SoftDevices are pretty solid and have all the qualifications you might need. Other BLE stacks might be added in the future.
+This support also requires firmware provided by Nordic Semi known as the "SoftDevice". The SoftDevice is a binary blob that implements the BLE stack. There are other (open source) BLE stacks, but the SoftDevices are pretty solid and have all the qualifications you might need. Other BLE stacks might be added in the future.
+
+At the moment the following chips are supported:
+
+  * [nRF52832](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52832) with the [S132](https://www.nordicsemi.com/Software-and-Tools/Software/S132) SoftDevice (version 6).
+  * [nRF52840](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF52840) with the [S140](https://www.nordicsemi.com/Software-and-Tools/Software/S140) SoftDevice (version 6 and 7).
+  * [nRF51822](https://www.nordicsemi.com/Products/Low-power-short-range-wireless/nRF51822) with the [S110](https://www.nordicsemi.com/Software-and-Tools/Software/S110) SoftDevice (version 8). This SoftDevice does not support all features (e.g. scanning).
+
+### Adafruit "Bluefruit" boards
+
+The support for boards created by Adafruit already have the Nordic Semi SoftDevice firmware pre-installed. You can use TinyGo with this package without any additional steps required. Supported boards include:
+
+* [Adafruit Circuit Playground Bluefruit](https://www.adafruit.com/product/4333)
+* [Adafruit CLUE Alpha](https://www.adafruit.com/product/4500)
+* [Adafruit Feather nRF52840 Express](https://www.adafruit.com/product/4062)
+* [Adafruit ItsyBitsy nRF52840](https://www.adafruit.com/product/4481)
 
 ### Flashing the SoftDevice
+
+Other boards that use supported chips from Nordic Semi that do not already have the SoftDevice firmware must have it installed on the board in order to use this package.
 
 Flashing the SoftDevice can be tricky. If you have [nrfjprog](https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Command-Line-Tools) installed, you can erase the flash and flash the new BLE firmware using the following commands. Replace the path to the hex file with the correct SoftDevice, for example `s132_nrf52_6.1.1/s132_nrf52_6.1.1_softdevice.hex` for S132 version 6.
 
@@ -65,6 +124,12 @@ This package will probably remain unstable until the following has been implemen
   * Bonding and private addresses.
   * Usable support on at least two desktop operating systems.
   * Maybe some Bluetooth Classic support, such as A2DP.
+
+## Contributing
+
+Your contributions are welcome!
+
+Please take a look at our [CONTRIBUTING.md](./CONTRIBUTING.md) document for details.
 
 ## License
 
