@@ -1,6 +1,6 @@
 # Go Bluetooth
 
-[![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/github.com/tinygo-org/bluetooth)](https://pkg.go.dev/pkg.go.dev/github.com/tinygo-org/bluetooth)
+[![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/github.com/tinygo-org/bluetooth)](https://pkg.go.dev/github.com/tinygo-org/bluetooth)
 [![CircleCI](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev)
 
 This package provides a cross-platform Bluetooth Low Energy module for Go that can be used on operating systems such as Linux, macOS, and Windows. 
@@ -53,7 +53,7 @@ func must(action string, err error) {
 
 ## Linux
 
-The current support for Linux uses BlueZ via the D-Bus interface. It should work with most distros that support BlueZ such as Ubuntu, Debian, Fedora, and Arch Linux, among others. Linux can be used both as a BLE central as well as BLE peripheral.
+The current support for Linux uses BlueZ via the D-Bus interface. It should work with most distros that support BlueZ such as Ubuntu, Debian, Fedora, and Arch Linux, among others. Linux can be used both as a BLE central as well as BLE peripheral. You need to have a fairly recent version of BlueZ, for example v5.48 is the latest released version for Ubuntu/Debian.
 
 ## macOS
 

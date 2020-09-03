@@ -33,8 +33,28 @@ Here is how to contribute back some code or documentation:
 
 ## How to run tests
 
-To run the tests:
+To run the bare metal tests:
 
 ```
-make test
+make smoketest-tinygo
 ```
+
+To run tests for a specific operating system:
+
+```
+make smoketest-linux
+```
+
+or
+
+```
+make smoketest-macos
+```
+
+or
+
+```
+make smoketest-windows
+```
+
+You should be able to run the tests for your own operating system. Note that cross-compilation may or may not work, depending on which tools you have installed.
