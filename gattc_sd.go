@@ -31,12 +31,23 @@ var discoveringService struct {
 	endHandle   volatile.Register16
 }
 
+// uuidWrapper is a type alias for UUID so we ensure no conflicts with
+// struct method of the same name.
+type uuidWrapper = UUID
+
 // DeviceService is a BLE service on a connected peripheral device. It is only
 // valid as long as the device remains connected.
 type DeviceService struct {
+	uuidWrapper
+
 	connectionHandle uint16
 	startHandle      uint16
 	endHandle        uint16
+}
+
+// UUID returns the UUID for this DeviceService.
+func (s *DeviceService) UUID() UUID {
+	return s.uuidWrapper
 }
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
@@ -90,6 +101,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 		// Store the discovered service.
 		services[i] = DeviceService{
+			uuidWrapper:      uuid,
 			connectionHandle: d.connectionHandle,
 			startHandle:      startHandle,
 			endHandle:        endHandle,
@@ -102,10 +114,17 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
 // device. It is only valid as long as the device remains connected.
 type DeviceCharacteristic struct {
+	uuidWrapper
+
 	connectionHandle uint16
 	valueHandle      uint16
 	cccdHandle       uint16
 	permissions      CharacteristicPermissions
+}
+
+// UUID returns the UUID for this DeviceCharacteristic.
+func (c *DeviceCharacteristic) UUID() UUID {
+	return c.uuidWrapper
 }
 
 // A global used to pass information from the event handler back to the
@@ -137,11 +156,11 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		return nil, errAlreadyDiscovering
 	}
 
-	// Make a list of UUIDs in SoftDevice short form, for easier comparing.
-	shortUUIDs := make([]C.ble_uuid_t, len(uuids))
-	for i, uuid := range uuids {
+	// Make a map of UUIDs in SoftDevice short form, for easier comparing.
+	shortUUIDs := make(map[UUID]C.ble_uuid_t)
+	for _, uuid := range uuids {
 		var errCode uint32
-		shortUUIDs[i], errCode = uuid.shortUUID()
+		shortUUIDs[uuid], errCode = uuid.shortUUID()
 		if errCode != 0 {
 			return nil, Error(errCode)
 		}
@@ -149,7 +168,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 
 	// Request characteristics one by one, until all are found.
 	numFound := 0
-	characteristics := make([]DeviceCharacteristic, len(uuids))
+	characteristics := []DeviceCharacteristic{}
 	startHandle := s.startHandle
 	for numFound < len(uuids) && startHandle < s.endHandle {
 		// Discover the next characteristic in this service.
@@ -198,8 +217,10 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 				if rawPermissions.bitfield_indicate() != 0 {
 					permissions |= CharacteristicIndicatePermission
 				}
-				characteristics[i].permissions = permissions
-				characteristics[i].valueHandle = foundCharacteristicHandle
+
+				dc := DeviceCharacteristic{uuidWrapper: i}
+				dc.permissions = permissions
+				dc.valueHandle = foundCharacteristicHandle
 
 				if permissions&CharacteristicNotifyPermission != 0 {
 					// This characteristic has the notify permission, so most
@@ -219,9 +240,10 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 					foundDescriptorHandle := discoveringCharacteristic.handle_value.Get()
 					discoveringCharacteristic.handle_value.Set(0)
 
-					characteristics[i].cccdHandle = foundDescriptorHandle
+					dc.cccdHandle = foundDescriptorHandle
 				}
 
+				characteristics = append(characteristics, dc)
 				numFound++
 				break
 			}

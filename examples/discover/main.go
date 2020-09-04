@@ -48,11 +48,11 @@ func main() {
 	println("discovering services/characteristics")
 	srvcs, err := device.DiscoverServices(nil)
 	for _, srvc := range srvcs {
-		println("- service", srvc.UUID.String())
+		println("- service", srvc.UUID().String())
 
 		chars, _ := srvc.DiscoverCharacteristics(nil)
 		for _, char := range chars {
-			println("-- characteristic", char.UUID.String())
+			println("-- characteristic", char.UUID().String())
 		}
 	}
 
