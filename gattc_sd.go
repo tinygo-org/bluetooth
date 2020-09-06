@@ -67,8 +67,8 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		return nil, errAlreadyDiscovering
 	}
 
-	services := make([]DeviceService, len(uuids))
-	for i, uuid := range uuids {
+	services := []DeviceService{}
+	for _, uuid := range uuids {
 		// Start discovery of this service.
 		shortUUID, errCode := uuid.shortUUID()
 		if errCode != 0 {
@@ -100,12 +100,13 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		// Store the discovered service.
-		services[i] = DeviceService{
+		svc := DeviceService{
 			uuidWrapper:      uuid,
 			connectionHandle: d.connectionHandle,
 			startHandle:      startHandle,
 			endHandle:        endHandle,
 		}
+		services = append(services, svc)
 	}
 
 	return services, nil
@@ -157,7 +158,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	}
 
 	// Make a map of UUIDs in SoftDevice short form, for easier comparing.
-	shortUUIDs := make(map[UUID]C.ble_uuid_t)
+	shortUUIDs := make(map[uuidWrapper]C.ble_uuid_t)
 	for _, uuid := range uuids {
 		var errCode uint32
 		shortUUIDs[uuid], errCode = uuid.shortUUID()
