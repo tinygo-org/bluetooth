@@ -38,7 +38,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 				service:     dsvc,
 			}
 			svcs = append(svcs, svc)
-			d.services[svc.UUID] = &svc
+			d.services[svc.uuidWrapper] = &svc
 		}
 		return svcs, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -97,7 +97,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 				characteristic: dchar,
 			}
 			chars = append(chars, char)
-			s.device.characteristics[char.UUID] = &char
+			s.device.characteristics[char.uuidWrapper] = &char
 		}
 		return chars, nil
 	case <-time.NewTimer(10 * time.Second).C:
