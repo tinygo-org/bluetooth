@@ -17,6 +17,11 @@ import (
 	"runtime/volatile"
 )
 
+const (
+	maxNumberServicesToDiscover        = 8
+	maxNumberCharacteristicsToDiscover = 16
+)
+
 var (
 	errAlreadyDiscovering = errors.New("bluetooth: already discovering a service or characteristic")
 	errNotFound           = errors.New("bluetooth: not found")
@@ -31,14 +36,10 @@ var discoveringService struct {
 	endHandle   volatile.Register16
 }
 
-// uuidWrapper is a type alias for UUID so we ensure no conflicts with
-// struct method of the same name.
-type uuidWrapper = UUID
-
 // DeviceService is a BLE service on a connected peripheral device. It is only
 // valid as long as the device remains connected.
 type DeviceService struct {
-	uuidWrapper
+	uuid shortUUID
 
 	connectionHandle uint16
 	startHandle      uint16
@@ -47,7 +48,7 @@ type DeviceService struct {
 
 // UUID returns the UUID for this DeviceService.
 func (s *DeviceService) UUID() UUID {
-	return s.uuidWrapper
+	return s.uuid.UUID()
 }
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
@@ -55,8 +56,7 @@ func (s *DeviceService) UUID() UUID {
 // is returned (of the same length as the requested UUIDs and in the same
 // order), or if some services could not be discovered an error is returned.
 //
-// Passing a nil slice of UUIDs will currently result in zero services being
-// returned, but this may be changed in the future to return a complete list of
+// Passing a nil slice of UUIDs will return a complete list of
 // services.
 //
 // On the Nordic SoftDevice, only one service discovery procedure may be done at
@@ -67,7 +67,12 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		return nil, errAlreadyDiscovering
 	}
 
-	services := []DeviceService{}
+	sz := maxNumberServicesToDiscover
+	if len(uuids) > 0 {
+		sz = len(uuids)
+	}
+	services := make([]DeviceService, 0, sz)
+
 	for _, uuid := range uuids {
 		// Start discovery of this service.
 		shortUUID, errCode := uuid.shortUUID()
@@ -101,7 +106,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 		// Store the discovered service.
 		svc := DeviceService{
-			uuidWrapper:      uuid,
+			uuid:             shortUUID,
 			connectionHandle: d.connectionHandle,
 			startHandle:      startHandle,
 			endHandle:        endHandle,
@@ -115,7 +120,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
 // device. It is only valid as long as the device remains connected.
 type DeviceCharacteristic struct {
-	uuidWrapper
+	uuid shortUUID
 
 	connectionHandle uint16
 	valueHandle      uint16
@@ -125,7 +130,7 @@ type DeviceCharacteristic struct {
 
 // UUID returns the UUID for this DeviceCharacteristic.
 func (c *DeviceCharacteristic) UUID() UUID {
-	return c.uuidWrapper
+	return c.uuid.UUID()
 }
 
 // A global used to pass information from the event handler back to the
@@ -143,35 +148,38 @@ var discoveringCharacteristic struct {
 // slice has the same length as the UUID slice with characteristics in the same
 // order in the slice as in the requested UUID list.
 //
-// Passing a nil slice of UUIDs will currently result in zero characteristics
-// being returned, but this may be changed in the future to return a complete
+// Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
 func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
-	if len(uuids) == 0 {
-		// Nothing to do. This behavior might change in the future (if a nil
-		// uuids slice is passed).
-		return nil, nil
-	}
-
 	if discoveringCharacteristic.handle_value.Get() != 0 {
 		return nil, errAlreadyDiscovering
 	}
 
+	sz := maxNumberCharacteristicsToDiscover
+	if len(uuids) > 0 {
+		sz = len(uuids)
+	}
+	characteristics := make([]DeviceCharacteristic, 0, sz)
+
+	var shortUUIDs []C.ble_uuid_t
+
 	// Make a map of UUIDs in SoftDevice short form, for easier comparing.
-	shortUUIDs := make(map[uuidWrapper]C.ble_uuid_t)
-	for _, uuid := range uuids {
-		var errCode uint32
-		shortUUIDs[uuid], errCode = uuid.shortUUID()
-		if errCode != 0 {
-			return nil, Error(errCode)
+	if len(uuids) > 0 {
+		shortUUIDs = make([]C.ble_uuid_t, sz)
+		for i, uuid := range uuids {
+			var errCode uint32
+			shortUUIDs[i], errCode = uuid.shortUUID()
+			if errCode != 0 {
+				return nil, Error(errCode)
+			}
 		}
 	}
 
 	// Request characteristics one by one, until all are found.
 	numFound := 0
-	characteristics := []DeviceCharacteristic{}
 	startHandle := s.startHandle
-	for numFound < len(uuids) && startHandle < s.endHandle {
+
+	for startHandle < s.endHandle {
 		// Discover the next characteristic in this service.
 		handles := C.ble_gattc_handle_range_t{
 			start_handle: startHandle,
@@ -194,61 +202,61 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		// Start the next request from the handle right after this one.
 		startHandle = foundCharacteristicHandle + 1
 
-		// Look whether we found a requested handle.
-		for i, shortUUID := range shortUUIDs {
-			if discoveringCharacteristic.uuid == shortUUID {
-				// Found a characteristic.
-				permissions := CharacteristicPermissions(0)
-				rawPermissions := discoveringCharacteristic.char_props
-				if rawPermissions.bitfield_broadcast() != 0 {
-					permissions |= CharacteristicBroadcastPermission
-				}
-				if rawPermissions.bitfield_read() != 0 {
-					permissions |= CharacteristicReadPermission
-				}
-				if rawPermissions.bitfield_write_wo_resp() != 0 {
-					permissions |= CharacteristicWriteWithoutResponsePermission
-				}
-				if rawPermissions.bitfield_write() != 0 {
-					permissions |= CharacteristicWritePermission
-				}
-				if rawPermissions.bitfield_notify() != 0 {
-					permissions |= CharacteristicNotifyPermission
-				}
-				if rawPermissions.bitfield_indicate() != 0 {
-					permissions |= CharacteristicIndicatePermission
-				}
-
-				dc := DeviceCharacteristic{uuidWrapper: i}
-				dc.permissions = permissions
-				dc.valueHandle = foundCharacteristicHandle
-
-				if permissions&CharacteristicNotifyPermission != 0 {
-					// This characteristic has the notify permission, so most
-					// likely it also supports notifications.
-					errCode := C.sd_ble_gattc_descriptors_discover(s.connectionHandle, &C.ble_gattc_handle_range_t{
-						start_handle: startHandle,
-						end_handle:   s.endHandle,
-					})
-					if errCode != 0 {
-						return nil, Error(errCode)
-					}
-
-					// Wait until the descriptor handle is found.
-					for discoveringCharacteristic.handle_value.Get() == 0 {
-						arm.Asm("wfe")
-					}
-					foundDescriptorHandle := discoveringCharacteristic.handle_value.Get()
-					discoveringCharacteristic.handle_value.Set(0)
-
-					dc.cccdHandle = foundDescriptorHandle
-				}
-
-				characteristics = append(characteristics, dc)
-				numFound++
-				break
-			}
+		// not one of the characteristics we are looking for
+		if len(shortUUIDs) > 0 && !shortUUID(discoveringCharacteristic.uuid).IsIn(shortUUIDs) {
+			continue
 		}
+
+		// Found a characteristic.
+		permissions := CharacteristicPermissions(0)
+		rawPermissions := discoveringCharacteristic.char_props
+		if rawPermissions.bitfield_broadcast() != 0 {
+			permissions |= CharacteristicBroadcastPermission
+		}
+		if rawPermissions.bitfield_read() != 0 {
+			permissions |= CharacteristicReadPermission
+		}
+		if rawPermissions.bitfield_write_wo_resp() != 0 {
+			permissions |= CharacteristicWriteWithoutResponsePermission
+		}
+		if rawPermissions.bitfield_write() != 0 {
+			permissions |= CharacteristicWritePermission
+		}
+		if rawPermissions.bitfield_notify() != 0 {
+			permissions |= CharacteristicNotifyPermission
+		}
+		if rawPermissions.bitfield_indicate() != 0 {
+			permissions |= CharacteristicIndicatePermission
+		}
+
+		dc := DeviceCharacteristic{uuid: discoveringCharacteristic.uuid}
+		dc.permissions = permissions
+		dc.valueHandle = foundCharacteristicHandle
+
+		if permissions&CharacteristicNotifyPermission != 0 {
+			// This characteristic has the notify permission, so most
+			// likely it also supports notifications.
+			errCode := C.sd_ble_gattc_descriptors_discover(s.connectionHandle, &C.ble_gattc_handle_range_t{
+				start_handle: startHandle,
+				end_handle:   s.endHandle,
+			})
+			if errCode != 0 {
+				return nil, Error(errCode)
+			}
+
+			// Wait until the descriptor handle is found.
+			for discoveringCharacteristic.handle_value.Get() == 0 {
+				arm.Asm("wfe")
+			}
+			foundDescriptorHandle := discoveringCharacteristic.handle_value.Get()
+			discoveringCharacteristic.handle_value.Set(0)
+
+			dc.cccdHandle = foundDescriptorHandle
+		}
+
+		characteristics = append(characteristics, dc)
+		numFound++
+		break
 	}
 
 	if numFound != len(uuids) {
