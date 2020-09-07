@@ -13,7 +13,7 @@ This example scans for peripheral devices and then displays information about th
 package main
 
 import (
-	"github.com/tinygo-org/bluetooth"
+	"tinygo.org/x/bluetooth"
 )
 
 var adapter = bluetooth.DefaultAdapter
