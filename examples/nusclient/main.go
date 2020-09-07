@@ -4,8 +4,8 @@ package main
 // details.
 
 import (
-	"github.com/tinygo-org/bluetooth"
-	"github.com/tinygo-org/bluetooth/rawterm"
+	"tinygo.org/x/bluetooth"
+	"tinygo.org/x/bluetooth/rawterm"
 )
 
 var (
