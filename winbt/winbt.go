@@ -13,7 +13,8 @@
 // https://blog.magnusmontin.net/2017/12/30/minimal-uwp-wrl-xaml-app/
 // https://yizhang82.dev/what-is-winrt
 // https://www.slideshare.net/goldshtn/deep-dive-into-winrt
-package winbt
+//
+package winbt // import "tinygo.org/x/bluetooth/winbt"
 
 import (
 	"github.com/go-ole/go-ole"
