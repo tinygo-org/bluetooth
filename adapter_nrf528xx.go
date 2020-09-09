@@ -102,8 +102,10 @@ func handleEvent() {
 			// callback.
 			scanReportBuffer.len = byte(advReport.data.len)
 			globalScanResult.RSSI = int16(advReport.rssi)
-			globalScanResult.Address.Set(advReport.peer_addr.addr)
-			globalScanResult.Address.SetRandom(advReport.peer_addr.bitfield_addr_type() != 0)
+			globalScanResult.Address = Address{
+				MACAddress{MAC: advReport.peer_addr.addr,
+					isRandom: advReport.peer_addr.bitfield_addr_type() != 0},
+			}
 			globalScanResult.AdvertisementPayload = &scanReportBuffer
 			// Signal to the main thread that there was a scan report.
 			// Scanning will be resumed (from the main thread) once the scan
