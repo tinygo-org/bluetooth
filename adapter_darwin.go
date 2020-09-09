@@ -19,6 +19,8 @@ type Adapter struct {
 	scanChan               chan error
 	poweredChan            chan error
 	connectChan            chan cbgo.Peripheral
+
+	connectHandler func(device Addresser, connected bool)
 }
 
 // DefaultAdapter is the default adapter on the system.
@@ -28,6 +30,9 @@ var DefaultAdapter = &Adapter{
 	cm:          cbgo.NewCentralManager(nil),
 	pm:          cbgo.NewPeripheralManager(nil),
 	connectChan: make(chan cbgo.Peripheral),
+	connectHandler: func(device Addresser, connected bool) {
+		return
+	},
 }
 
 // Enable configures the BLE stack. It must be called before any

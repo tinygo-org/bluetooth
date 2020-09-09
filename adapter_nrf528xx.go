@@ -64,12 +64,14 @@ func handleEvent() {
 					println("evt: connected in peripheral role")
 				}
 				currentConnection.Reg = gapEvent.conn_handle
+				DefaultAdapter.connectHandler(Address{}, true)
 			case C.BLE_GAP_ROLE_CENTRAL:
 				if debug {
 					println("evt: connected in central role")
 				}
 				connectionAttempt.connectionHandle = gapEvent.conn_handle
 				connectionAttempt.state.Set(2) // connection was successful
+				DefaultAdapter.connectHandler(Address{}, true)
 			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
@@ -92,6 +94,7 @@ func handleEvent() {
 				// necessary.
 				C.sd_ble_gap_adv_start(defaultAdvertisement.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 			}
+			DefaultAdapter.connectHandler(Address{}, false)
 		case C.BLE_GAP_EVT_ADV_REPORT:
 			advReport := gapEvent.params.unionfield_adv_report()
 			if debug && &scanReportBuffer.data[0] != advReport.data.p_data {
