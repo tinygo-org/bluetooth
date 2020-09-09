@@ -18,7 +18,6 @@ var adapter = bluetooth.DefaultAdapter
 // TODO: use atomics to access this value.
 var ledColor = [3]byte{0xff, 0x00, 0x00} // start out with red
 var leds [10]color.RGBA
-var hasColorChange = true
 
 var (
 	serviceUUID = [16]byte{0xa0, 0xb4, 0x00, 0x01, 0x92, 0x6d, 0x4d, 0x61, 0x98, 0xdf, 0x8c, 0x5c, 0x62, 0xee, 0x53, 0xb3}
@@ -58,7 +57,6 @@ func main() {
 					ledColor[0] = value[0]
 					ledColor[1] = value[1]
 					ledColor[2] = value[2]
-					hasColorChange = true
 				},
 			},
 		},

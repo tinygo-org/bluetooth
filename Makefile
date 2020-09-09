@@ -9,6 +9,8 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/advertisement
 	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/circuitplay
+	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/heartrate
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=reelboard-s140v7      ./examples/ledcolor
