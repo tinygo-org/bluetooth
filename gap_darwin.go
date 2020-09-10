@@ -116,6 +116,8 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 		d.delegate = &peripheralDelegate{d: d}
 		p.SetDelegate(d.delegate)
 
+		a.connectHandler(nil, true)
+
 		return d, nil
 	case <-time.NewTimer(10 * time.Second).C:
 		return nil, errors.New("timeout on Connect")

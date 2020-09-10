@@ -259,6 +259,9 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 		}
 	}
 
+	// TODO: a proper async callback.
+	a.connectHandler(nil, true)
+
 	return &Device{
 		device: dev,
 	}, nil

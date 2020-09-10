@@ -26,13 +26,31 @@ var (
 
 var neo machine.Pin = machine.NEOPIXELS
 var led machine.Pin = machine.LED
+var ws ws2812.Device
+var rg bool
+
+var connected bool
+var disconnected bool = true
 
 func main() {
 	println("starting")
 
 	led.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	ws := ws2812.New(neo)
+	ws = ws2812.New(neo)
+
+	adapter.SetConnectHandler(func(d bluetooth.Addresser, c bool) {
+		connected = c
+
+		if !connected && !disconnected {
+			clearLEDS()
+			disconnected = true
+		}
+
+		if connected {
+			disconnected = false
+		}
+	})
 
 	must("enable BLE stack", adapter.Enable())
 	adv := adapter.DefaultAdvertisement()
@@ -62,20 +80,11 @@ func main() {
 		},
 	}))
 
-	rg := false
-
 	for {
 		rg = !rg
-		for i := range leds {
-			rg = !rg
-			if rg {
-				leds[i] = color.RGBA{R: ledColor[0], G: ledColor[1], B: ledColor[2]}
-			} else {
-				leds[i] = color.RGBA{R: 0x00, G: 0x00, B: 0x00}
-			}
+		if connected {
+			writeLEDS()
 		}
-
-		ws.WriteColors(leds[:])
 		led.Set(rg)
 		time.Sleep(100 * time.Millisecond)
 	}
@@ -85,4 +94,25 @@ func must(action string, err error) {
 	if err != nil {
 		panic("failed to " + action + ": " + err.Error())
 	}
+}
+
+func writeLEDS() {
+	for i := range leds {
+		rg = !rg
+		if rg {
+			leds[i] = color.RGBA{R: ledColor[0], G: ledColor[1], B: ledColor[2]}
+		} else {
+			leds[i] = color.RGBA{R: 0x00, G: 0x00, B: 0x00}
+		}
+	}
+
+	ws.WriteColors(leds[:])
+}
+
+func clearLEDS() {
+	for i := range leds {
+		leds[i] = color.RGBA{R: 0x00, G: 0x00, B: 0x00}
+	}
+
+	ws.WriteColors(leds[:])
 }
