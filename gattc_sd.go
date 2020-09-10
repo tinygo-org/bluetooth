@@ -34,6 +34,7 @@ var discoveringService struct {
 	state       volatile.Register8 // 0 means nothing happening, 1 means in progress, 2 means found something
 	startHandle volatile.Register16
 	endHandle   volatile.Register16
+	uuid        C.ble_uuid_t
 }
 
 // DeviceService is a BLE service on a connected peripheral device. It is only
@@ -122,6 +123,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		// Retrieve values, and mark the global as unused.
 		startHandle = discoveringService.startHandle.Get()
 		endHandle := discoveringService.endHandle.Get()
+		suuid = discoveringService.uuid
 		discoveringService.state.Set(0)
 
 		if startHandle == 0 {
