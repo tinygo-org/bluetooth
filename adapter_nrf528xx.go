@@ -177,6 +177,7 @@ func handleEvent() {
 				// one discovered service. Use the first as a sensible fallback.
 				discoveringService.startHandle.Set(discoveryEvent.services[0].handle_range.start_handle)
 				discoveringService.endHandle.Set(discoveryEvent.services[0].handle_range.end_handle)
+				// TODO: something like discoveringService.uuid = discoveryEvent.services[0].uuid
 			} else {
 				// No service found.
 				discoveringService.startHandle.Set(0)

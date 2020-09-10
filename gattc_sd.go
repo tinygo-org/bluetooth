@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	maxNumberServicesToDiscover        = 8
-	maxNumberCharacteristicsToDiscover = 16
+	maxDefaultServicesToDiscover        = 6
+	maxDefaultCharacteristicsToDiscover = 8
 )
 
 var (
@@ -67,20 +67,46 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		return nil, errAlreadyDiscovering
 	}
 
-	sz := maxNumberServicesToDiscover
+	sz := maxDefaultServicesToDiscover
 	if len(uuids) > 0 {
 		sz = len(uuids)
 	}
 	services := make([]DeviceService, 0, sz)
 
-	for _, uuid := range uuids {
-		// Start discovery of this service.
-		shortUUID, errCode := uuid.shortUUID()
-		if errCode != 0 {
-			return nil, Error(errCode)
+	var shortUUIDs []C.ble_uuid_t
+
+	// Make a map of UUIDs in SoftDevice short form, for easier comparing.
+	if len(uuids) > 0 {
+		shortUUIDs = make([]C.ble_uuid_t, sz)
+		for i, uuid := range uuids {
+			var errCode uint32
+			shortUUIDs[i], errCode = uuid.shortUUID()
+			if errCode != 0 {
+				return nil, Error(errCode)
+			}
 		}
+	}
+
+	numFound := 0
+
+	var startHandle uint16 = 1
+
+	for i := 0; i < sz; i++ {
+		var suuid C.ble_uuid_t
+		if len(uuids) > 0 {
+			suuid = shortUUIDs[i]
+		}
+
+		// Start discovery of this service.
 		discoveringService.state.Set(1)
-		errCode = C.sd_ble_gattc_primary_services_discover(d.connectionHandle, 0, &shortUUID)
+		var errCode uint32
+		if len(uuids) > 0 {
+			errCode = C.sd_ble_gattc_primary_services_discover(d.connectionHandle, startHandle, &suuid)
+		} else {
+			// calling with nil searches for all primary services.
+			// TODO: need a way to set suuid from the returned data
+			errCode = C.sd_ble_gattc_primary_services_discover(d.connectionHandle, startHandle, nil)
+		}
 		if errCode != 0 {
 			discoveringService.state.Set(0)
 			return nil, Error(errCode)
@@ -94,7 +120,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 			arm.Asm("wfe")
 		}
 		// Retrieve values, and mark the global as unused.
-		startHandle := discoveringService.startHandle.Get()
+		startHandle = discoveringService.startHandle.Get()
 		endHandle := discoveringService.endHandle.Get()
 		discoveringService.state.Set(0)
 
@@ -106,12 +132,25 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 		// Store the discovered service.
 		svc := DeviceService{
-			uuid:             shortUUID,
+			uuid:             suuid,
 			connectionHandle: d.connectionHandle,
 			startHandle:      startHandle,
 			endHandle:        endHandle,
 		}
 		services = append(services, svc)
+
+		numFound++
+		if numFound >= sz {
+			break
+		}
+
+		// last entry
+		if endHandle == 0xffff {
+			break
+		}
+
+		// start with the next handle
+		startHandle = endHandle + 1
 	}
 
 	return services, nil
@@ -155,7 +194,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		return nil, errAlreadyDiscovering
 	}
 
-	sz := maxNumberCharacteristicsToDiscover
+	sz := maxDefaultCharacteristicsToDiscover
 	if len(uuids) > 0 {
 		sz = len(uuids)
 	}
@@ -185,6 +224,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 			start_handle: startHandle,
 			end_handle:   s.endHandle,
 		}
+
 		errCode := C.sd_ble_gattc_characteristics_discover(s.connectionHandle, &handles)
 		if errCode != 0 {
 			return nil, Error(errCode)
@@ -256,7 +296,9 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 
 		characteristics = append(characteristics, dc)
 		numFound++
-		break
+		if numFound >= sz {
+			break
+		}
 	}
 
 	if numFound != len(uuids) {
