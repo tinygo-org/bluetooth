@@ -193,6 +193,9 @@ func handleEvent() {
 				discoveringCharacteristic.handle_value.Set(discoveryEvent.chars[0].handle_value)
 				discoveringCharacteristic.char_props = discoveryEvent.chars[0].char_props
 				discoveringCharacteristic.uuid = discoveryEvent.chars[0].uuid
+			} else {
+				// zero indicates we received no characteristic, set handle_value to last
+				discoveringCharacteristic.handle_value.Set(0xffff)
 			}
 		case C.BLE_GATTC_EVT_DESC_DISC_RSP:
 			discoveryEvent := gattcEvent.params.unionfield_desc_disc_rsp()

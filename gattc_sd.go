@@ -224,7 +224,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		// Discover the next characteristic in this service.
 		handles := C.ble_gattc_handle_range_t{
 			start_handle: startHandle,
-			end_handle:   s.endHandle,
+			end_handle:   startHandle + 1,
 		}
 
 		errCode := C.sd_ble_gattc_characteristics_discover(s.connectionHandle, &handles)
@@ -240,6 +240,11 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		}
 		foundCharacteristicHandle := discoveringCharacteristic.handle_value.Get()
 		discoveringCharacteristic.handle_value.Set(0)
+
+		// was it last characteristic?
+		if foundCharacteristicHandle == 0xffff {
+			break
+		}
 
 		// Start the next request from the handle right after this one.
 		startHandle = foundCharacteristicHandle + 1
@@ -280,7 +285,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 			// likely it also supports notifications.
 			errCode := C.sd_ble_gattc_descriptors_discover(s.connectionHandle, &C.ble_gattc_handle_range_t{
 				start_handle: startHandle,
-				end_handle:   s.endHandle,
+				end_handle:   startHandle + 1,
 			})
 			if errCode != 0 {
 				return nil, Error(errCode)
@@ -303,7 +308,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		}
 	}
 
-	if numFound != len(uuids) {
+	if len(uuids) > 0 && numFound != len(uuids) {
 		return nil, errNotFound
 	}
 
