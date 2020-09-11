@@ -28,11 +28,11 @@ func (uuid UUID) shortUUID() (C.ble_uuid_t, uint32) {
 // UUID returns the full length UUID for this short UUID.
 func (s shortUUID) UUID() UUID {
 	var outLen C.uint8_t
-	var outUUID [16]C.uint8_t
+	var outUUID C.uint16_t
 
-	C.sd_ble_uuid_encode(((*C.ble_uuid_t)(unsafe.Pointer(&s))), ((*C.uint8_t)(unsafe.Pointer(&outLen))), ((*C.uint8_t)(unsafe.Pointer(&outUUID[0]))))
+	C.sd_ble_uuid_encode(((*C.ble_uuid_t)(unsafe.Pointer(&s))), ((*C.uint8_t)(unsafe.Pointer(&outLen))), ((*C.uint8_t)(unsafe.Pointer(&outUUID))))
 
-	return NewUUID(outUUID)
+	return New16BitUUID(outUUID)
 }
 
 // IsIn checks the passed in slice of short UUIDs to see if this uuid is in it.
