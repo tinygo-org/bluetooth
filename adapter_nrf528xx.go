@@ -177,6 +177,7 @@ func handleEvent() {
 				// one discovered service. Use the first as a sensible fallback.
 				discoveringService.startHandle.Set(discoveryEvent.services[0].handle_range.start_handle)
 				discoveringService.endHandle.Set(discoveryEvent.services[0].handle_range.end_handle)
+				discoveringService.uuid = discoveryEvent.services[0].uuid
 			} else {
 				// No service found.
 				discoveringService.startHandle.Set(0)
@@ -192,6 +193,9 @@ func handleEvent() {
 				discoveringCharacteristic.handle_value.Set(discoveryEvent.chars[0].handle_value)
 				discoveringCharacteristic.char_props = discoveryEvent.chars[0].char_props
 				discoveringCharacteristic.uuid = discoveryEvent.chars[0].uuid
+			} else {
+				// zero indicates we received no characteristic, set handle_value to last
+				discoveringCharacteristic.handle_value.Set(0xffff)
 			}
 		case C.BLE_GATTC_EVT_DESC_DISC_RSP:
 			discoveryEvent := gattcEvent.params.unionfield_desc_disc_rsp()

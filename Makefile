@@ -33,6 +33,7 @@ smoketest-linux:
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/nusserver
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/scanner
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/discover
 
 smoketest-windows:
 	# Test on Windows.
@@ -41,3 +42,4 @@ smoketest-windows:
 smoketest-macos:
 	# Test on macos.
 	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/scanner
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/discover

@@ -11,11 +11,20 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/gatt"
 )
 
+// UUIDWrapper is a type alias for UUID so we ensure no conflicts with
+// struct method of the same name.
+type uuidWrapper = UUID
+
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
-	UUID
+	uuidWrapper
 
 	service *gatt.GattService1
+}
+
+// UUID returns the UUID for this DeviceService.
+func (s *DeviceService) UUID() UUID {
+	return s.uuidWrapper
 }
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
@@ -89,7 +98,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		uuid, _ := ParseUUID(service.Properties.UUID)
-		ds := DeviceService{UUID: uuid,
+		ds := DeviceService{uuidWrapper: uuid,
 			service: service,
 		}
 
@@ -108,9 +117,14 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
 // device.
 type DeviceCharacteristic struct {
-	UUID
+	uuidWrapper
 
 	characteristic *gatt.GattCharacteristic1
+}
+
+// UUID returns the UUID for this DeviceCharacteristic.
+func (c *DeviceCharacteristic) UUID() UUID {
+	return c.uuidWrapper
 }
 
 // DiscoverCharacteristics discovers characteristics in this service. Pass a
@@ -171,7 +185,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		}
 
 		uuid, _ := ParseUUID(char.Properties.UUID)
-		dc := DeviceCharacteristic{UUID: uuid,
+		dc := DeviceCharacteristic{uuidWrapper: uuid,
 			characteristic: char,
 		}
 

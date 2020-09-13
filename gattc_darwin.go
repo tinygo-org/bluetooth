@@ -33,12 +33,12 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		for _, dsvc := range d.prph.Services() {
 			uuid, _ := ParseUUID(dsvc.UUID().String())
 			svc := DeviceService{
-				UUID:    uuid,
-				device:  d,
-				service: dsvc,
+				uuidWrapper: uuid,
+				device:      d,
+				service:     dsvc,
 			}
 			svcs = append(svcs, svc)
-			d.services[svc.UUID] = &svc
+			d.services[svc.uuidWrapper] = &svc
 		}
 		return svcs, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -46,13 +46,22 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	}
 }
 
+// uuidWrapper is a type alias for UUID so we ensure no conflicts with
+// struct method of the same name.
+type uuidWrapper = UUID
+
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
-	UUID
+	uuidWrapper
 
 	device *Device
 
 	service cbgo.Service
+}
+
+// UUID returns the UUID for this DeviceService.
+func (s *DeviceService) UUID() UUID {
+	return s.uuidWrapper
 }
 
 // DiscoverCharacteristics discovers characteristics in this service. Pass a
@@ -83,12 +92,12 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		for _, dchar := range s.service.Characteristics() {
 			uuid, _ := ParseUUID(dchar.UUID().String())
 			char := DeviceCharacteristic{
-				UUID:           uuid,
+				uuidWrapper:    uuid,
 				service:        s,
 				characteristic: dchar,
 			}
 			chars = append(chars, char)
-			s.device.characteristics[char.UUID] = &char
+			s.device.characteristics[char.uuidWrapper] = &char
 		}
 		return chars, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -99,12 +108,17 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
 // device.
 type DeviceCharacteristic struct {
-	UUID
+	uuidWrapper
 
 	service *DeviceService
 
 	characteristic cbgo.Characteristic
 	callback       func(buf []byte)
+}
+
+// UUID returns the UUID for this DeviceCharacteristic.
+func (c *DeviceCharacteristic) UUID() UUID {
+	return c.uuidWrapper
 }
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The
