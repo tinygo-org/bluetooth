@@ -172,11 +172,11 @@ After you have installed the above requirements, you should be able to compile/r
 
 ## Nordic Semiconductor
 
-There is bare metal support for several chips from Nordic Semiconductors that provide a built-in Bluetooth Low Energy radio.
+Go Bluetooth has bare metal support for several chips from Nordic Semiconductor that include a built-in Bluetooth Low Energy radio. 
 
-These chips are supported through [TinyGo](https://tinygo.org/).
+This support requires compiling your programs using [TinyGo](https://tinygo.org/).
 
-This also requires that you use firmware provided by Nordic Semi known as the "SoftDevice". The SoftDevice is a binary blob that implements the BLE stack. There are other (open source) BLE stacks, but the SoftDevices are pretty solid and have all the qualifications you might need. Other BLE stacks might be added in the future.
+You must also use firmware provided by Nordic Semiconductor known as the "SoftDevice". The SoftDevice is a binary blob that implements the BLE stack. There are other (open source) BLE stacks, but the SoftDevices are pretty solid and have all the qualifications you might need. Other BLE stacks might be added in the future.
 
 ### Installation
 
@@ -190,7 +190,7 @@ Check your desired target board for any additional installation requirements.
 
 ### Adafruit "Bluefruit" boards
 
-The line of "Bluefruit" boards created by Adafruit already have the SoftDevice firmware pre-installed. This means you can use TinyGo and the Go Bluetooth package without any additional steps required. Supported Adafruit boards include:
+The line of "Bluefruit" boards created by Adafruit already have the SoftDevice firmware pre-loaded. This means you can use TinyGo and the Go Bluetooth package without any additional steps required. Supported Adafruit boards include:
 
 * [Adafruit Circuit Playground Bluefruit](https://www.adafruit.com/product/4333)
 * [Adafruit CLUE Alpha](https://www.adafruit.com/product/4500)
