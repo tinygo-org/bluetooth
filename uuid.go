@@ -115,12 +115,12 @@ func ParseUUID(s string) (uuid UUID, err error) {
 		uuid[3-uuidIndex/8] |= uint32(nibble) << (4 * (7 - uuidIndex%8))
 		uuidIndex++
 	}
-	if uuidIndex != 31 {
+	if uuidIndex != 32 {
 		// The UUID doesn't have exactly 32 nibbles. Perhaps a 16-bit or 32-bit
 		// UUID?
 		err = errInvalidUUID
 	}
-	return uuid, nil
+	return
 }
 
 // String returns a human-readable version of this UUID, such as
