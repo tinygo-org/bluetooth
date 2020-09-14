@@ -152,11 +152,15 @@ After you have installed the above requirements, you should be able to compile/r
 
 ## Windows
 
+Go Bluetooth support for Windows uses the [WinRT Bluetooth](https://docs.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter?view=winrt-19041) interfaces by way of the https://github.com/tinygo-org/bluetooth/winbt package that is part of this package.
+
 The Windows support is still experimental, and needs additional development to be useful.
+
+For specifics please see https://github.com/tinygo-org/bluetooth/issues/13
 
 ### Installation
 
-Once you have done this, you can install the Go Bluetooth package by running:
+You can install the Go Bluetooth package by running:
 
 	go get -u -d tinygo.org/x/bluetooth
 
