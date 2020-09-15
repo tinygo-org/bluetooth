@@ -9,6 +9,9 @@ jobs:
       - checkout
       - run: tinygo version
       - run:
+          name: "Run unit tests"
+          command: go test
+      - run:
           name: "Run TinyGo smoke tests"
           command: make smoketest-tinygo
       - run:
