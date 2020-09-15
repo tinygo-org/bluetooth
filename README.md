@@ -210,13 +210,18 @@ For example, this command can be used to compile and flash an Adafruit Circuit P
 
 ### BBC micro:bit
 
-The [BBC micro:bit](https://microbit.org/) uses an nRF51 chip with a CMSIS-DAP interface. This means you must first flash the SoftDevice firmware by copying the .hex file to the device, for example (on Linux):
+The [BBC micro:bit](https://microbit.org/) uses an nRF51 chip with a CMSIS-DAP interface.
 
+You will need to install OpenOCD (http://openocd.org/) to flash the board.
+
+First, flash the SoftDevice firmware by copying the .hex file to the device. For example (on Linux):
+
+	cd bluetooth
     cp ./s110_nrf51_8.0.0/s110_nrf51_8.0.0_softdevice.hex /media/yourusername/MICROBIT/
 
-Once you have copied the SoftDevice firmware to the BBC micro:bit, you can flash your TinyGo program. To do this we must use the CMSIS-DAP interface instead of the default mass-storage interface, by using the `-programmer=cmsis-dap` flag:
+Once you have copied the SoftDevice firmware to the BBC micro:bit, you can then flash your TinyGo program:
 
-    tinygo flash -target=microbit-s110v8 -programmer=cmsis-dap ./examples/heartrate
+    tinygo flash -target=microbit-s110v8 ./examples/heartrate
 
 ### Supported Chips
 
