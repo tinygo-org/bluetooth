@@ -9,13 +9,13 @@ It works on typical operating systems such as [Linux](#linux), [macOS](#macos), 
 
 It can also be used running "bare metal" on microcontrollers such as those produced by Nordic Semiconductor.
 
-The Go Bluetooth package can be used to create both Bluetooth Low Energy Clients (aka Centrals) as well as to create Bluetooth Low Energy Servers (aka Peripherals).
+The Go Bluetooth package can be used to create both Bluetooth Low Energy Centrals as well as to create Bluetooth Low Energy Peripherals.
 
-## Bluetooth Low Energy Clients
+## Bluetooth Low Energy Central
 
-A typical Bluetooth Low Energy Client would be your laptop computer.
+A typical Bluetooth Low Energy Central would be your laptop computer or mobile phone.
 
-This example shows a client that scans for peripheral devices and then displays information about them as they are discovered:
+This example shows a central that scans for peripheral devices and then displays information about them as they are discovered:
 
 ```go
 package main
@@ -45,11 +45,11 @@ func must(action string, err error) {
 }
 ```
 
-## Bluetooth Low Energy Server
+## Bluetooth Low Energy Peripheral
 
-A typical Bluetooth Low Energy Server would be a peripheral like a temperature sensor.
+A typical Bluetooth Low Energy Peripheral would be a temperature sensor or heart rate sensor.
 
-This example shows a server aka peripheral that advertises itself as being available for connection:
+This example shows a peripheral that advertises itself as being available for connection:
 
 ```go
 package main
@@ -107,7 +107,7 @@ func must(action string, err error) {
 
 Go Bluetooth support for Linux uses [BlueZ](http://www.bluez.org/) via the [D-Bus](https://en.wikipedia.org/wiki/D-Bus) interface thanks to the https://github.com/muka/go-bluetooth package. This should work with most distros that support BlueZ such as Ubuntu, Debian, Fedora, and Arch Linux, among others. 
 
-Linux can be used both as a BLE Client as well as BLE Server.
+Linux can be used both as a BLE Central or as a BLE Peripheral.
 
 ### Installation
 
@@ -116,14 +116,15 @@ You need to have a fairly recent version of BlueZ, for example v5.48 is the late
 	sudo apt update
 	sudo apt install bluez
 
-Once you have done this, you can install the Go Bluetooth package by running:
+Once you have done this, you can obtain the Go Bluetooth package using Git:
 
-	go get -u -d tinygo.org/x/bluetooth
+	git clone https://github.com/tinygo-org/bluetooth.git
 
 ### Compiling
 
-After you have installed the above requirements, you should be able to compile/run the "scanner" test program:
+After you have followed the installation, you should be able to compile/run the "scanner" test program:
 
+	cd bluetooth
 	go run ./examples/scanner
 
 ## macOS
@@ -132,7 +133,7 @@ Go Bluetooth support for macOS uses the [CoreBluetooth](https://developer.apple.
 
 As a result, it should work with most versions of macOS, although it will require compiling using whatever specific version of XCode is required by your version of the operating system. 
 
-The macOS support only can only act as a BLE Client at this time, with some additional development work needed for full functionality.
+The macOS support only can only act as a BLE Central at this time, with some additional development work needed for full functionality.
 
 ### Installation
 
@@ -140,34 +141,36 @@ In order to compile Go Bluetooth code targeting macOS, you must do so on macOS i
 
 	xcode-select --install
 
-Once you have done this, you can install the Go Bluetooth package by running:
+Once you have done this, you can obtain the Go Bluetooth package using Git:
 
-	go get -u -d tinygo.org/x/bluetooth
+	git clone https://github.com/tinygo-org/bluetooth.git
 
 ### Compiling
 
-After you have installed the above requirements, you should be able to compile/run the "scanner" test program:
+After you have followed the installation, you should be able to compile/run the "scanner" test program:
 
+	cd bluetooth
 	go run ./examples/scanner
 
 ## Windows
 
 Go Bluetooth support for Windows uses the [WinRT Bluetooth](https://docs.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter?view=winrt-19041) interfaces by way of the https://github.com/tinygo-org/bluetooth/winbt package that is part of this package.
 
-The Windows support is still experimental, and needs additional development to be useful.
+The Windows support is still experimental, and needs additional development to be useful. At this time, it can only be used to perform scanning operations as a BLE Central.
 
 For specifics please see https://github.com/tinygo-org/bluetooth/issues/13
 
 ### Installation
 
-You can install the Go Bluetooth package by running:
+Once you have done this, you can obtain the Go Bluetooth package using Git:
 
-	go get -u -d tinygo.org/x/bluetooth
+	git clone https://github.com/tinygo-org/bluetooth.git
 
 ### Compiling
 
-After you have installed the above requirements, you should be able to compile/run the "scanner" test program:
+After you have followed the installation, you should be able to compile/run the "scanner" test program:
 
+	cd bluetooth
 	go run .\examples\scanner
 
 ## Nordic Semiconductor
@@ -178,13 +181,15 @@ This support requires compiling your programs using [TinyGo](https://tinygo.org/
 
 You must also use firmware provided by Nordic Semiconductor known as the "SoftDevice". The SoftDevice is a binary blob that implements the BLE stack. There are other (open source) BLE stacks, but the SoftDevices are pretty solid and have all the qualifications you might need. Other BLE stacks might be added in the future.
 
+The Nordic Semiconductor SoftDevice can be used both as a BLE Central or as a BLE Peripheral, depending on which chip is being used. See the "Supported Chips" section below.
+
 ### Installation
 
 You must install TinyGo to be able to compile bare metal code using Go Bluetooth. Follow the instructions for your operating system at https://tinygo.org/getting-started/  
 
 Once you have installed TinyGo, you can install the Go Bluetooth package by running:
 
-	go get -u -d tinygo.org/x/bluetooth
+	git clone https://github.com/tinygo-org/bluetooth.git
 
 Check your desired target board for any additional installation requirements.
 
@@ -197,8 +202,6 @@ The line of "Bluefruit" boards created by Adafruit already have the SoftDevice f
 * [Adafruit Feather nRF52840 Express](https://www.adafruit.com/product/4062)
 * [Adafruit ItsyBitsy nRF52840](https://www.adafruit.com/product/4481)
 
-### Compiling
-
 After you have installed TinyGo and the Go Bluetooth package, you should be able to compile/run code for your device.
 
 For example, this command can be used to compile and flash an Adafruit Circuit Playground Bluefruit board with the example we provide that turns it into a BLE server to control the built-in NeoPixel LEDs:
@@ -209,7 +212,7 @@ For example, this command can be used to compile and flash an Adafruit Circuit P
 
 The [BBC micro:bit](https://microbit.org/) uses an nRF51 chip with a CMSIS-DAP interface. This means you must first flash the SoftDevice firmware by copying the .hex file to the device, for example (on Linux):
 
-    cp path/to/bluetooth/s110_nrf51_8.0.0/s110_nrf51_8.0.0_softdevice.hex /media/yourusername/MICROBIT/
+    cp ./s110_nrf51_8.0.0/s110_nrf51_8.0.0_softdevice.hex /media/yourusername/MICROBIT/
 
 Once you have copied the SoftDevice firmware to the BBC micro:bit, you can flash your TinyGo program. To do this we must use the CMSIS-DAP interface instead of the default mass-storage interface, by using the `-programmer=cmsis-dap` flag:
 
@@ -225,7 +228,7 @@ The following Nordic Semiconductor chips are currently supported:
 
 ### Flashing the SoftDevice on Other Boards
 
-To use a board that uses one of the above supported chips from Nordic Semi, other then those already listed, you will probably need to install the SoftDevice firmware on the board yourself in order to use it with TinyGo and the Go Bluetooth package.
+To use a board that uses one of the above supported chips from Nordic Semiconductor, other then those already listed, you will probably need to install the SoftDevice firmware on the board yourself in order to use it with TinyGo and the Go Bluetooth package.
 
 Flashing the SoftDevice can sometimes be tricky. If you have [nrfjprog](https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Command-Line-Tools) installed, you can erase the flash and flash the new BLE firmware using the following commands. Replace the path to the hex file with the correct SoftDevice, for example `s132_nrf52_6.1.1/s132_nrf52_6.1.1_softdevice.hex` for S132 version 6.
 
@@ -259,6 +262,20 @@ This package will probably remain unstable until the following has been implemen
 Your contributions are welcome!
 
 Please take a look at our [CONTRIBUTING.md](./CONTRIBUTING.md) document for details.
+
+## Frequently Asked Questions
+
+**Q. Where can I get an introduction to Bluetooth Low Energy, GAP, GATT, etc.?**
+
+A. Please see this excellent article from our friends at Adafruit: https://learn.adafruit.com/introduction-to-bluetooth-low-energy
+
+**Q. What is a client and server in BLE?**
+
+A. Please see https://devzone.nordicsemi.com/f/nordic-q-a/71/what-is-a-client-and-server-in-ble
+
+**Q. Can a device be both a GATT client and GATT server?**
+
+A. Yes, but this is not currently supported by Go Bluetooth. Current support is either to act as a central in client mode, or as a peripheral in server mode.
 
 ## License
 
