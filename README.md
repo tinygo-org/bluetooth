@@ -3,11 +3,11 @@
 [![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/github.com/tinygo-org/bluetooth)](https://pkg.go.dev/github.com/tinygo-org/bluetooth)
 [![CircleCI](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev)
 
-Go Bluetooth is a cross-platform Go package for using [Bluetooth Low Energy](https://en.wikipedia.org/wiki/Bluetooth_Low_Energy) hardware. 
+Go Bluetooth is a cross-platform package for using [Bluetooth Low Energy](https://en.wikipedia.org/wiki/Bluetooth_Low_Energy) hardware from the Go programming language. 
 
 It works on typical operating systems such as [Linux](#linux), [macOS](#macos), and [Windows](#windows). 
 
-It can also be used running "bare metal" on microcontrollers such as those produced by Nordic Semiconductor.
+It can also be used running "bare metal" on microcontrollers produced by [Nordic Semiconductor](https://www.nordicsemi.com/) by using [TinyGo](https://tinygo.org/).
 
 The Go Bluetooth package can be used to create both Bluetooth Low Energy Centrals as well as to create Bluetooth Low Energy Peripherals.
 
