@@ -43,3 +43,4 @@ smoketest-macos:
 	# Test on macos.
 	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/scanner
 	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/discover
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/nusclient
