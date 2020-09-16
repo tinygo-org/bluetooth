@@ -254,6 +254,13 @@ func (buf *rawAdvertisementPayload) HasServiceUUID(uuid UUID) bool {
 	}
 }
 
+// reset restores this buffer to the original state.
+func (buf *rawAdvertisementPayload) reset() {
+	// The data is not reset (only the length), because with a zero length the
+	// data is undefined.
+	buf.len = 0
+}
+
 // addFromOptions constructs a new advertisement payload (assumed to be empty
 // before the call) from the advertisement options. It returns true if it fits,
 // false otherwise.
