@@ -107,7 +107,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		uuidServices[service.Properties.UUID] = service.Properties.UUID
 	}
 
-	if servicesFound <= len(uuids) {
+	if servicesFound < len(uuids) {
 		return nil, errors.New("bluetooth: could not find some services")
 	}
 
