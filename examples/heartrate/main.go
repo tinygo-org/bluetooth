@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"time"
 
 	"tinygo.org/x/bluetooth"
@@ -29,7 +30,8 @@ func main() {
 				Handle: &heartRateMeasurement,
 				UUID:   bluetooth.New16BitUUID(0x2A37), // Heart Rate Measurement
 				Value:  []byte{0, heartRate},
-				Flags:  bluetooth.CharacteristicReadPermission | bluetooth.CharacteristicWritePermission,
+				Flags: bluetooth.CharacteristicReadPermission | bluetooth.CharacteristicWritePermission |
+					bluetooth.CharacteristicNotifyPermission,
 				WriteEvent: func(client bluetooth.Connection, offset int, value []byte) {
 					if offset != 0 || len(value) < 2 {
 						return
@@ -48,6 +50,12 @@ func main() {
 		nextBeat = nextBeat.Add(time.Minute / time.Duration(heartRate))
 		println("tick", time.Now().Format("04:05.000"))
 		time.Sleep(nextBeat.Sub(time.Now()))
+
+		// random variation in heartrate
+		heartRate = randomInt(65, 85)
+
+		// and push the next notification
+		heartRateMeasurement.Write([]byte{byte(heartRate)})
 	}
 }
 
@@ -55,4 +63,9 @@ func must(action string, err error) {
 	if err != nil {
 		panic("failed to " + action + ": " + err.Error())
 	}
+}
+
+// Returns an int >= min, < max
+func randomInt(min, max int) uint8 {
+	return uint8(min + rand.Intn(max-min))
 }
