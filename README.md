@@ -1,5 +1,7 @@
 # Go Bluetooth
 
+[![Go Bluetooth](./images/gobluetooth.png)](https://tinygo.org/bluetooth)
+
 [![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/github.com/tinygo-org/bluetooth)](https://pkg.go.dev/github.com/tinygo-org/bluetooth)
 [![CircleCI](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev.svg?style=svg)](https://circleci.com/gh/tinygo-org/bluetooth/tree/dev)
 
