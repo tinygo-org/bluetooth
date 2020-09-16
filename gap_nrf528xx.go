@@ -36,6 +36,7 @@ type Address struct {
 type Advertisement struct {
 	handle        uint8
 	isAdvertising volatile.Register8
+	payload       rawAdvertisementPayload
 }
 
 // The nrf528xx devices only seem to support one advertisement instance. The way
@@ -62,15 +63,17 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	}
 
 	// Construct payload.
-	var payload rawAdvertisementPayload
-	if !payload.addFromOptions(options) {
+	// Note that the payload needs to be part of the Advertisement object as the
+	// memory is still used after sd_ble_gap_adv_set_configure returns.
+	a.payload.reset()
+	if !a.payload.addFromOptions(options) {
 		return errAdvertisementPacketTooBig
 	}
 
 	data := C.ble_gap_adv_data_t{}
 	data.adv_data = C.ble_data_t{
-		p_data: &payload.data[0],
-		len:    uint16(payload.len),
+		p_data: &a.payload.data[0],
+		len:    uint16(a.payload.len),
 	}
 	params := C.ble_gap_adv_params_t{
 		properties: C.ble_gap_adv_properties_t{
