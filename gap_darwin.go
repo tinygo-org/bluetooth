@@ -24,8 +24,12 @@ func (ad Address) SetRandom(val bool) {
 }
 
 // Set the address
-func (ad Address) Set(val interface{}) {
-	ad.UUID = val.(UUID)
+func (ad Address) Set(val string) {
+	uuid, err := ParseUUID(val)
+	if err != nil {
+		return
+	}
+	ad.UUID = uuid
 }
 
 // Scan starts a BLE scan. It is stopped by a call to StopScan. A common pattern
