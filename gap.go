@@ -30,8 +30,12 @@ func (mac MACAddress) SetRandom(val bool) {
 }
 
 // Set the address
-func (mac MACAddress) Set(val interface{}) {
-	m := val.(MAC)
+func (mac MACAddress) Set(val string) {
+	m, err := ParseMAC(val)
+	if err != nil {
+		return
+	}
+
 	mac.MAC = m
 }
 
@@ -72,7 +76,7 @@ type Addresser interface {
 	String() string
 
 	// Set the address
-	Set(val interface{})
+	Set(val string)
 
 	// Is this address a random address?
 	// Bluetooth addresses are roughly split in two kinds: public
