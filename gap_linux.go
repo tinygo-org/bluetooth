@@ -266,3 +266,8 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 		device: dev,
 	}, nil
 }
+
+// Disconnect from the BLE device.
+func (d *Device) Disconnect() error {
+	return d.device.Disconnect()
+}

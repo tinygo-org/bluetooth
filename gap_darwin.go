@@ -128,6 +128,12 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 	}
 }
 
+// Disconnect from the BLE device.
+func (d *Device) Disconnect() error {
+	d.cm.CancelConnect(d.prph)
+	return nil
+}
+
 // Peripheral delegate functions
 
 type peripheralDelegate struct {
