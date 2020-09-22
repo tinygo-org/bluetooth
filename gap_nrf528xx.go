@@ -252,3 +252,13 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 		connectionHandle: connectionHandle,
 	}, nil
 }
+
+// Disconnect from the BLE device.
+func (d *Device) Disconnect() error {
+	errCode := C.sd_ble_gap_disconnect(d.connectionHandle, C.BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION)
+	if errCode != 0 {
+		return Error(errCode)
+	}
+
+	return nil
+}

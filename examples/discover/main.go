@@ -73,6 +73,11 @@ func main() {
 		}
 	}
 
+	err = device.Disconnect()
+	if err != nil {
+		println(err)
+	}
+
 	done()
 }
 
