@@ -13,6 +13,11 @@ func connectAddress() string {
 	return deviceAddress
 }
 
+// wait on baremetal, proceed immediately on desktop OS.
+func wait() {
+	time.Sleep(3 * time.Second)
+}
+
 // done just blocks forever, allows USB CDC reset for flashing new software.
 func done() {
 	println("Done.")

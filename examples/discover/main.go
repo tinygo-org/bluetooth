@@ -17,15 +17,13 @@
 package main
 
 import (
-	"time"
-
 	"tinygo.org/x/bluetooth"
 )
 
 var adapter = bluetooth.DefaultAdapter
 
 func main() {
-	time.Sleep(3 * time.Second)
+	wait()
 
 	println("enabling")
 

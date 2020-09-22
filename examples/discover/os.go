@@ -16,6 +16,10 @@ func connectAddress() string {
 	return address
 }
 
+// wait on baremetal, proceed immediately on desktop OS.
+func wait() {
+}
+
 // done just prints a message and allows program to exit.
 func done() {
 	println("Done.")
