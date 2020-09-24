@@ -128,7 +128,8 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 	}
 }
 
-// Disconnect from the BLE device.
+// Disconnect from the BLE device. This method is non-blocking and does not
+// wait until the connection is fully gone.
 func (d *Device) Disconnect() error {
 	d.cm.CancelConnect(d.prph)
 	return nil
