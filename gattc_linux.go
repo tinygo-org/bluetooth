@@ -37,7 +37,7 @@ func (s *DeviceService) UUID() UUID {
 //
 // On Linux with BlueZ, this just waits for the ServicesResolved signal (if
 // services haven't been resolved yet) and uses this list of cached services.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d *Device) DiscoverServices(uuids []UUID) ([]*DeviceService, error) {
 	for {
 		resolved, err := d.device.GetServicesResolved()
 		if err != nil {
@@ -50,7 +50,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	services := []DeviceService{}
+	services := []*DeviceService{}
 	uuidServices := make(map[string]string)
 	servicesFound := 0
 
@@ -98,7 +98,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		uuid, _ := ParseUUID(service.Properties.UUID)
-		ds := DeviceService{uuidWrapper: uuid,
+		ds := &DeviceService{uuidWrapper: uuid,
 			service: service,
 		}
 
@@ -136,8 +136,8 @@ func (c *DeviceCharacteristic) UUID() UUID {
 //
 // Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
-func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
-	chars := []DeviceCharacteristic{}
+func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]*DeviceCharacteristic, error) {
+	chars := []*DeviceCharacteristic{}
 	uuidChars := make(map[string]string)
 	characteristicsFound := 0
 
@@ -185,7 +185,8 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		}
 
 		uuid, _ := ParseUUID(char.Properties.UUID)
-		dc := DeviceCharacteristic{uuidWrapper: uuid,
+		dc := &DeviceCharacteristic{
+			uuidWrapper:    uuid,
 			characteristic: char,
 		}
 
@@ -205,7 +206,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time. This call is also known as a
 // "write command" (as opposed to a write request).
-func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+func (c *DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
 	err = c.characteristic.WriteValue(p, nil)
 	if err != nil {
 		return 0, err
@@ -217,7 +218,7 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
 // notification with a new value every time the value of the characteristic
 // changes.
-func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	ch, err := c.characteristic.WatchProperties()
 	if err != nil {
 		return err

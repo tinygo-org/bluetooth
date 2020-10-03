@@ -14,7 +14,7 @@ import (
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d *Device) DiscoverServices(uuids []UUID) ([]*DeviceService, error) {
 	cbuuids := []cbgo.UUID{}
 	for _, u := range uuids {
 		uuid, _ := cbgo.ParseUUID(u.String())
@@ -29,16 +29,16 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	// wait on channel for service discovery
 	select {
 	case <-d.servicesChan:
-		svcs := []DeviceService{}
+		svcs := []*DeviceService{}
 		for _, dsvc := range d.prph.Services() {
 			uuid, _ := ParseUUID(dsvc.UUID().String())
-			svc := DeviceService{
+			svc := &DeviceService{
 				uuidWrapper: uuid,
 				device:      d,
 				service:     dsvc,
 			}
 			svcs = append(svcs, svc)
-			d.services[svc.uuidWrapper] = &svc
+			d.services[svc.uuidWrapper] = svc
 		}
 		return svcs, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -73,7 +73,7 @@ func (s *DeviceService) UUID() UUID {
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // characteristics.
-func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]*DeviceCharacteristic, error) {
 	cbuuids := []cbgo.UUID{}
 	for _, u := range uuids {
 		uuid, _ := cbgo.ParseUUID(u.String())
@@ -88,16 +88,16 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	// wait on channel for characteristic discovery
 	select {
 	case <-s.device.charsChan:
-		chars := []DeviceCharacteristic{}
+		chars := []*DeviceCharacteristic{}
 		for _, dchar := range s.service.Characteristics() {
 			uuid, _ := ParseUUID(dchar.UUID().String())
-			char := DeviceCharacteristic{
+			char := &DeviceCharacteristic{
 				uuidWrapper:    uuid,
 				service:        s,
 				characteristic: dchar,
 			}
 			chars = append(chars, char)
-			s.device.characteristics[char.uuidWrapper] = &char
+			s.device.characteristics[char.uuidWrapper] = char
 		}
 		return chars, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -125,7 +125,7 @@ func (c *DeviceCharacteristic) UUID() UUID {
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time. This call is also known as a
 // "write command" (as opposed to a write request).
-func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+func (c *DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
@@ -135,7 +135,7 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
 // notification with a new value every time the value of the characteristic
 // changes.
-func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	if callback == nil {
 		return errors.New("must provide a callback for EnableNotifications")
 	}

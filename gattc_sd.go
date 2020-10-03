@@ -62,7 +62,7 @@ func (s *DeviceService) UUID() UUID {
 //
 // On the Nordic SoftDevice, only one service discovery procedure may be done at
 // a time.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d *Device) DiscoverServices(uuids []UUID) ([]*DeviceService, error) {
 	if discoveringService.state.Get() != 0 {
 		// Not concurrency safe, but should catch most concurrency misuses.
 		return nil, errAlreadyDiscovering
@@ -72,7 +72,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if len(uuids) > 0 {
 		sz = len(uuids)
 	}
-	services := make([]DeviceService, 0, sz)
+	services := make([]*DeviceService, 0, sz)
 
 	var shortUUIDs []C.ble_uuid_t
 
@@ -133,7 +133,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		// Store the discovered service.
-		svc := DeviceService{
+		svc := &DeviceService{
 			uuid:             suuid,
 			connectionHandle: d.connectionHandle,
 			startHandle:      startHandle,
@@ -191,7 +191,7 @@ var discoveringCharacteristic struct {
 //
 // Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
-func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]*DeviceCharacteristic, error) {
 	if discoveringCharacteristic.handle_value.Get() != 0 {
 		return nil, errAlreadyDiscovering
 	}
@@ -200,7 +200,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	if len(uuids) > 0 {
 		sz = len(uuids)
 	}
-	characteristics := make([]DeviceCharacteristic, 0, sz)
+	characteristics := make([]*DeviceCharacteristic, 0, sz)
 
 	var shortUUIDs []C.ble_uuid_t
 
@@ -276,7 +276,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 			permissions |= CharacteristicIndicatePermission
 		}
 
-		dc := DeviceCharacteristic{uuid: discoveringCharacteristic.uuid}
+		dc := &DeviceCharacteristic{uuid: discoveringCharacteristic.uuid}
 		dc.permissions = permissions
 		dc.valueHandle = foundCharacteristicHandle
 
@@ -319,7 +319,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time. This call is also known as a
 // "write command" (as opposed to a write request).
-func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+func (c *DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
 	if len(p) == 0 {
 		return 0, nil
 	}
@@ -356,7 +356,7 @@ var gattcNotificationCallbacks []gattcNotificationCallback
 // Warning: when using the SoftDevice, the callback is called from an interrupt
 // which means there are various limitations (such as not being able to allocate
 // heap memory).
-func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	if c.permissions&CharacteristicNotifyPermission == 0 {
 		return errNoNotify
 	}
