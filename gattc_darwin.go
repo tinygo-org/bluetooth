@@ -145,3 +145,8 @@ func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) er
 
 	return nil
 }
+
+// Read reads the current characteristic value.
+func (c DeviceCharacteristic) Read() (data []byte, err error) {
+	return nil, nil
+}

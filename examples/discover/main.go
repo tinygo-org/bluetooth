@@ -68,6 +68,12 @@ func main() {
 		}
 		for _, char := range chars {
 			println("-- characteristic", char.UUID().String())
+			val, err := char.Read()
+			if err != nil {
+				println("---", err.Error())
+			} else {
+				println("--- value =", string(val))
+			}
 		}
 	}
 
