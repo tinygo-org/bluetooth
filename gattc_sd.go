@@ -348,7 +348,7 @@ var readingCharacteristic struct {
 // Read reads the current characteristic value up to MTU length.
 // A future enhancement would be to be able to retrieve a longer
 // value by making multiple calls.
-func (c DeviceCharacteristic) Read() ([]byte, error) {
+func (c *DeviceCharacteristic) Read() ([]byte, error) {
 	errCode := C.sd_ble_gattc_read(c.connectionHandle, c.valueHandle, 0)
 	if errCode != 0 {
 		return nil, Error(errCode)

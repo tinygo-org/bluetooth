@@ -114,6 +114,7 @@ type DeviceCharacteristic struct {
 
 	characteristic cbgo.Characteristic
 	callback       func(buf []byte)
+	readChan       chan error
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -147,6 +148,18 @@ func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) er
 }
 
 // Read reads the current characteristic value.
-func (c DeviceCharacteristic) Read() (data []byte, err error) {
-	return nil, nil
+func (c *DeviceCharacteristic) Read() (data []byte, err error) {
+	c.readChan = make(chan error)
+	c.service.device.prph.ReadCharacteristic(c.characteristic)
+
+	// wait for result
+	select {
+	case <-c.readChan:
+		c.readChan = nil
+	case <-time.NewTimer(10 * time.Second).C:
+		c.readChan = nil
+		return nil, errors.New("timeout on Read()")
+	}
+
+	return c.characteristic.Value(), nil
 }
