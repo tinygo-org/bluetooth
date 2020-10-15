@@ -231,3 +231,9 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	}()
 	return c.characteristic.StartNotify()
 }
+
+// Read reads the current characteristic value.
+func (c *DeviceCharacteristic) Read() ([]byte, error) {
+	options := make(map[string]interface{})
+	return c.characteristic.ReadValue(options)
+}

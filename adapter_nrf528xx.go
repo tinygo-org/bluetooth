@@ -219,6 +219,15 @@ func handleEvent() {
 					}
 				}
 			}
+		case C.BLE_GATTC_EVT_READ_RSP:
+			readEvent := gattcEvent.params.unionfield_read_rsp()
+			if debug {
+				println("evt: read response, data length", readEvent.len)
+			}
+			readingCharacteristic.handle_value.Set(readEvent.handle)
+			readingCharacteristic.offset = readEvent.offset
+			// Create a Go slice from the data.
+			readingCharacteristic.value = (*[255]byte)(unsafe.Pointer(&readEvent.data[0]))[:readEvent.len:readEvent.len]
 		case C.BLE_GATTC_EVT_HVX:
 			hvxEvent := gattcEvent.params.unionfield_hvx()
 			switch hvxEvent._type {
