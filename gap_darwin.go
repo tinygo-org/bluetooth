@@ -162,5 +162,9 @@ func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripher
 		if char != nil && char.callback != nil {
 			go char.callback(chr.Value())
 		}
+
+		if char.readChan != nil {
+			char.readChan <- nil
+		}
 	}
 }
