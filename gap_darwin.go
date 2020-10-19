@@ -155,16 +155,17 @@ func (pd *peripheralDelegate) DidDiscoverCharacteristics(prph cbgo.Peripheral, s
 }
 
 // DidUpdateValueForCharacteristic is called when the characteristic for a Service
-// for a Peripheral receives a notification with a new value.
+// for a Peripheral receives a notification with a new value,
+// or receives a value for a read request.
 func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripheral, chr cbgo.Characteristic, err error) {
 	uuid, _ := ParseUUID(chr.UUID().String())
 	if char, ok := pd.d.characteristics[uuid]; ok {
-		if char != nil && char.callback != nil {
+		if err == nil && char.callback != nil {
 			go char.callback(chr.Value())
 		}
 
 		if char.readChan != nil {
-			char.readChan <- nil
+			char.readChan <- err
 		}
 	}
 }

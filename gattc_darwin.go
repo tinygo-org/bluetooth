@@ -160,8 +160,11 @@ func (c *deviceCharacteristic) Read() (data []byte, err error) {
 
 	// wait for result
 	select {
-	case <-c.readChan:
+	case err := <-c.readChan:
 		c.readChan = nil
+		if err != nil {
+			return nil, err
+		}
 	case <-time.NewTimer(10 * time.Second).C:
 		c.readChan = nil
 		return nil, errors.New("timeout on Read()")
