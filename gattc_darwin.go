@@ -154,7 +154,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 }
 
 // Read reads the current characteristic value.
-func (c *deviceCharacteristic) Read() (data []byte, err error) {
+func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
 	c.readChan = make(chan error)
 	c.service.device.prph.ReadCharacteristic(c.characteristic)
 
@@ -163,12 +163,13 @@ func (c *deviceCharacteristic) Read() (data []byte, err error) {
 	case err := <-c.readChan:
 		c.readChan = nil
 		if err != nil {
-			return nil, err
+			return 0, err
 		}
 	case <-time.NewTimer(10 * time.Second).C:
 		c.readChan = nil
-		return nil, errors.New("timeout on Read()")
+		return 0, errors.New("timeout on Read()")
 	}
 
-	return c.characteristic.Value(), nil
+	copy(data, c.characteristic.Value())
+	return len(c.characteristic.Value()), nil
 }

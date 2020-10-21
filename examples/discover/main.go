@@ -17,6 +17,8 @@
 package main
 
 import (
+	"strconv"
+
 	"tinygo.org/x/bluetooth"
 )
 
@@ -59,6 +61,9 @@ func main() {
 	srvcs, err := device.DiscoverServices(nil)
 	must("discover services", err)
 
+	// buffer to retrieve characteristic data
+	buf := make([]byte, 255)
+
 	for _, srvc := range srvcs {
 		println("- service", srvc.UUID().String())
 
@@ -68,11 +73,12 @@ func main() {
 		}
 		for _, char := range chars {
 			println("-- characteristic", char.UUID().String())
-			val, err := char.Read()
+			n, err := char.Read(buf)
 			if err != nil {
 				println("    ", err.Error())
 			} else {
-				println("    value =", string(val))
+				println("    data bytes", strconv.Itoa(n))
+				println("    value =", string(buf[:n]))
 			}
 		}
 	}
