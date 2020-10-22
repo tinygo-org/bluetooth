@@ -92,9 +92,11 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		for _, dchar := range s.service.Characteristics() {
 			uuid, _ := ParseUUID(dchar.UUID().String())
 			char := DeviceCharacteristic{
-				uuidWrapper:    uuid,
-				service:        s,
-				characteristic: dchar,
+				deviceCharacteristic: &deviceCharacteristic{
+					uuidWrapper:    uuid,
+					service:        s,
+					characteristic: dchar,
+				},
 			}
 			chars = append(chars, char)
 			s.device.characteristics[char.uuidWrapper] = &char
@@ -108,12 +110,17 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
 // device.
 type DeviceCharacteristic struct {
+	*deviceCharacteristic
+}
+
+type deviceCharacteristic struct {
 	uuidWrapper
 
 	service *DeviceService
 
 	characteristic cbgo.Characteristic
 	callback       func(buf []byte)
+	readChan       chan error
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -144,4 +151,25 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	c.service.device.prph.SetNotify(true, c.characteristic)
 
 	return nil
+}
+
+// Read reads the current characteristic value.
+func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
+	c.readChan = make(chan error)
+	c.service.device.prph.ReadCharacteristic(c.characteristic)
+
+	// wait for result
+	select {
+	case err := <-c.readChan:
+		c.readChan = nil
+		if err != nil {
+			return 0, err
+		}
+	case <-time.NewTimer(10 * time.Second).C:
+		c.readChan = nil
+		return 0, errors.New("timeout on Read()")
+	}
+
+	copy(data, c.characteristic.Value())
+	return len(c.characteristic.Value()), nil
 }

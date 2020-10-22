@@ -414,3 +414,39 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	})
 	return makeError(errCode)
 }
+
+// A global used to pass information from the event handler back to the
+// Read function below.
+var readingCharacteristic struct {
+	handle_value volatile.Register16
+	offset       uint16
+	length       uint16
+	value        []byte
+}
+
+// Read reads the current characteristic value up to MTU length.
+// A future enhancement would be to be able to retrieve a longer
+// value by making multiple calls.
+func (c *DeviceCharacteristic) Read(data []byte) (n int, err error) {
+	// global will copy bytes from read operation into data slice
+	readingCharacteristic.value = data
+
+	errCode := C.sd_ble_gattc_read(c.connectionHandle, c.valueHandle, 0)
+	if errCode != 0 {
+		return 0, Error(errCode)
+	}
+
+	// wait for response with data
+	for readingCharacteristic.handle_value.Get() == 0 {
+		arm.Asm("wfe")
+	}
+
+	// how much data was read into buffer
+	n = int(readingCharacteristic.length)
+
+	// prepare for next read
+	readingCharacteristic.handle_value.Set(0)
+	readingCharacteristic.length = 0
+
+	return
+}
