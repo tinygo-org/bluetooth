@@ -240,11 +240,10 @@ func handleEvent() {
 				// Find the callback and call it (if there is any).
 				for _, callbackInfo := range gattcNotificationCallbacks {
 					if callbackInfo.valueHandle == hvxEvent.handle && callbackInfo.connectionHandle == gattcEvent.conn_handle {
-						// Create a Go slice from the data, to pass to the
-						// callback.
-						data := (*[255]byte)(unsafe.Pointer(&hvxEvent.data[0]))[:hvxEvent.len:hvxEvent.len]
 						if callbackInfo.callback != nil {
-							callbackInfo.callback(data)
+							// copy to Go slice from the data, to pass to the callback.
+							copy(callbackInfo.data, (*[255]byte)(unsafe.Pointer(&hvxEvent.data[0]))[:hvxEvent.len:hvxEvent.len])
+							callbackInfo.callback(callbackInfo.data[:hvxEvent.len])
 						}
 						break
 					}

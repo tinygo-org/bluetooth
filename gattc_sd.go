@@ -341,12 +341,22 @@ type gattcNotificationCallback struct {
 	connectionHandle uint16
 	valueHandle      uint16 // may be 0 if the slot is empty
 	callback         func([]byte)
+	data             []byte
 }
 
 // List of notification callbacks for the current connection. Some slots may be
 // empty, they are indicated with a zero valueHandle. They can be reused for new
 // notification callbacks.
 var gattcNotificationCallbacks []gattcNotificationCallback
+
+func (c DeviceCharacteristic) newgattcNotificationCallback(cb func([]byte)) gattcNotificationCallback {
+	return gattcNotificationCallback{
+		connectionHandle: c.connectionHandle,
+		valueHandle:      c.valueHandle,
+		data:             make([]byte, 255),
+		callback:         cb,
+	}
+}
 
 // EnableNotifications enables notifications in the Client Characteristic
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
@@ -376,11 +386,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 		for i, callbackInfo := range gattcNotificationCallbacks {
 			// Check for empty slots.
 			if callbackInfo.valueHandle == 0 {
-				gattcNotificationCallbacks[i] = gattcNotificationCallback{
-					connectionHandle: c.connectionHandle,
-					valueHandle:      c.valueHandle,
-					callback:         callback,
-				}
+				gattcNotificationCallbacks[i] = c.newgattcNotificationCallback(callback)
 				updatedCallback = true
 				break
 			}
@@ -393,11 +399,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	if !updatedCallback {
 		// The append call is done outside of a cricital section to avoid GC in
 		// a critical section.
-		callbackList := append(gattcNotificationCallbacks, gattcNotificationCallback{
-			connectionHandle: c.connectionHandle,
-			valueHandle:      c.valueHandle,
-			callback:         callback,
-		})
+		callbackList := append(gattcNotificationCallbacks, c.newgattcNotificationCallback(callback))
 		mask := DisableInterrupts()
 		gattcNotificationCallbacks = callbackList
 		RestoreInterrupts(mask)
