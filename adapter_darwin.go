@@ -43,16 +43,23 @@ func (a *Adapter) Enable() error {
 	}
 
 	// wait until powered
-	a.poweredChan = make(chan error)
+	a.poweredChan = make(chan error, 1)
 
 	a.cmd = &centralManagerDelegate{a: a}
 	a.cm.SetDelegate(a.cmd)
-	select {
-	case <-a.poweredChan:
-	case <-time.NewTimer(10 * time.Second).C:
-		return errors.New("timeout enabling CentralManager")
+
+	if a.cm.State() != cbgo.ManagerStatePoweredOn {
+		select {
+		case <-a.poweredChan:
+		case <-time.NewTimer(10 * time.Second).C:
+			return errors.New("timeout enabling CentralManager")
+		}
 	}
-	a.poweredChan = nil
+
+	// drain any extra powered-on events from channel
+	for len(a.poweredChan) > 0 {
+		<-a.poweredChan
+	}
 
 	// wait until powered?
 	a.pmd = &peripheralManagerDelegate{a: a}
@@ -73,7 +80,7 @@ type centralManagerDelegate struct {
 func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
 	// powered on?
 	if cmgr.State() == cbgo.ManagerStatePoweredOn {
-		close(cmd.a.poweredChan)
+		cmd.a.poweredChan <- nil
 	}
 
 	// TODO: handle other state changes.
