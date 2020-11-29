@@ -4,7 +4,6 @@ jobs:
   build:
     docker:
       - image: tinygo/tinygo-dev
-    working_directory: /usr/local/go/src/github.com/tinygo-org/bluetooth
     steps:
       - checkout
       - run: tinygo version
