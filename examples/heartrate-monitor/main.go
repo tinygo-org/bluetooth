@@ -86,7 +86,7 @@ func main() {
 	println("found characteristic", char.UUID().String())
 
 	char.EnableNotifications(func(buf []byte) {
-		println("data:", uint8(buf[0]))
+		println("data:", uint8(buf[1]))
 	})
 
 	select {}
