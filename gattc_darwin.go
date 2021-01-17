@@ -15,13 +15,7 @@ import (
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
 func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
-	cbuuids := []cbgo.UUID{}
-	for _, u := range uuids {
-		uuid, _ := cbgo.ParseUUID(u.String())
-		cbuuids = append(cbuuids, uuid)
-	}
-
-	d.prph.DiscoverServices(cbuuids)
+	d.prph.DiscoverServices([]cbgo.UUID{})
 
 	// clear cache of services
 	d.services = make(map[UUID]*DeviceService)
@@ -31,9 +25,24 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	case <-d.servicesChan:
 		svcs := []DeviceService{}
 		for _, dsvc := range d.prph.Services() {
-			uuid, _ := ParseUUID(dsvc.UUID().String())
+			dsvcuuid, _ := ParseUUID(dsvc.UUID().String())
+			// add if in our original list
+			if len(uuids) > 0 {
+				found := false
+				for _, uuid := range uuids {
+					if dsvcuuid.String() == uuid.String() {
+						// one of the services we're looking for.
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+
 			svc := DeviceService{
-				uuidWrapper: uuid,
+				uuidWrapper: dsvcuuid,
 				device:      d,
 				service:     dsvc,
 			}
@@ -75,10 +84,6 @@ func (s *DeviceService) UUID() UUID {
 // characteristics.
 func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
 	cbuuids := []cbgo.UUID{}
-	for _, u := range uuids {
-		uuid, _ := cbgo.ParseUUID(u.String())
-		cbuuids = append(cbuuids, uuid)
-	}
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
@@ -90,10 +95,25 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	case <-s.device.charsChan:
 		chars := []DeviceCharacteristic{}
 		for _, dchar := range s.service.Characteristics() {
-			uuid, _ := ParseUUID(dchar.UUID().String())
+			dcuuid, _ := ParseUUID(dchar.UUID().String())
+			// add if in our original list
+			if len(uuids) > 0 {
+				found := false
+				for _, uuid := range uuids {
+					if dcuuid.String() == uuid.String() {
+						// one of the characteristics we're looking for.
+						found = true
+						break
+					}
+				}
+				if !found {
+					continue
+				}
+			}
+
 			char := DeviceCharacteristic{
 				deviceCharacteristic: &deviceCharacteristic{
-					uuidWrapper:    uuid,
+					uuidWrapper:    dcuuid,
 					service:        s,
 					characteristic: dchar,
 				},
