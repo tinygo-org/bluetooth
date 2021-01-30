@@ -33,6 +33,7 @@ smoketest-linux:
 	# Test on Linux.
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/advertisement
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate-monitor
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/nusserver
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/scanner
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/discover
@@ -46,3 +47,9 @@ smoketest-macos:
 	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/scanner
 	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/discover
 	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/nusclient
+	GOOS=darwin CGO_ENABLED=1 go build -o /tmp/go-build-discard ./examples/heartrate-monitor
+
+gen-uuids:
+	# generate the standard service and characteristic UUIDs
+	go run ./tools/gen-service-uuids/main.go
+	go run ./tools/gen-characteristic-uuids/main.go

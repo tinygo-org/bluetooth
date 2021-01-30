@@ -1,4 +1,4 @@
-Copyright (c) 2019 Ayke van Laethem. All rights reserved.
+Copyright (c) 2019-2020 TinyGo Authors. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
@@ -25,3 +25,7 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+TinyGo Bluetooth includes data files from the Nordic Semiconductor Bluetooth
+Numbers Database (https://github.com/NordicSemiconductor/bluetooth-numbers-database).
+Copyright (c) 2019 - 2020, Nordic Semiconductor ASA. All rights reserved.
