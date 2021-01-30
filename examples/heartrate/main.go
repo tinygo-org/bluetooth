@@ -18,19 +18,19 @@ func main() {
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName:    "Go HRS",
-		ServiceUUIDs: []bluetooth.UUID{bluetooth.New16BitUUID(0x180D)},
+		ServiceUUIDs: []bluetooth.UUID{bluetooth.ServiceUUIDHeartRate},
 	}))
 	must("start adv", adv.Start())
 
 	var heartRateMeasurement bluetooth.Characteristic
 	must("add service", adapter.AddService(&bluetooth.Service{
-		UUID: bluetooth.New16BitUUID(0x180D), // Heart Rate
+		UUID: bluetooth.ServiceUUIDHeartRate,
 		Characteristics: []bluetooth.CharacteristicConfig{
 			{
 				Handle: &heartRateMeasurement,
-				UUID:   bluetooth.New16BitUUID(0x2A37), // Heart Rate Measurement
+				UUID:   bluetooth.CharacteristicUUIDHeartRateMeasurement,
 				Value:  []byte{0, heartRate},
-				Flags: bluetooth.CharacteristicNotifyPermission,
+				Flags:  bluetooth.CharacteristicNotifyPermission,
 			},
 		},
 	}))

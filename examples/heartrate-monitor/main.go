@@ -26,8 +26,8 @@ import (
 var (
 	adapter = bluetooth.DefaultAdapter
 
-	heartRateServiceUUID        = bluetooth.New16BitUUID(0x180D)
-	heartRateCharacteristicUUID = bluetooth.New16BitUUID(0x2A37)
+	heartRateServiceUUID        = bluetooth.ServiceUUIDHeartRate
+	heartRateCharacteristicUUID = bluetooth.CharacteristicUUIDHeartRateMeasurement
 )
 
 func main() {
