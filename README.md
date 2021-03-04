@@ -210,7 +210,14 @@ For example, this command can be used to compile and flash an Adafruit Circuit P
 
 	tinygo flash -target circuitplay-bluefruit ./examples/circuitplay
 
+There are other boards with TinyGo support that also use the same UF2 bootloader with pre-loaded SoftDevice. They include:
+
+* [Nice Keyboards nice!nano](https://nicekeyboards.com/products/nice-nano-v1-0)
+* [Makerdiary nRF52840 MDK USB Dongle](https://wiki.makerdiary.com/nrf52840-mdk-usb-dongle/)
+
 ### BBC micro:bit
+
+#### Version 1
 
 The [BBC micro:bit](https://microbit.org/) uses an nRF51 chip with a CMSIS-DAP interface.
 
@@ -224,6 +231,12 @@ First, flash the SoftDevice firmware by copying the .hex file to the device. For
 Once you have copied the SoftDevice firmware to the BBC micro:bit, you can then flash your TinyGo program:
 
     tinygo flash -target=microbit-s110v8 ./examples/heartrate
+
+#### Version 2
+
+The [BBC micro:bit v2](https://microbit.org/new-microbit/) uses an nRF52833 chip with a CMSIS-DAP interface.
+
+Support for the v2 will be available soon.
 
 ### Supported Chips
 
