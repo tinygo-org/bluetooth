@@ -83,3 +83,5 @@ gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C
 tinygo.org/x/drivers v0.13.0 h1:ohzhFiPb/5dcRop3X+Gdvsr6uswmnpfMX9KsAMtgtTM=
 tinygo.org/x/drivers v0.13.0/go.mod h1:mShi1lpVtJFpApkZgwyrzDKHToeGfWIuB08utyHxZ7g=
 tinygo.org/x/drivers v0.14.0/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=
+tinygo.org/x/drivers v0.15.1 h1:fS85Q6CVn1qcSF+n0JN61a5AULrbenjH5XIoYnQjOO4=
+tinygo.org/x/drivers v0.15.1/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=

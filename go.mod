@@ -15,5 +15,5 @@ require (
 	golang.org/x/tools v0.0.0-20200925191224-5d1fdd8fa346 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/yaml.v2 v2.2.8 // indirect
-	tinygo.org/x/drivers v0.14.0
+	tinygo.org/x/drivers v0.15.1
 )

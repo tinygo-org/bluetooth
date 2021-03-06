@@ -1,3 +1,17 @@
+0.3.0
+---
+* **core**
+  - generate standard service and characteristic UUIDs from Nordic Semiconductor bluetooth numbers database
+* **linux**
+  - downgrade to older version of go-bluetooth that appears to work correctly with BlueZ 5.50
+* **macos**
+  - properly handle 16-bit UUIDs for service and characteristics in the unique format used by macOS
+* **docs**
+  - add a few details on some newly supported boards
+* **examples**
+  - use standard service and characteristic UUIDs
+  - correct heart rate monitor data format
+
 0.2.0
 ---
 * **core**
