@@ -14,7 +14,7 @@ import (
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d *Device) DiscoverServices(uuids []UUID) ([]*DeviceService, error) {
 	d.prph.DiscoverServices([]cbgo.UUID{})
 
 	// clear cache of services
@@ -23,7 +23,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	// wait on channel for service discovery
 	select {
 	case <-d.servicesChan:
-		svcs := []DeviceService{}
+		svcs := []*DeviceService{}
 		for _, dsvc := range d.prph.Services() {
 			dsvcuuid, _ := ParseUUID(dsvc.UUID().String())
 			// add if in our original list
@@ -41,13 +41,13 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 				}
 			}
 
-			svc := DeviceService{
+			svc := &DeviceService{
 				uuidWrapper: dsvcuuid,
 				device:      d,
 				service:     dsvc,
 			}
 			svcs = append(svcs, svc)
-			d.services[svc.uuidWrapper] = &svc
+			d.services[svc.uuidWrapper] = svc
 		}
 		return svcs, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -65,7 +65,8 @@ type DeviceService struct {
 
 	device *Device
 
-	service cbgo.Service
+	service         cbgo.Service
+	characteristics map[UUID]*DeviceCharacteristic
 }
 
 // UUID returns the UUID for this DeviceService.
@@ -88,7 +89,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
 	// clear cache of characteristics
-	s.device.characteristics = make(map[UUID]*DeviceCharacteristic)
+	s.characteristics = make(map[UUID]*DeviceCharacteristic)
 
 	// wait on channel for characteristic discovery
 	select {
@@ -119,7 +120,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 				},
 			}
 			chars = append(chars, char)
-			s.device.characteristics[char.uuidWrapper] = &char
+			s.characteristics[char.uuidWrapper] = &char
 		}
 		return chars, nil
 	case <-time.NewTimer(10 * time.Second).C:
