@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/JuulLabs-OSS/cbgo"
@@ -18,7 +19,10 @@ type Adapter struct {
 	peripheralFoundHandler func(*Adapter, ScanResult)
 	scanChan               chan error
 	poweredChan            chan error
-	connectChan            chan cbgo.Peripheral
+
+	// connectMap is a mapping of peripheralId -> chan cbgo.Peripheral,
+	// used to allow multiple callers to call Connect concurrently.
+	connectMap sync.Map
 
 	connectHandler func(device Addresser, connected bool)
 }
@@ -27,9 +31,10 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
-	cm:          cbgo.NewCentralManager(nil),
-	pm:          cbgo.NewPeripheralManager(nil),
-	connectChan: make(chan cbgo.Peripheral),
+	cm:         cbgo.NewCentralManager(nil),
+	pm:         cbgo.NewPeripheralManager(nil),
+	connectMap: sync.Map{},
+
 	connectHandler: func(device Addresser, connected bool) {
 		return
 	},
@@ -97,8 +102,18 @@ func (cmd *centralManagerDelegate) DidDiscoverPeripheral(cmgr cbgo.CentralManage
 
 // DidConnectPeripheral when peripheral is connected.
 func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral) {
-	// Unblock now that we're connected.
-	cmd.a.connectChan <- prph
+	id := prph.Identifier().String()
+
+	// Check if we have a chan allocated for this peripheral, and remove it
+	// from the map if so (it's single-use, will be garbage collected after
+	// receiver receives the peripheral).
+	//
+	// If we don't have a chan allocated, the receiving side timed out, so
+	// ignore this connection.
+	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
+		// Unblock now that we're connected.
+		ch.(chan cbgo.Peripheral) <- prph
+	}
 }
 
 // makeScanResult creates a ScanResult when peripheral is found.

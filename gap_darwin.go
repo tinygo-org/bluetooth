@@ -105,11 +105,18 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 	if len(prphs) == 0 {
 		return nil, fmt.Errorf("Connect failed: no peer with address: %s", adr.UUID.String())
 	}
+
+	id := prphs[0].Identifier().String()
+	prphCh := make(chan cbgo.Peripheral)
+
+	a.connectMap.Store(id, prphCh)
+	defer a.connectMap.Delete(id)
+
 	a.cm.Connect(prphs[0], nil)
 
 	// wait on channel for connect
 	select {
-	case p := <-a.connectChan:
+	case p := <-prphCh:
 		d := &Device{
 			cm:           a.cm,
 			prph:         p,
