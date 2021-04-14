@@ -11,7 +11,7 @@ package bluetooth
 #include "ble.h"
 #include "ble_gap.h"
 
-void assertHandler(void);
+void assertHandler(uint32_t pc, uint16_t line_number, const uint8_t * p_file_name);
 */
 import "C"
 
