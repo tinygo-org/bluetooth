@@ -33,6 +33,9 @@ var clockConfigXtal C.nrf_clock_lf_cfg_t = C.nrf_clock_lf_cfg_t{
 	accuracy:     C.NRF_CLOCK_LF_ACCURACY_250_PPM,
 }
 
+//go:extern __app_ram_base
+var appRAMBase [0]uint32
+
 func (a *Adapter) enable() error {
 	// Enable the SoftDevice.
 	var clockConfig *C.nrf_clock_lf_cfg_t
@@ -45,7 +48,7 @@ func (a *Adapter) enable() error {
 	}
 
 	// Enable the BLE stack.
-	appRAMBase := uint32(0x200039c0)
+	appRAMBase := uint32(uintptr(unsafe.Pointer(&appRAMBase)))
 	errCode = C.sd_ble_enable(&appRAMBase)
 	return makeError(errCode)
 }
