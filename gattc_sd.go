@@ -1,4 +1,4 @@
-// +build softdevice,!s110v8
+// +build softdevice,s132v6 softdevice,s140v6 softdevice,s140v7
 
 package bluetooth
 
