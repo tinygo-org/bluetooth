@@ -28,6 +28,8 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=microbit-s110v8       ./examples/nusserver
 	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/nusserver
+	@md5sum test.hex
 
 smoketest-linux:
 	# Test on Linux.
