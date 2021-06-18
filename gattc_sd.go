@@ -62,7 +62,7 @@ func (s *DeviceService) UUID() UUID {
 //
 // On the Nordic SoftDevice, only one service discovery procedure may be done at
 // a time.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d *Device) DiscoverServices(uuids []UUID) ([]*DeviceService, error) {
 	if discoveringService.state.Get() != 0 {
 		// Not concurrency safe, but should catch most concurrency misuses.
 		return nil, errAlreadyDiscovering
@@ -72,7 +72,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if len(uuids) > 0 {
 		sz = len(uuids)
 	}
-	services := make([]DeviceService, 0, sz)
+	services := make([]*DeviceService, 0, sz)
 
 	var shortUUIDs []C.ble_uuid_t
 
@@ -133,7 +133,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		// Store the discovered service.
-		svc := DeviceService{
+		svc := &DeviceService{
 			uuid:             suuid,
 			connectionHandle: d.connectionHandle,
 			startHandle:      startHandle,
