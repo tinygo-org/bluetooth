@@ -27,14 +27,14 @@ jobs:
           command: make smoketest-windows
   build-macos:
     macos:
-      xcode: "10.1.0"
+      xcode: "10.3.0"
     steps:
       - checkout
       - run:
           name: "Install dependencies"
           command: |
-            curl https://dl.google.com/go/go1.14.darwin-amd64.tar.gz -o go1.14.darwin-amd64.tar.gz
-            sudo tar -C /usr/local -xzf go1.14.darwin-amd64.tar.gz
+            curl https://dl.google.com/go/go1.15.14.darwin-amd64.tar.gz -o go1.15.14.darwin-amd64.tar.gz
+            sudo tar -C /usr/local -xzf go1.15.14.darwin-amd64.tar.gz
             ln -s /usr/local/go/bin/go /usr/local/bin/go
       - run: go version
       - run:
