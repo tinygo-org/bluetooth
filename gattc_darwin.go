@@ -41,11 +41,11 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 				}
 			}
 
-			svc := DeviceService{
+			svc := DeviceService{&deviceService{
 				uuidWrapper: dsvcuuid,
 				device:      d,
 				service:     dsvc,
-			}
+			}}
 			svcs = append(svcs, svc)
 			d.services[svc.uuidWrapper] = &svc
 		}
@@ -61,15 +61,21 @@ type uuidWrapper = UUID
 
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
+	*deviceService
+}
+
+type deviceService struct {
 	uuidWrapper
 
 	device *Device
 
 	service cbgo.Service
+
+	characteristics map[UUID]*DeviceCharacteristic
 }
 
-// UUID returns the UUID for this DeviceService.
-func (s *DeviceService) UUID() UUID {
+// UUID returns the UUID for this deviceService.
+func (s *deviceService) UUID() UUID {
 	return s.uuidWrapper
 }
 
@@ -82,13 +88,13 @@ func (s *DeviceService) UUID() UUID {
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // characteristics.
-func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+func (s *deviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
 	cbuuids := []cbgo.UUID{}
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
 	// clear cache of characteristics
-	s.device.characteristics = make(map[UUID]*DeviceCharacteristic)
+	s.characteristics = make(map[UUID]*DeviceCharacteristic)
 
 	// wait on channel for characteristic discovery
 	select {
@@ -119,7 +125,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 				},
 			}
 			chars = append(chars, char)
-			s.device.characteristics[char.uuidWrapper] = &char
+			s.characteristics[char.uuidWrapper] = &char
 		}
 		return chars, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -136,7 +142,7 @@ type DeviceCharacteristic struct {
 type deviceCharacteristic struct {
 	uuidWrapper
 
-	service *DeviceService
+	service *deviceService
 
 	characteristic cbgo.Characteristic
 	callback       func(buf []byte)
