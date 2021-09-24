@@ -9,6 +9,7 @@ import (
 	"github.com/muka/go-bluetooth/api"
 	"github.com/muka/go-bluetooth/bluez/profile/advertising"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
+	"github.com/muka/go-bluetooth/util"
 )
 
 // Address contains a Bluetooth MAC address.
@@ -174,15 +175,9 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				}
 				changes := sig.Body[1].(map[string]dbus.Variant)
 				props := devices[sig.Path]
-				for field, val := range changes {
-					switch field {
-					case "RSSI":
-						props.RSSI = val.Value().(int16)
-					case "Name":
-						props.Name = val.Value().(string)
-					case "UUIDs":
-						props.UUIDs = val.Value().([]string)
-					}
+				err := util.MapToStruct(props, changes)
+				if err != nil {
+					continue
 				}
 				callback(a, makeScanResult(props))
 			}
@@ -227,8 +222,10 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 		Address: a,
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
-				LocalName:    props.Name,
-				ServiceUUIDs: serviceUUIDs,
+				LocalName:        props.Name,
+				ServiceUUIDs:     serviceUUIDs,
+				ManufacturerData: props.ManufacturerData,
+				ServiceData:      props.ServiceData,
 			},
 		},
 	}

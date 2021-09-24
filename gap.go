@@ -3,6 +3,8 @@ package bluetooth
 import (
 	"errors"
 	"time"
+
+	"github.com/godbus/dbus/v5"
 )
 
 var (
@@ -126,6 +128,14 @@ type AdvertisementPayload interface {
 	// Bytes returns the raw advertisement packet, if available. It returns nil
 	// if this data is not available.
 	Bytes() []byte
+
+	// GetManufacturerData returns the raw packet whether the given key is adverised. It returns nil
+	// if this data is not available.
+	GetManufacturerData(key uint16) []byte
+
+	// GetServiceData returns the raw packet whether the given key is adverised. It returns nil
+	// if this data is not available.
+	GetServiceData(key string) []byte
 }
 
 // AdvertisementFields contains advertisement fields in structured form.
@@ -138,6 +148,12 @@ type AdvertisementFields struct {
 	// part of the advertisement packet, in data types such as "complete list of
 	// 128-bit UUIDs".
 	ServiceUUIDs []UUID
+
+	// ManufacturerData package
+	ManufacturerData map[uint16]interface{}
+
+	// ServiceData package
+	ServiceData map[string]interface{}
 }
 
 // advertisementFields wraps AdvertisementFields to implement the
@@ -162,6 +178,26 @@ func (p *advertisementFields) HasServiceUUID(uuid UUID) bool {
 		}
 	}
 	return false
+}
+
+// GetManufacturerData returns the raw packet whether the given key is adverised. It returns nil
+// if this data is not available.
+func (p *advertisementFields) GetManufacturerData(key uint16) []byte {
+	if p.ManufacturerData[key] != nil {
+		temp := p.ManufacturerData[key].(dbus.Variant)
+		return temp.Value().([]byte)
+	}
+	return nil
+}
+
+// GetServiceData returns the raw packet whether the given key is adverised. It returns nil
+// if this data is not available.
+func (p *advertisementFields) GetServiceData(key string) []byte {
+	if p.ServiceData[key] != nil {
+		temp := p.ServiceData[key].(dbus.Variant)
+		return temp.Value().([]byte)
+	}
+	return nil
 }
 
 // Bytes returns nil, as structured advertisement data does not have the
