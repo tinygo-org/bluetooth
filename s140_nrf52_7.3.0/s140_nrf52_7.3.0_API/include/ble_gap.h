@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) Nordic Semiconductor ASA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -128,7 +128,9 @@ enum BLE_GAP_EVTS
   BLE_GAP_EVT_TIMEOUT                     = BLE_GAP_EVT_BASE + 11,  /**< Timeout expired.                                \n See @ref ble_gap_evt_timeout_t.              */
   BLE_GAP_EVT_RSSI_CHANGED                = BLE_GAP_EVT_BASE + 12,  /**< RSSI report.                                    \n See @ref ble_gap_evt_rssi_changed_t.         */
   BLE_GAP_EVT_ADV_REPORT                  = BLE_GAP_EVT_BASE + 13,  /**< Advertising report.                             \n See @ref ble_gap_evt_adv_report_t.           */
-  BLE_GAP_EVT_SEC_REQUEST                 = BLE_GAP_EVT_BASE + 14,  /**< Security Request.                               \n See @ref ble_gap_evt_sec_request_t.          */
+  BLE_GAP_EVT_SEC_REQUEST                 = BLE_GAP_EVT_BASE + 14,  /**< Security Request.                               \n Reply with @ref sd_ble_gap_authenticate
+  \n or with @ref sd_ble_gap_encrypt if required security information is available
+. \n See @ref ble_gap_evt_sec_request_t.          */
   BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST   = BLE_GAP_EVT_BASE + 15,  /**< Connection Parameter Update Request.            \n Reply with @ref sd_ble_gap_conn_param_update. \n See @ref ble_gap_evt_conn_param_update_request_t. */
   BLE_GAP_EVT_SCAN_REQ_REPORT             = BLE_GAP_EVT_BASE + 16,  /**< Scan request report.                            \n See @ref ble_gap_evt_scan_req_report_t. */
   BLE_GAP_EVT_PHY_UPDATE_REQUEST          = BLE_GAP_EVT_BASE + 17,  /**< PHY Update Request.                             \n Reply with @ref sd_ble_gap_phy_update. \n See @ref ble_gap_evt_phy_update_request_t. */
@@ -673,6 +675,20 @@ enum BLE_GAP_TX_POWER_ROLES
  * @{ */
 #define BLE_GAP_PPCP_INCL_CONFIG_DEFAULT     (BLE_GAP_CHAR_INCL_CONFIG_INCLUDE) /**< Included by default. */
 #define BLE_GAP_CAR_INCL_CONFIG_DEFAULT      (BLE_GAP_CHAR_INCL_CONFIG_INCLUDE) /**< Included by default. */
+/**@} */
+
+/** @defgroup BLE_GAP_SLAVE_LATENCY Slave latency configuration options
+ * @{ */
+#define BLE_GAP_SLAVE_LATENCY_ENABLE         (0) /**< Slave latency is enabled. When slave latency is enabled,
+                                                      the slave will wake up every time it has data to send,
+                                                      and/or every slave latency number of connection events. */
+#define BLE_GAP_SLAVE_LATENCY_DISABLE        (1) /**< Disable slave latency. The slave will wake up every connection event
+                                                      regardless of the requested slave latency.
+                                                      This option consumes the most power. */
+#define BLE_GAP_SLAVE_LATENCY_WAIT_FOR_ACK   (2) /**< The slave will wake up every connection event if it has not received
+                                                      an ACK from the master for at least slave latency events. This
+                                                      configuration may increase the power consumption in environments
+                                                      with a lot of radio activity. */
 /**@} */
 
 /**@addtogroup BLE_GAP_STRUCTURES Structures
@@ -1242,7 +1258,7 @@ typedef struct
 typedef struct
 {
   int8_t  rssi;                                 /**< Received Signal Strength Indication in dBm.
-                                                     @note ERRATA-153 requires the rssi sample to be compensated based on a temperature measurement. */
+                                                     @note ERRATA-153 and ERRATA-225 require the rssi sample to be compensated based on a temperature measurement. */
   uint8_t ch_index;                             /**< Data Channel Index on which the Signal Strength is measured (0-36). */
 } ble_gap_evt_rssi_changed_t;
 
@@ -1292,7 +1308,7 @@ typedef struct
                                                         last received packet did not contain the Tx Power field.
                                                         @note TX Power is only included in extended advertising packets. */
   int8_t                    rssi;                  /**< Received Signal Strength Indication in dBm of the last packet received.
-                                                        @note ERRATA-153 requires the rssi sample to be compensated based on a temperature measurement. */
+                                                        @note ERRATA-153 and ERRATA-225 require the rssi sample to be compensated based on a temperature measurement. */
   uint8_t                   ch_index;              /**< Channel Index on which the last advertising packet is received (0-39). */
   uint8_t                   set_id;                /**< Set ID of the received advertising data. Set ID is not present
                                                         if set to @ref BLE_GAP_ADV_REPORT_SET_ID_NOT_AVAILABLE. */
@@ -1331,7 +1347,7 @@ typedef struct
 {
   uint8_t                 adv_handle;        /**< Advertising handle for the advertising set which received the Scan Request */
   int8_t                  rssi;              /**< Received Signal Strength Indication in dBm.
-                                                  @note ERRATA-153 requires the rssi sample to be compensated based on a temperature measurement. */
+                                                  @note ERRATA-153 and ERRATA-225 require the rssi sample to be compensated based on a temperature measurement. */
   ble_gap_addr_t          peer_addr;         /**< Bluetooth address of the peer device. If the peer_addr resolved: @ref ble_gap_addr_t::addr_id_peer is set to 1
                                                   and the address is the device's identity address. */
 } ble_gap_evt_scan_req_report_t;
@@ -1578,7 +1594,7 @@ typedef struct
 typedef struct
 {
   uint16_t   conn_handle;    /**< Connection Handle */
-  uint8_t    disable : 1;    /**< Set to 1 to disable slave latency. Set to 0 enable it again.*/
+  uint8_t    disable;        /**< For allowed values see @ref BLE_GAP_SLAVE_LATENCY */
 } ble_gap_opt_slave_latency_disable_t;
 
 /**@brief Passkey Option.
@@ -1735,7 +1751,7 @@ SVCALL(SD_BLE_GAP_ADDR_GET, uint32_t, sd_ble_gap_addr_get(ble_gap_addr_t *p_addr
  *
  * @retval ::NRF_SUCCESS                  Address successfully retrieved.
  * @retval ::NRF_ERROR_INVALID_ADDR       Invalid or NULL pointer supplied.
- * @retval ::BLE_ERROR_INVALID_ADV_HANDLE The provided advertising handle was not found. 
+ * @retval ::BLE_ERROR_INVALID_ADV_HANDLE The provided advertising handle was not found.
  * @retval ::NRF_ERROR_INVALID_STATE      The advertising set is currently not advertising.
  */
 SVCALL(SD_BLE_GAP_ADV_ADDR_GET, uint32_t, sd_ble_gap_adv_addr_get(uint8_t adv_handle, ble_gap_addr_t *p_addr));
@@ -1891,6 +1907,9 @@ SVCALL(SD_BLE_GAP_ADV_SET_CONFIGURE, uint32_t, sd_ble_gap_adv_set_configure(uint
  *
  * @note Only one advertiser may be active at any time.
  *
+ * @note If privacy is enabled, the advertiser's private address will be refreshed when this function is called.
+ *       See @ref sd_ble_gap_privacy_set().
+ *
  * @events
  * @event{@ref BLE_GAP_EVT_CONNECTED, Generated after connection has been established through connectable advertising.}
  * @event{@ref BLE_GAP_EVT_ADV_SET_TERMINATED, Advertising set has terminated.}
@@ -2023,7 +2042,9 @@ SVCALL(SD_BLE_GAP_DISCONNECT, uint32_t, sd_ble_gap_disconnect(uint16_t conn_hand
  *                     - For all other roles handle is ignored.
  * @param[in] tx_power Radio transmit power in dBm (see note for accepted values).
  *
-  * @note Supported tx_power values: -40dBm, -20dBm, -16dBm, -12dBm, -8dBm, -4dBm, 0dBm, +2dBm, +3dBm, +4dBm, +5dBm, +6dBm, +7dBm and +8dBm.
+ * @note Supported tx_power values: -40dBm, -20dBm, -16dBm, -12dBm, -8dBm, -4dBm, 0dBm, +3dBm and +4dBm.
+  *       In addition, on some chips following values are supported: +2dBm, +5dBm, +6dBm, +7dBm and +8dBm.
+ *       Setting these values on a chip that does not support them will result in undefined behaviour.
   * @note The initiator will have the same transmit power as the scanner.
  * @note When a connection is created it will inherit the transmit power from the initiator or
  *       advertiser leading to the connection.
@@ -2428,7 +2449,7 @@ SVCALL(SD_BLE_GAP_ENCRYPT, uint32_t, sd_ble_gap_encrypt(uint16_t conn_handle, bl
  * @retval ::NRF_ERROR_INVALID_PARAM Invalid parameter(s) supplied.
  * @retval ::NRF_ERROR_INVALID_STATE Invalid state to perform operation. Either:
  *                                   - No link has been established.
- *                                   - No @ref BLE_GAP_EVT_SEC_REQUEST pending.
+ *                                   - No @ref BLE_GAP_EVT_SEC_INFO_REQUEST pending.
  *                                   - Encryption information provided by the app without being requested. See @ref ble_gap_evt_sec_info_request_t::enc_info.
  * @retval ::BLE_ERROR_INVALID_CONN_HANDLE Invalid connection handle supplied.
  */
@@ -2496,7 +2517,7 @@ SVCALL(SD_BLE_GAP_RSSI_STOP, uint32_t, sd_ble_gap_rssi_stop(uint16_t conn_handle
  *
  *        @ref sd_ble_gap_rssi_start must be called to start reporting RSSI before using this function. @ref NRF_ERROR_NOT_FOUND
  *        will be returned until RSSI was sampled for the first time after calling @ref sd_ble_gap_rssi_start.
- * @note ERRATA-153 requires the rssi sample to be compensated based on a temperature measurement.
+ * @note ERRATA-153 and ERRATA-225 require the rssi sample to be compensated based on a temperature measurement.
  * @mscs
  * @mmsc{@ref BLE_GAP_CENTRAL_RSSI_READ_MSC}
  * @endmscs
