@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 - 2017, Nordic Semiconductor ASA
+ * Copyright (c) Nordic Semiconductor ASA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -95,6 +95,14 @@ enum BLE_GATTC_EVTS
   BLE_GATTC_EVT_EXCHANGE_MTU_RSP,                         /**< Exchange MTU Response event.                       \n See @ref ble_gattc_evt_exchange_mtu_rsp_t.            */
   BLE_GATTC_EVT_TIMEOUT,                                  /**< Timeout event.                                     \n See @ref ble_gattc_evt_timeout_t.                     */
   BLE_GATTC_EVT_WRITE_CMD_TX_COMPLETE                     /**< Write without Response transmission complete.      \n See @ref ble_gattc_evt_write_cmd_tx_complete_t.       */
+};
+
+/**@brief GATTC Option IDs.
+ * IDs that uniquely identify a GATTC option.
+ */
+enum BLE_GATTC_OPTS
+{
+  BLE_GATTC_OPT_UUID_DISC = BLE_GATTC_OPT_BASE,     /**< UUID discovery. @ref ble_gattc_opt_uuid_disc_t  */
 };
 
 /** @} */
@@ -344,6 +352,40 @@ typedef struct
     ble_gattc_evt_write_cmd_tx_complete_t       write_cmd_tx_complete;      /**< Write without Response transmission complete Event Parameters. */
   } params;                                                                 /**< Event Parameters. @note Only valid if @ref gatt_status == @ref BLE_GATT_STATUS_SUCCESS. */
 } ble_gattc_evt_t;
+
+/**@brief UUID discovery option.
+ *
+ * @details Used with @ref sd_ble_opt_set to enable and disable automatic insertion of discovered 128-bit UUIDs to the
+ *          Vendor Specific UUID table. Disabled by default.
+ *          - When disabled, if a procedure initiated by
+ *            @ref sd_ble_gattc_primary_services_discover,
+ *            @ref sd_ble_gattc_relationships_discover,
+ *            @ref sd_ble_gattc_characteristics_discover,
+ *            @ref sd_ble_gattc_descriptors_discover
+ *            finds a 128-bit UUID which was not added by @ref sd_ble_uuid_vs_add, @ref ble_uuid_t::type will be set
+ *            to @ref BLE_UUID_TYPE_UNKNOWN in the corresponding event.
+ *          - When enabled, all found 128-bit UUIDs will be automatically added. The application can use
+ *            @ref sd_ble_uuid_encode to retrieve the 128-bit UUID from @ref ble_uuid_t received in the corresponding
+ *            event. If the total number of Vendor Specific UUIDs exceeds the table capacity, @ref ble_uuid_t::type will
+ *            be set to @ref BLE_UUID_TYPE_UNKNOWN in the corresponding event.
+ *            See also @ref ble_common_cfg_vs_uuid_t, @ref sd_ble_uuid_vs_remove.
+ *
+ * @note @ref sd_ble_opt_get is not supported for this option.
+ *
+ * @retval ::NRF_SUCCESS Set successfully.
+ *
+ */
+typedef struct
+{
+  uint8_t auto_add_vs_enable : 1;   /**< Set to 1 to enable (or 0 to disable) automatic insertion of discovered 128-bit UUIDs. */
+} ble_gattc_opt_uuid_disc_t;
+
+/**@brief Option structure for GATTC options. */
+typedef union
+{
+  ble_gattc_opt_uuid_disc_t uuid_disc;  /**< Parameters for the UUID discovery option. */
+} ble_gattc_opt_t;
+
 /** @} */
 
 /** @addtogroup BLE_GATTC_FUNCTIONS Functions
@@ -353,9 +395,7 @@ typedef struct
  *
  * @details This function initiates or resumes a Primary Service discovery procedure, starting from the supplied handle.
  *          If the last service has not been reached, this function must be called again with an updated start handle value to continue the search.
- *
- * @note If any of the discovered services have 128-bit UUIDs which are not present in the table provided to ble_vs_uuids_assign, a UUID structure with
- *       type @ref BLE_UUID_TYPE_UNKNOWN will be received in the corresponding event.
+ *          See also @ref ble_gattc_opt_uuid_disc_t.
  *
  * @events
  * @event{@ref BLE_GATTC_EVT_PRIM_SRVC_DISC_RSP}
@@ -383,6 +423,7 @@ SVCALL(SD_BLE_GATTC_PRIMARY_SERVICES_DISCOVER, uint32_t, sd_ble_gattc_primary_se
  *
  * @details This function initiates or resumes the Find Included Services sub-procedure. If the last included service has not been reached,
  *          this must be called again with an updated handle range to continue the search.
+ *          See also @ref ble_gattc_opt_uuid_disc_t.
  *
  * @events
  * @event{@ref BLE_GATTC_EVT_REL_DISC_RSP}
@@ -410,9 +451,7 @@ SVCALL(SD_BLE_GATTC_RELATIONSHIPS_DISCOVER, uint32_t, sd_ble_gattc_relationships
  *
  * @details This function initiates or resumes a Characteristic discovery procedure. If the last Characteristic has not been reached,
  *          this must be called again with an updated handle range to continue the discovery.
- *
- * @note If any of the discovered characteristics have 128-bit UUIDs which are not present in the table provided to ble_vs_uuids_assign, a UUID structure with
- *       type @ref BLE_UUID_TYPE_UNKNOWN will be received in the corresponding event.
+ *          See also @ref ble_gattc_opt_uuid_disc_t.
  *
  * @events
  * @event{@ref BLE_GATTC_EVT_CHAR_DISC_RSP}
@@ -439,6 +478,7 @@ SVCALL(SD_BLE_GATTC_CHARACTERISTICS_DISCOVER, uint32_t, sd_ble_gattc_characteris
  *
  * @details This function initiates or resumes a Characteristic Descriptor discovery procedure. If the last Descriptor has not been reached,
  *          this must be called again with an updated handle range to continue the discovery.
+ *          See also @ref ble_gattc_opt_uuid_disc_t.
  *
  * @events
  * @event{@ref BLE_GATTC_EVT_DESC_DISC_RSP}

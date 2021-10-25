@@ -13,9 +13,9 @@
 #undef __STATIC_INLINE
 #define __STATIC_INLINE
 
-#include "s140_nrf52_7.0.1/s140_nrf52_7.0.1_API/include/nrf_sdm.h"
-#include "s140_nrf52_7.0.1/s140_nrf52_7.0.1_API/include/nrf_nvic.h"
-#include "s140_nrf52_7.0.1/s140_nrf52_7.0.1_API/include/ble.h"
+#include "s140_nrf52_7.3.0/s140_nrf52_7.3.0_API/include/nrf_sdm.h"
+#include "s140_nrf52_7.3.0/s140_nrf52_7.3.0_API/include/nrf_nvic.h"
+#include "s140_nrf52_7.3.0/s140_nrf52_7.3.0_API/include/ble.h"
 
 // Define nrf_nvic_state, which is used by sd_nvic_critical_region_enter and
 // sd_nvic_critical_region_exit.

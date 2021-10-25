@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 - 2018, Nordic Semiconductor ASA
+ * Copyright (c) Nordic Semiconductor ASA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -95,6 +95,7 @@ enum BLE_L2CAP_SVCS
 enum BLE_L2CAP_EVTS
 {
   BLE_L2CAP_EVT_CH_SETUP_REQUEST    = BLE_L2CAP_EVT_BASE + 0,    /**< L2CAP Channel Setup Request event.
+                                                                   \n Reply with @ref sd_ble_l2cap_ch_setup.
                                                                    \n See @ref ble_l2cap_evt_ch_setup_request_t. */
   BLE_L2CAP_EVT_CH_SETUP_REFUSED    = BLE_L2CAP_EVT_BASE + 1,    /**< L2CAP Channel Setup Refused event.
                                                                    \n See @ref ble_l2cap_evt_ch_setup_refused_t. */

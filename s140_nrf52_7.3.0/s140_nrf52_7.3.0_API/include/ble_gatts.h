@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011 - 2018, Nordic Semiconductor ASA
+ * Copyright (c) Nordic Semiconductor ASA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -106,6 +106,7 @@ enum BLE_GATTS_CFGS
 {
   BLE_GATTS_CFG_SERVICE_CHANGED = BLE_GATTS_CFG_BASE, /**< Service changed configuration. */
   BLE_GATTS_CFG_ATTR_TAB_SIZE,                        /**< Attribute table size configuration. */
+  BLE_GATTS_CFG_SERVICE_CHANGED_CCCD_PERM,            /**< Service changed CCCD permission configuration. */
 };
 
 /** @} */
@@ -321,6 +322,22 @@ typedef struct
   uint8_t service_changed : 1;       /**< If 1, include the Service Changed characteristic in the Attribute Table. Default is @ref BLE_GATTS_SERVICE_CHANGED_DEFAULT. */
 } ble_gatts_cfg_service_changed_t;
 
+/**@brief Service Changed CCCD permission configuration parameters, set with @ref sd_ble_cfg_set.
+ *
+ * @note @ref ble_gatts_attr_md_t::vlen is ignored and should be set to 0.
+ *
+ * @retval ::NRF_ERROR_INVALID_PARAM One or more of the following is true:
+ *                                   - @ref ble_gatts_attr_md_t::write_perm is out of range.
+ *                                   - @ref ble_gatts_attr_md_t::write_perm is @ref BLE_GAP_CONN_SEC_MODE_SET_NO_ACCESS, that is not allowed by the Bluetooth Specification.
+ *                                   - wrong @ref ble_gatts_attr_md_t::read_perm, only @ref BLE_GAP_CONN_SEC_MODE_SET_OPEN is allowed by the Bluetooth Specification.
+ *                                   - wrong @ref ble_gatts_attr_md_t::vloc, only @ref BLE_GATTS_VLOC_STACK is allowed.
+ * @retval ::NRF_ERROR_NOT_SUPPORTED Security Mode 2 not supported
+ */
+typedef struct
+{
+  ble_gatts_attr_md_t perm;          /**< Permission for Service Changed CCCD. Default is @ref BLE_GAP_CONN_SEC_MODE_SET_OPEN, no authorization. */
+} ble_gatts_cfg_service_changed_cccd_perm_t;
+
 /**@brief Attribute table size configuration parameters, set with @ref sd_ble_cfg_set.
  *
  * @retval ::NRF_ERROR_INVALID_LENGTH One or more of the following is true:
@@ -337,6 +354,7 @@ typedef struct
 typedef union
 {
   ble_gatts_cfg_service_changed_t service_changed;  /**< Include service changed characteristic, cfg_id is @ref BLE_GATTS_CFG_SERVICE_CHANGED. */
+  ble_gatts_cfg_service_changed_cccd_perm_t service_changed_cccd_perm; /**< Service changed CCCD permission, cfg_id is @ref BLE_GATTS_CFG_SERVICE_CHANGED_CCCD_PERM. */
   ble_gatts_cfg_attr_tab_size_t attr_tab_size;      /**< Attribute table size, cfg_id is @ref BLE_GATTS_CFG_ATTR_TAB_SIZE. */
 } ble_gatts_cfg_t;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) Nordic Semiconductor ASA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -89,8 +89,9 @@ enum BLE_COMMON_SVCS
  */
 enum BLE_COMMON_EVTS
 {
-  BLE_EVT_USER_MEM_REQUEST = BLE_EVT_BASE + 0,   /**< User Memory request. @ref ble_evt_user_mem_request_t */
-  BLE_EVT_USER_MEM_RELEASE = BLE_EVT_BASE + 1,   /**< User Memory release. @ref ble_evt_user_mem_release_t */
+  BLE_EVT_USER_MEM_REQUEST = BLE_EVT_BASE + 0,   /**< User Memory request. See @ref ble_evt_user_mem_request_t 
+                                                   \n Reply with @ref sd_ble_user_mem_reply. */
+  BLE_EVT_USER_MEM_RELEASE = BLE_EVT_BASE + 1,   /**< User Memory release. See @ref ble_evt_user_mem_release_t */
 };
 
 /**@brief BLE Connection Configuration IDs.
@@ -316,6 +317,7 @@ typedef union
 {
   ble_common_opt_t  common_opt;         /**< COMMON options, opt_id in @ref BLE_COMMON_OPTS series. */
   ble_gap_opt_t     gap_opt;            /**< GAP option, opt_id in @ref BLE_GAP_OPTS series. */
+  ble_gattc_opt_t   gattc_opt;          /**< GATTC option, opt_id in @ref BLE_GATTC_OPTS series. */
 } ble_opt_t;
 
 /**@brief BLE connection configuration type, wrapping the module specific configurations, set with
@@ -388,6 +390,21 @@ typedef union
  *                                  application RAM region (APP_RAM_BASE). On return, this will
  *                                  contain the minimum start address of the application RAM region
  *                                  required by the SoftDevice for this configuration.
+ * @warning After this call, the SoftDevice may generate several events. The list of events provided 
+ *          below require the application to initiate a SoftDevice API call. The corresponding API call 
+ *          is referenced in the event documentation. 
+ *          If the application fails to do so, the BLE connection may timeout, or the SoftDevice may stop 
+ *          communicating with the peer device.
+ *          - @ref BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST
+ *          - @ref BLE_GAP_EVT_DATA_LENGTH_UPDATE_REQUEST
+ *          - @ref BLE_GAP_EVT_PHY_UPDATE_REQUEST
+ *          - @ref BLE_GAP_EVT_SEC_PARAMS_REQUEST
+ *          - @ref BLE_GAP_EVT_SEC_INFO_REQUEST
+ *          - @ref BLE_GAP_EVT_SEC_REQUEST
+ *          - @ref BLE_GAP_EVT_AUTH_KEY_REQUEST
+ *          - @ref BLE_GATTS_EVT_EXCHANGE_MTU_REQUEST
+ *          - @ref BLE_EVT_USER_MEM_REQUEST
+ *          - @ref BLE_L2CAP_EVT_CH_SETUP_REQUEST
  *
  * @note The memory requirement for a specific configuration will not increase between SoftDevices
  *       with the same major version number.
@@ -521,8 +538,8 @@ SVCALL(SD_BLE_UUID_VS_ADD, uint32_t, sd_ble_uuid_vs_add(ble_uuid128_t const *p_v
 
 
 /**@brief Remove a Vendor Specific base UUID.
- * 
- * @details This call removes a Vendor Specific base UUID that has been added with @ref sd_ble_uuid_vs_add. This function allows
+ *
+ * @details This call removes a Vendor Specific base UUID. This function allows
  * the application to reuse memory allocated for Vendor Specific base UUIDs.
  *
  * @note Currently this function can only be called with a p_uuid_type set to @ref BLE_UUID_TYPE_UNKNOWN or the last added UUID type.
@@ -544,7 +561,7 @@ SVCALL(SD_BLE_UUID_VS_REMOVE, uint32_t, sd_ble_uuid_vs_remove(uint8_t *p_uuid_ty
 /** @brief Decode little endian raw UUID bytes (16-bit or 128-bit) into a 24 bit @ref ble_uuid_t structure.
  *
  * @details The raw UUID bytes excluding bytes 12 and 13 (i.e. bytes 0-11 and 14-15) of p_uuid_le are compared
- * to the corresponding ones in each entry of the table of Vendor Specific base UUIDs populated with @ref sd_ble_uuid_vs_add
+ * to the corresponding ones in each entry of the table of Vendor Specific base UUIDs
  * to look for a match. If there is such a match, bytes 12 and 13 are returned as p_uuid->uuid and the index
  * relative to @ref BLE_UUID_TYPE_VENDOR_BEGIN as p_uuid->type.
  *
@@ -619,8 +636,8 @@ SVCALL(SD_BLE_USER_MEM_REPLY, uint32_t, sd_ble_user_mem_reply(uint16_t conn_hand
  *
  * @details This call allows the application to set the value of an option.
  *
- * @param[in] opt_id Option ID, see @ref BLE_COMMON_OPTS and @ref BLE_GAP_OPTS.
- * @param[in] p_opt Pointer to a ble_opt_t structure containing the option value.
+ * @param[in] opt_id Option ID, see @ref BLE_COMMON_OPTS, @ref BLE_GAP_OPTS, and @ref BLE_GATTC_OPTS.
+ * @param[in] p_opt Pointer to a @ref ble_opt_t structure containing the option value.
  *
  * @retval ::NRF_SUCCESS  Option set successfully.
  * @retval ::NRF_ERROR_INVALID_ADDR Invalid pointer supplied.

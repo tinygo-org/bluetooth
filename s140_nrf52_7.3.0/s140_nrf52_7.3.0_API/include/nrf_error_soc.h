@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 - 2019, Nordic Semiconductor ASA
+ * Copyright (c) Nordic Semiconductor ASA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -36,65 +36,50 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef NRF_SVC__
-#define NRF_SVC__
+/**
+  @addtogroup nrf_soc_api
+  @{
+  @defgroup nrf_soc_error SoC Library Error Codes
+  @{
 
-#include "stdint.h"
+  @brief Error definitions for the SoC library
 
+*/
+
+/* Header guard */
+#ifndef NRF_ERROR_SOC_H__
+#define NRF_ERROR_SOC_H__
+
+#include "nrf_error.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/** @brief Supervisor call declaration.
- *
- * A call to a function marked with @ref SVCALL, will trigger a Supervisor Call (SVC) Exception.
- * The SVCs with SVC numbers 0x00-0x0F are forwared to the application. All other SVCs are handled by the SoftDevice.
- *
- * @param[in] number      The SVC number to be used.
- * @param[in] return_type The return type of the SVC function.
- * @param[in] signature   Function signature. The function can have at most four arguments.
- */
+/* Mutex Errors */
+#define NRF_ERROR_SOC_MUTEX_ALREADY_TAKEN                 (NRF_ERROR_SOC_BASE_NUM + 0)  ///< Mutex already taken
 
-#ifdef SVCALL_AS_NORMAL_FUNCTION
-#define SVCALL(number, return_type, signature) return_type signature
-#else
+/* NVIC errors */
+#define NRF_ERROR_SOC_NVIC_INTERRUPT_NOT_AVAILABLE        (NRF_ERROR_SOC_BASE_NUM + 1)  ///< NVIC interrupt not available
+#define NRF_ERROR_SOC_NVIC_INTERRUPT_PRIORITY_NOT_ALLOWED (NRF_ERROR_SOC_BASE_NUM + 2)  ///< NVIC interrupt priority not allowed
+#define NRF_ERROR_SOC_NVIC_SHOULD_NOT_RETURN              (NRF_ERROR_SOC_BASE_NUM + 3)  ///< NVIC should not return
 
-#ifndef SVCALL
-#if defined (__CC_ARM)
-#define SVCALL(number, return_type, signature) return_type __svc(number) signature
-#elif defined (__GNUC__)
-#ifdef __cplusplus
-#define GCC_CAST_CPP (uint16_t)
-#else
-#define GCC_CAST_CPP
-#endif
-#define SVCALL(number, return_type, signature)          \
-  _Pragma("GCC diagnostic push")                        \
-  _Pragma("GCC diagnostic ignored \"-Wreturn-type\"")   \
-  __attribute__((naked))                                \
-  __attribute__((unused))                               \
-  static return_type signature                          \
-  {                                                     \
-    __asm(                                              \
-        "svc %0\n"                                      \
-        "bx r14" : : "I" (GCC_CAST_CPP number) : "r0"   \
-    );                                                  \
-  }                                                     \
-  _Pragma("GCC diagnostic pop")
+/* Power errors */
+#define NRF_ERROR_SOC_POWER_MODE_UNKNOWN                  (NRF_ERROR_SOC_BASE_NUM + 4)  ///< Power mode unknown
+#define NRF_ERROR_SOC_POWER_POF_THRESHOLD_UNKNOWN         (NRF_ERROR_SOC_BASE_NUM + 5)  ///< Power POF threshold unknown
+#define NRF_ERROR_SOC_POWER_OFF_SHOULD_NOT_RETURN         (NRF_ERROR_SOC_BASE_NUM + 6)  ///< Power off should not return
 
-#elif defined (__ICCARM__)
-#define PRAGMA(x) _Pragma(#x)
-#define SVCALL(number, return_type, signature)          \
-PRAGMA(swi_number = (number))                           \
- __swi return_type signature;
-#else
-#define SVCALL(number, return_type, signature) return_type signature
-#endif
-#endif  // SVCALL
+/* Rand errors */
+#define NRF_ERROR_SOC_RAND_NOT_ENOUGH_VALUES              (NRF_ERROR_SOC_BASE_NUM + 7)  ///< RAND not enough values
 
-#endif  // SVCALL_AS_NORMAL_FUNCTION
+/* PPI errors */
+#define NRF_ERROR_SOC_PPI_INVALID_CHANNEL                 (NRF_ERROR_SOC_BASE_NUM + 8)  ///< Invalid PPI Channel
+#define NRF_ERROR_SOC_PPI_INVALID_GROUP                   (NRF_ERROR_SOC_BASE_NUM + 9)  ///< Invalid PPI Group
 
 #ifdef __cplusplus
 }
 #endif
-#endif  // NRF_SVC__
+#endif // NRF_ERROR_SOC_H__
+/**
+  @}
+  @}
+*/
