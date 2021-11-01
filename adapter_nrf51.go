@@ -50,6 +50,19 @@ func handleEvent() {
 			currentConnection.Reg = gapEvent.conn_handle
 			DefaultAdapter.connectHandler(Address{}, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
+			if debug {
+				println("evt: disconnected")
+			}
+			// Store system attributes data
+			dataLen := uint16(0)
+			C.sd_ble_gatts_sys_attr_get(gapEvent.conn_handle, nil, &dataLen, 0) // get data length
+			if int(dataLen) <= cap(DefaultAdapter.systemAttributes) {           // we can not allocate here, so ensure at least data fits the buffer
+				DefaultAdapter.systemAttributes = DefaultAdapter.systemAttributes[:dataLen]
+				C.sd_ble_gatts_sys_attr_get(gapEvent.conn_handle, &DefaultAdapter.systemAttributes[0], &dataLen, 0)
+			}
+			// Clean up state for this connection.
+			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
+			// Auto-restart advertisement if needed.
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
 				// by the connection event.
@@ -59,7 +72,6 @@ func handleEvent() {
 				// necessary.
 				defaultAdvertisement.start()
 			}
-			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
 			DefaultAdapter.connectHandler(Address{}, false)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
@@ -87,15 +99,16 @@ func handleEvent() {
 				handler.callback(Connection(gattsEvent.conn_handle), int(writeEvent.offset), data)
 			}
 		case C.BLE_GATTS_EVT_SYS_ATTR_MISSING:
-			// This event is generated when reading the Generic Attribute
-			// service. It appears to be necessary for bonded devices.
-			// From the docs:
-			// > If the pointer is NULL, the system attribute info is
-			// > initialized, assuming that the application does not have any
-			// > previously saved system attribute data for this device.
-			// Maybe we should look at the error, but as there's not really a
-			// way to handle it, ignore it.
-			C.sd_ble_gatts_sys_attr_set(gattsEvent.conn_handle, nil, 0, 0)
+			if debug {
+				println("evt: sys attr missing")
+			}
+			// Try and restore system attributes data if we have any (from previous connections)
+			// Fallback to initialize them from scratch otherwise
+			if len(DefaultAdapter.systemAttributes) > 0 {
+				C.sd_ble_gatts_sys_attr_set(gattsEvent.conn_handle, &DefaultAdapter.systemAttributes[0], uint16(len(DefaultAdapter.systemAttributes)), 0)
+			} else {
+				C.sd_ble_gatts_sys_attr_set(gattsEvent.conn_handle, nil, 0, 0)
+			}
 		default:
 			if debug {
 				println("unknown GATTS event:", id, id-C.BLE_GATTS_EVT_BASE)
