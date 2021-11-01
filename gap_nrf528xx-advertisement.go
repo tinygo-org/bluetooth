@@ -81,3 +81,10 @@ func (a *Advertisement) Start() error {
 	errCode := C.sd_ble_gap_adv_start(a.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 	return makeError(errCode)
 }
+
+// Stop advertisement.
+func (a *Advertisement) Stop() error {
+	a.isAdvertising.Set(0)
+	errCode := C.sd_ble_gap_adv_stop(a.handle)
+	return makeError(errCode)
+}

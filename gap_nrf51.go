@@ -64,6 +64,13 @@ func (a *Advertisement) Start() error {
 	return makeError(errCode)
 }
 
+// Stop advertisement.
+func (a *Advertisement) Stop() error {
+	a.isAdvertising.Set(0)
+	errCode := C.sd_ble_gap_adv_stop()
+	return makeError(errCode)
+}
+
 // Low-level version of Start. Used to restart advertisement when a connection
 // is lost.
 func (a *Advertisement) start() uint32 {
