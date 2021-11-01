@@ -106,3 +106,12 @@ func handleEvent() {
 		}
 	}
 }
+
+func (a *Adapter) Address() (MACAddress, error) {
+	var addr C.ble_gap_addr_t
+	errCode := C.sd_ble_gap_address_get(&addr)
+	if errCode != 0 {
+		return MACAddress{}, Error(errCode)
+	}
+	return MACAddress{MAC: addr.addr}, nil
+}

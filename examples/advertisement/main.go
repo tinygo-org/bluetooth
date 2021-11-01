@@ -17,9 +17,10 @@ func main() {
 	must("start adv", adv.Start())
 
 	println("advertising...")
+	address, _ := adapter.Address()
 	for {
-		// Sleep forever.
-		time.Sleep(time.Hour)
+		println("Go Bluetooth /", address.MAC.String())
+		time.Sleep(time.Second)
 	}
 }
 
