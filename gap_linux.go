@@ -4,6 +4,7 @@
 package bluetooth
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/godbus/dbus/v5"
@@ -11,6 +12,8 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/advertising"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
+
+var errAdvertisementNotStarted = errors.New("bluetooth: stop advertisement that was not started")
 
 // Address contains a Bluetooth MAC address.
 type Address struct {
@@ -22,6 +25,7 @@ type Advertisement struct {
 	adapter       *Adapter
 	advertisement *api.Advertisement
 	properties    *advertising.LEAdvertisement1Properties
+	cancel        func()
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -60,10 +64,20 @@ func (a *Advertisement) Start() error {
 	if a.advertisement != nil {
 		panic("todo: start advertisement a second time")
 	}
-	_, err := api.ExposeAdvertisement(a.adapter.id, a.properties, uint32(a.properties.Timeout))
+	cancel, err := api.ExposeAdvertisement(a.adapter.id, a.properties, uint32(a.properties.Timeout))
 	if err != nil {
 		return err
 	}
+	a.cancel = cancel
+	return nil
+}
+
+// Stop advertisement. May only be called after it has been started.
+func (a *Advertisement) Stop() error {
+	if a.cancel == nil {
+		return errAdvertisementNotStarted
+	}
+	a.cancel()
 	return nil
 }
 
