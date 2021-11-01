@@ -38,6 +38,8 @@ func (s *DeviceService) UUID() UUID {
 // On Linux with BlueZ, this just waits for the ServicesResolved signal (if
 // services haven't been resolved yet) and uses this list of cached services.
 func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+	start := time.Now()
+
 	for {
 		resolved, err := d.device.GetServicesResolved()
 		if err != nil {
@@ -48,6 +50,9 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 		// This is a terrible hack, but I couldn't find another way.
 		time.Sleep(10 * time.Millisecond)
+		if time.Since(start) > 10*time.Second {
+			return nil, errors.New("timeout on DiscoverServices")
+		}
 	}
 
 	services := []DeviceService{}
