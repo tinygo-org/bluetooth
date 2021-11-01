@@ -6,6 +6,8 @@
 package bluetooth
 
 import (
+	"errors"
+
 	"github.com/muka/go-bluetooth/api"
 	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 )
@@ -40,4 +42,15 @@ func (a *Adapter) Enable() (err error) {
 		a.id, err = a.adapter.GetAdapterID()
 	}
 	return nil
+}
+
+func (a *Adapter) Address() (MACAddress, error) {
+	if a.adapter == nil {
+		return MACAddress{}, errors.New("adapter not enabled")
+	}
+	mac, err := ParseMAC(a.adapter.Properties.Address)
+	if err != nil {
+		return MACAddress{}, err
+	}
+	return MACAddress{MAC: mac}, nil
 }
