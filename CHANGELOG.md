@@ -1,3 +1,23 @@
+0.4.0
+---
+* **core**
+  - adapter: add host address function
+* **linux**
+  - fixes bluez 0.55 service registration
+  - update muka/go-bluetooth to latest version
+  - gattc/linux: DiscoverServices times out in 10s
+* **macos**
+  - make Adapter.Connect thread-safe
+* **nordic semi**
+  - nrf51: fix assertHandler function signature
+  - nrf: add support for S113 SoftDevice
+  - nrf: update s140v7 SoftDevice version to latest, 7.3.0
+* **examples**
+  - add scanner for Adafruit Clue
+* **build**
+  - circleci: update xcode in use to 10.3.0
+  - modules: add tinyterm package for clue example
+
 0.3.0
 ---
 * **core**
