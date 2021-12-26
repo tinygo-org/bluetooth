@@ -34,7 +34,13 @@ func (ad Address) Set(val string) {
 
 // Scan starts a BLE scan. It is stopped by a call to StopScan. A common pattern
 // is to cancel the scan when a particular device has been found.
-func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
+//
+// In macOS Monterey (12.x) and above, you must provide a list of services listed
+// in the advertising data of the devices you want to discover. Otherwise,
+// CoreBluetooth will never return a discovered device.
+func (a *Adapter) Scan(serviceUUIDs []UUID, callback func(*Adapter, ScanResult)) (err error) {
+	macosVersion := 12 // TODO: actually fetch this value from the OS
+
 	if callback == nil {
 		return errors.New("must provide callback to Scan function")
 	}
@@ -50,9 +56,30 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 	// read from it. If it succeeds, the scan is stopped.
 	a.scanChan = make(chan error)
 
-	a.cm.Scan(nil, &cbgo.CentralManagerScanOpts{
-		AllowDuplicates: false,
-	})
+	if len(serviceUUIDs) == 0 {
+		if macosVersion < 12 {
+			return errors.New("one or more serviceUUIDs must be specified for CoreBluetooth to return any results")
+		}
+		a.cm.Scan(nil, &cbgo.CentralManagerScanOpts{
+			AllowDuplicates: false,
+		})
+
+	} else {
+		// convert service UUIDs to CBUUIDs
+		suids := make([]cbgo.UUID, len(serviceUUIDs))
+		for i, uuid := range serviceUUIDs {
+			b := uuid.Bytes()
+			u, err := cbgo.UUID128(b[:])
+			if err != nil {
+				return err
+			}
+			suids[i] = u
+		}
+
+		a.cm.Scan(suids, &cbgo.CentralManagerScanOpts{
+			AllowDuplicates: false,
+		})
+	}
 
 	// Check whether the scan is stopped. This is necessary to avoid a race
 	// condition between the signal channel and the cancelScan channel when
