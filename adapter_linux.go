@@ -1,3 +1,4 @@
+//go:build !baremetal
 // +build !baremetal
 
 // Some documentation for the BlueZ D-Bus interface:

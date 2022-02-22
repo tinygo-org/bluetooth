@@ -1,3 +1,4 @@
+//go:build softdevice && s113v7
 // +build softdevice,s113v7
 
 package bluetooth
