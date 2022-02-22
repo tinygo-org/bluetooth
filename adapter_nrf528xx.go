@@ -1,3 +1,4 @@
+//go:build (softdevice && s113v7) || (softdevice && s132v6) || (softdevice && s140v6) || (softdevice && s140v7)
 // +build softdevice,s113v7 softdevice,s132v6 softdevice,s140v6 softdevice,s140v7
 
 package bluetooth

@@ -1,3 +1,4 @@
+//go:build softdevice && s140v6
 // +build softdevice,s140v6
 
 package bluetooth
