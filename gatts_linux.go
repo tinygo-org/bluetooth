@@ -1,3 +1,4 @@
+//go:build !baremetal
 // +build !baremetal
 
 package bluetooth
@@ -80,6 +81,14 @@ func (a *Adapter) AddService(s *Service) error {
 				// not be the case).
 				callback(0, 0, value)
 				return nil, nil
+			})
+		}
+
+		// Lazy read value
+		if char.ReadEvent != nil {
+			callback := char.ReadEvent
+			bluezChar.OnRead(func(c *service.Char, options map[string]interface{}) ([]byte, error) {
+				return callback(0)
 			})
 		}
 
