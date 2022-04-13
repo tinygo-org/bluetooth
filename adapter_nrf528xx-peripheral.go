@@ -7,10 +7,6 @@ package bluetooth
 // mode support. This includes the S113.
 
 /*
-// Define SoftDevice functions as regular function declarations (not inline
-// static functions).
-#define SVCALL_AS_NORMAL_FUNCTION
-
 #include "nrf_sdm.h"
 #include "nrf_nvic.h"
 #include "ble.h"
