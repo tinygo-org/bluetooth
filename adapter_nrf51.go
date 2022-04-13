@@ -4,10 +4,6 @@
 package bluetooth
 
 /*
-// Define SoftDevice functions as regular function declarations (not inline
-// static functions).
-#define SVCALL_AS_NORMAL_FUNCTION
-
 #include "nrf_sdm.h"
 #include "ble.h"
 #include "ble_gap.h"
