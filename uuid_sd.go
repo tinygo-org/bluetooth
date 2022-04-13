@@ -39,7 +39,7 @@ func (s shortUUID) UUID() UUID {
 // IsIn checks the passed in slice of short UUIDs to see if this uuid is in it.
 func (s shortUUID) IsIn(uuids []C.ble_uuid_t) bool {
 	for _, u := range uuids {
-		if u == s {
+		if shortUUID(u) == s {
 			return true
 		}
 	}
