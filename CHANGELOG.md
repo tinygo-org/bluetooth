@@ -1,3 +1,12 @@
+0.5.0
+---
+* **core**
+  - update to drivers 0.20.0
+  - Fix ParseMAC bug
+  - Add //go:build lines for Go 1.18
+* **nordic semi**
+  - nrf: fix CGo errors after TinyGo update
+
 0.4.0
 ---
 * **core**
