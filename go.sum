@@ -55,8 +55,6 @@ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20190422165155-953cdadca894/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20200728102440-3e129f6d46b1/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
-golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6 h1:DvY3Zkh7KabQE/kfzMvYvKirSiguP9Q/veMtkYyf0o8=
-golang.org/x/sys v0.0.0-20200826173525-f9321e4c35a6/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210423082822-04245dca01da h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=
 golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
@@ -76,11 +74,10 @@ gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f/go.mod h1:Co6ibVJAznAaIkqp8
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c h1:dUUwHk2QECo/6vqA44rthZ8ie2QXMNeKRTHCNY2nXvo=
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 tinygo.org/x/drivers v0.14.0/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=
-tinygo.org/x/drivers v0.15.1 h1:fS85Q6CVn1qcSF+n0JN61a5AULrbenjH5XIoYnQjOO4=
 tinygo.org/x/drivers v0.15.1/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=
 tinygo.org/x/drivers v0.16.0/go.mod h1:uT2svMq3EpBZpKkGO+NQHjxjGf1f42ra4OnMMwQL2aI=
-tinygo.org/x/drivers v0.19.1-0.20220421091018-f0a260be6630 h1:jTw0l/9d2eJRU9xp5eADYZFOiJGTOeAfOmwqZnInsk0=
-tinygo.org/x/drivers v0.19.1-0.20220421091018-f0a260be6630/go.mod h1:uJD/l1qWzxzLx+vcxaW0eY464N5RAgFi1zTVzASFdqI=
+tinygo.org/x/drivers v0.20.0 h1:umN4UtWTaAjuQoMAr5jSPPMXtCa7Q7qWVtkYAyag3jY=
+tinygo.org/x/drivers v0.20.0/go.mod h1:uJD/l1qWzxzLx+vcxaW0eY464N5RAgFi1zTVzASFdqI=
 tinygo.org/x/tinyfont v0.2.1 h1:FAaemBzw8wsfhAtG6fWW+QjyWw/K8YqEeiWo4N1pv4o=
 tinygo.org/x/tinyfont v0.2.1/go.mod h1:eLqnYSrFRjt5STxWaMeOWJTzrKhXqpWw7nU3bPfKOAM=
 tinygo.org/x/tinyfs v0.1.0/go.mod h1:ysc8Y92iHfhTXeyEM9+c7zviUQ4fN9UCFgSOFfMWv20=
