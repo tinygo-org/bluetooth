@@ -26,19 +26,31 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 
 	// Listen for incoming BLE advertisement packets.
 	err = a.watcher.AddReceivedEvent(func(watcher *winbt.IBluetoothLEAdvertisementWatcher, args *winbt.IBluetoothLEAdvertisementReceivedEventArgs) {
-		var result ScanResult
-		result.RSSI = args.RawSignalStrengthInDBm()
+		// parse bluetooth address
 		addr := args.BluetoothAddress()
-		adr := result.Address.(Address)
+		adr := Address{}
 		for i := range adr.MAC {
 			adr.MAC[i] = byte(addr)
 			addr >>= 8
 		}
+		result := ScanResult{
+			RSSI:    args.RawSignalStrengthInDBm(),
+			Address: adr,
+		}
+
+		var manufacturerData map[uint16][]byte
+		if winAdv := args.Advertisement(); winAdv != nil {
+			manufacturerData = winAdv.ManufacturerData()
+		} else {
+			manufacturerData = make(map[uint16][]byte)
+		}
+
 		// Note: the IsRandom bit is never set.
 		advertisement := args.Advertisement()
 		result.AdvertisementPayload = &advertisementFields{
 			AdvertisementFields{
-				LocalName: advertisement.LocalName(),
+				LocalName:        advertisement.LocalName(),
+				ManufacturerData: manufacturerData,
 			},
 		}
 		callback(a, result)
