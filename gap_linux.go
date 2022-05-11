@@ -183,6 +183,8 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 						props.Name = val.Value().(string)
 					case "UUIDs":
 						props.UUIDs = val.Value().([]string)
+					case "ManufacturerData":
+						props.ManufacturerData = val.Value().(map[uint16]interface{})
 					}
 				}
 				callback(a, makeScanResult(props))
@@ -223,13 +225,20 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 	a := Address{MACAddress{MAC: addr}}
 	a.SetRandom(props.AddressType == "random")
 
+	mData := make(map[uint16][]byte)
+	for k, v := range props.ManufacturerData {
+		temp := v.(dbus.Variant)
+		mData[k] = temp.Value().([]byte)
+	}
+
 	return ScanResult{
 		RSSI:    props.RSSI,
 		Address: a,
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
-				LocalName:    props.Name,
-				ServiceUUIDs: serviceUUIDs,
+				LocalName:        props.Name,
+				ServiceUUIDs:     serviceUUIDs,
+				ManufacturerData: mData,
 			},
 		},
 	}

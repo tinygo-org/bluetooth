@@ -173,6 +173,47 @@ type IBluetoothLEAdvertisementWatcherStoppedEventArgs struct {
 	ole.IInspectable
 }
 
+type IBluetoothLEManufacturerData struct {
+	ole.IInspectable
+}
+
+type IBluetoothLEManufacturerDataVtbl struct {
+	ole.IInspectableVtbl
+
+	GetCompanyId uintptr // ([out] [retval] UINT16* value);
+	SetCompanyId uintptr // ([in] UINT16 value);
+	GetData      uintptr // ([out] [retval] Windows.Storage.Streams.IBuffer** value);
+	SetData      uintptr // ([in] Windows.Storage.Streams.IBuffer* value);
+
+}
+
+func (v *IBluetoothLEManufacturerData) VTable() *IBluetoothLEManufacturerDataVtbl {
+	return (*IBluetoothLEManufacturerDataVtbl)(unsafe.Pointer(v.RawVTable))
+}
+
+func (v *IBluetoothLEManufacturerData) GetCompanyID() uint16 {
+	var manufacturerID uint16
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetCompanyId,
+		uintptr(unsafe.Pointer(v)),
+		uintptr(unsafe.Pointer(&manufacturerID)),
+	)
+	mustSucceed(hr)
+	return manufacturerID
+}
+
+func (v *IBluetoothLEManufacturerData) GetData() *IBuffer {
+	var buf *IBuffer
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetData,
+		uintptr(unsafe.Pointer(v)),
+		uintptr(unsafe.Pointer(&buf)),
+	)
+	mustSucceed(hr)
+
+	return buf
+}
+
 type IBluetoothLEAdvertisement struct {
 	ole.IInspectable
 }
@@ -209,6 +250,33 @@ func (v *IBluetoothLEAdvertisement) LocalName() string {
 	name := hstring.String()
 	ole.DeleteHString(hstring)
 	return name
+}
+
+func (v *IBluetoothLEAdvertisement) ManufacturerData() map[uint16][]byte {
+	// ([out] [retval] Windows.Foundation.Collections.IVector<Windows.Devices.Bluetooth.Advertisement.BluetoothLEManufacturerData*>** value);
+	var vector *IVector
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetManufacturerData,
+		uintptr(unsafe.Pointer(v)),
+		uintptr(unsafe.Pointer(&vector)),
+	)
+	mustSucceed(hr)
+
+	manufacturerData := make(map[uint16][]byte)
+	// convert manufacturer data to go bytes
+	for i := 0; i < vector.Size(); i++ {
+		mData := (*IBluetoothLEManufacturerData)(vector.At(i))
+
+		mID := mData.GetCompanyID()
+		mPayload := mData.GetData()
+
+		b, err := mPayload.Bytes()
+		if err == nil {
+			manufacturerData[mID] = b
+		}
+	}
+
+	return manufacturerData
 }
 
 func (v *IBluetoothLEAdvertisement) DataSections() (vector *IVector) {
