@@ -100,6 +100,7 @@ func (d *Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 		services = append(services, DeviceService{
 			uuidWrapper: serviceUuid,
 			service:     srv,
+			device:      d,
 		})
 	}
 
@@ -132,6 +133,7 @@ type DeviceService struct {
 	uuidWrapper
 
 	service *genericattributeprofile.GattDeviceService
+	device  *Device
 }
 
 // UUID returns the UUID for this DeviceService.
@@ -180,12 +182,12 @@ func (s *DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceCha
 
 	var characteristics []DeviceCharacteristic
 	for i := uint32(0); i < characteristicsSize; i++ {
-		s, err := charVector.GetAt(i)
+		c, err := charVector.GetAt(i)
 		if err != nil {
 			return nil, err
 		}
 
-		characteristic := (*genericattributeprofile.GattCharacteristic)(s)
+		characteristic := (*genericattributeprofile.GattCharacteristic)(c)
 		guid, err := characteristic.GetUuid()
 		if err != nil {
 			return nil, err
@@ -215,6 +217,7 @@ func (s *DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceCha
 
 		characteristics = append(characteristics, DeviceCharacteristic{
 			uuidWrapper:    characteristicUUID,
+			service:        s,
 			characteristic: characteristic,
 			properties:     properties,
 		})
@@ -230,6 +233,8 @@ type DeviceCharacteristic struct {
 
 	characteristic *genericattributeprofile.GattCharacteristic
 	properties     genericattributeprofile.GattCharacteristicProperties
+
+	service *DeviceService
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -239,6 +244,11 @@ func (c *DeviceCharacteristic) UUID() UUID {
 
 func (c *DeviceCharacteristic) Properties() uint32 {
 	return uint32(c.properties)
+}
+
+// GetMTU returns the MTU for the characteristic.
+func (c *DeviceCharacteristic) GetMTU() (uint16, error) {
+	return c.service.device.session.GetMaxPduSize()
 }
 
 // Write replaces the characteristic value with a new value. The
