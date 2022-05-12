@@ -451,3 +451,8 @@ func (c *DeviceCharacteristic) Read(data []byte) (n int, err error) {
 
 	return
 }
+
+// GetMTU returns the MTU for the characteristic.
+func (c DeviceCharacteristic) GetMTU() (uint16, error) {
+	return uint16(C.BLE_GATT_ATT_MTU_DEFAULT), nil
+}

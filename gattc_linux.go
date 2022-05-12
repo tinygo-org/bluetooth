@@ -238,6 +238,15 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	return c.characteristic.StartNotify()
 }
 
+// GetMTU returns the MTU for the characteristic.
+func (c DeviceCharacteristic) GetMTU() (uint16, error) {
+	mtu, err := c.characteristic.GetProperty("MTU")
+	if err != nil {
+		return uint16(0), err
+	}
+	return mtu.Value().(uint16), nil
+}
+
 // Read reads the current characteristic value.
 func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
 	options := make(map[string]interface{})

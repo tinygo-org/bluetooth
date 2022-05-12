@@ -173,6 +173,11 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	return nil
 }
 
+// GetMTU returns the MTU for the characteristic.
+func (c DeviceCharacteristic) GetMTU() (uint16, error) {
+	return uint16(c.service.device.prph.MaximumWriteValueLength(false)), nil
+}
+
 // Read reads the current characteristic value.
 func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
 	c.readChan = make(chan error)
