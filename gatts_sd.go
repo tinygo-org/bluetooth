@@ -54,10 +54,12 @@ func (a *Adapter) AddService(service *Service) error {
 			init_offs: 0,
 			max_len:   20, // This is a conservative maximum length.
 		}
+		var vlocBitfield uint8 = C.BLE_GATTS_VLOC_STACK
 		if len(char.Value) != 0 {
+			vlocBitfield = C.BLE_GATTS_VLOC_USER
 			value.p_value = &char.Value[0]
 		}
-		value.p_attr_md.set_bitfield_vloc(C.BLE_GATTS_VLOC_STACK)
+		value.p_attr_md.set_bitfield_vloc(vlocBitfield)
 		value.p_attr_md.set_bitfield_vlen(1)
 		errCode = C.sd_ble_gatts_characteristic_add(service.handle, &metadata, &value, &handles)
 		if errCode != 0 {
