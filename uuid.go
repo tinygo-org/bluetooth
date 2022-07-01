@@ -5,6 +5,7 @@ package bluetooth
 
 import (
 	"errors"
+	"strings"
 )
 
 // UUID is a single UUID as used in the Bluetooth stack. It is represented as a
@@ -116,13 +117,12 @@ func ParseUUID(s string) (uuid UUID, err error) {
 // String returns a human-readable version of this UUID, such as
 // 00001234-0000-1000-8000-00805f9b34fb.
 func (uuid UUID) String() string {
-	// TODO: make this more efficient.
-	s := ""
+	var s strings.Builder
 	raw := uuid.Bytes()
 	for i := range raw {
 		// Insert a hyphen at the correct locations.
 		if i == 4 || i == 6 || i == 8 || i == 10 {
-			s += "-"
+			s.WriteRune('-')
 		}
 
 		// The character to convert to hex.
@@ -131,19 +131,19 @@ func (uuid UUID) String() string {
 		// First nibble.
 		nibble := c >> 4
 		if nibble <= 9 {
-			s += string(nibble + '0')
+			s.WriteByte(nibble + '0')
 		} else {
-			s += string(nibble + 'a' - 10)
+			s.WriteByte(nibble + 'a' - 10)
 		}
 
 		// Second nibble.
 		nibble = c & 0x0f
 		if nibble <= 9 {
-			s += string(nibble + '0')
+			s.WriteByte(nibble + '0')
 		} else {
-			s += string(nibble + 'a' - 10)
+			s.WriteByte(nibble + 'a' - 10)
 		}
 	}
 
-	return s
+	return s.String()
 }

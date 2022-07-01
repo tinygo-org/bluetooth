@@ -61,3 +61,13 @@ func TestStringUUIDLowerCase(t *testing.T) {
 		t.Errorf("%s does not match %s ignoring case", uuidString, u.String())
 	}
 }
+
+func BenchmarkUUIDToString(b *testing.B) {
+	uuid, e := ParseUUID("00001234-0000-1000-8000-00805f9b34fb")
+	if e != nil {
+		b.Errorf("expected nil but got %v", e)
+	}
+	for i := 0; i < b.N; i++ {
+		uuid.String()
+	}
+}
