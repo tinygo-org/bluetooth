@@ -118,6 +118,7 @@ func ParseUUID(s string) (uuid UUID, err error) {
 // 00001234-0000-1000-8000-00805f9b34fb.
 func (uuid UUID) String() string {
 	var s strings.Builder
+	s.Grow(36)
 	raw := uuid.Bytes()
 	for i := range raw {
 		// Insert a hyphen at the correct locations.
