@@ -68,6 +68,6 @@ func BenchmarkUUIDToString(b *testing.B) {
 		b.Errorf("expected nil but got %v", e)
 	}
 	for i := 0; i < b.N; i++ {
-		uuid.String()
+		_ = uuid.String()
 	}
 }
