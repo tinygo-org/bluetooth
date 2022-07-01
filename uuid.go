@@ -3,7 +3,9 @@ package bluetooth
 // This file implements 16-bit and 128-bit UUIDs as defined in the Bluetooth
 // specification.
 
-import "errors"
+import (
+	"errors"
+)
 
 // UUID is a single UUID as used in the Bluetooth stack. It is represented as a
 // [4]uint32 instead of a [16]byte for efficiency.
@@ -90,6 +92,8 @@ func ParseUUID(s string) (uuid UUID, err error) {
 			nibble = c - '0' + 0x0
 		} else if c >= 'a' && c <= 'f' {
 			nibble = c - 'a' + 0xa
+		} else if c >= 'A' && c <= 'F' {
+			nibble = c - 'A' + 0xa
 		} else {
 			err = errInvalidUUID
 			return
