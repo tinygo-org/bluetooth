@@ -1,7 +1,13 @@
 package bluetooth
 
 import (
-	"tinygo.org/x/bluetooth/winbt"
+	"unsafe"
+
+	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
+	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/advertisement"
+	"github.com/saltosystems/winrt-go/windows/foundation"
+	"github.com/saltosystems/winrt-go/windows/storage/streams"
 )
 
 // Address contains a Bluetooth MAC address.
@@ -18,61 +24,61 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 		return errScanning
 	}
 
-	a.watcher, err = winbt.NewBluetoothLEAdvertisementWatcher()
+	a.watcher, err = advertisement.NewBluetoothLEAdvertisementWatcher()
 	if err != nil {
 		return
 	}
-	defer a.watcher.Release()
+	defer func() {
+		_ = a.watcher.Release()
+		a.watcher = nil
+	}()
 
 	// Listen for incoming BLE advertisement packets.
-	err = a.watcher.AddReceivedEvent(func(watcher *winbt.IBluetoothLEAdvertisementWatcher, args *winbt.IBluetoothLEAdvertisementReceivedEventArgs) {
-		// parse bluetooth address
-		addr := args.BluetoothAddress()
-		adr := Address{}
-		for i := range adr.MAC {
-			adr.MAC[i] = byte(addr)
-			addr >>= 8
-		}
-		result := ScanResult{
-			RSSI:    args.RawSignalStrengthInDBm(),
-			Address: adr,
-		}
-
-		var manufacturerData map[uint16][]byte
-		if winAdv := args.Advertisement(); winAdv != nil {
-			manufacturerData = winAdv.ManufacturerData()
-		} else {
-			manufacturerData = make(map[uint16][]byte)
-		}
-
-		// Note: the IsRandom bit is never set.
-		advertisement := args.Advertisement()
-		result.AdvertisementPayload = &advertisementFields{
-			AdvertisementFields{
-				LocalName:        advertisement.LocalName(),
-				ManufacturerData: manufacturerData,
-			},
-		}
+	// We need a TypedEventHandler<TSender, TResult> to listen to events, but since this is a parameterized delegate
+	// its GUID depends on the classes used as sender and result, so we need to compute it:
+	// TypedEventHandler<BluetoothLEAdvertisementWatcher, BluetoothLEAdvertisementReceivedEventArgs>
+	eventReceivedGuid := winrt.ParameterizedInstanceGUID(
+		foundation.GUIDTypedEventHandler,
+		advertisement.SignatureBluetoothLEAdvertisementWatcher,
+		advertisement.SignatureBluetoothLEAdvertisementReceivedEventArgs,
+	)
+	handler := foundation.NewTypedEventHandler(ole.NewGUID(eventReceivedGuid), func(instance *foundation.TypedEventHandler, sender, arg unsafe.Pointer) {
+		args := (*advertisement.BluetoothLEAdvertisementReceivedEventArgs)(arg)
+		result := getScanResultFromArgs(args)
 		callback(a, result)
 	})
+	defer handler.Release()
+
+	token, err := a.watcher.AddReceived(handler)
 	if err != nil {
 		return
 	}
+	defer a.watcher.RemoveReceived(token)
 
 	// Wait for when advertisement has stopped by a call to StopScan().
 	// Advertisement doesn't seem to stop right away, there is an
 	// intermediate Stopping state.
 	stoppingChan := make(chan struct{})
-	err = a.watcher.AddStoppedEvent(func(watcher *winbt.IBluetoothLEAdvertisementWatcher, args *winbt.IBluetoothLEAdvertisementWatcherStoppedEventArgs) {
+	// TypedEventHandler<BluetoothLEAdvertisementWatcher, BluetoothLEAdvertisementWatcherStoppedEventArgs>
+	eventStoppedGuid := winrt.ParameterizedInstanceGUID(
+		foundation.GUIDTypedEventHandler,
+		advertisement.SignatureBluetoothLEAdvertisementWatcher,
+		advertisement.SignatureBluetoothLEAdvertisementWatcherStoppedEventArgs,
+	)
+	stoppedHandler := foundation.NewTypedEventHandler(ole.NewGUID(eventStoppedGuid), func(_ *foundation.TypedEventHandler, _, _ unsafe.Pointer) {
 		// Note: the args parameter has an Error property that should
 		// probably be checked, but I'm not sure when stopping the
 		// advertisement watcher could ever result in an error (except
 		// for bugs).
 		close(stoppingChan)
 	})
+	defer stoppedHandler.Release()
+
+	token, err = a.watcher.AddStopped(stoppedHandler)
 	if err != nil {
 		return
 	}
+	defer a.watcher.RemoveStopped(token)
 
 	err = a.watcher.Start()
 	if err != nil {
@@ -81,8 +87,55 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 
 	// Wait until advertisement has stopped, and finish.
 	<-stoppingChan
-	a.watcher = nil
 	return nil
+}
+
+func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedEventArgs) ScanResult {
+	// parse bluetooth address
+	addr, _ := args.GetBluetoothAddress()
+	adr := Address{}
+	for i := range adr.MAC {
+		adr.MAC[i] = byte(addr)
+		addr >>= 8
+	}
+	sigStrength, _ := args.GetRawSignalStrengthInDBm()
+	result := ScanResult{
+		RSSI:    sigStrength,
+		Address: adr,
+	}
+
+	var manufacturerData map[uint16][]byte = make(map[uint16][]byte)
+	if winAdv, err := args.GetAdvertisement(); err == nil && winAdv != nil {
+		vector, _ := winAdv.GetManufacturerData()
+		size, _ := vector.GetSize()
+		for i := uint32(0); i < size; i++ {
+			element, _ := vector.GetAt(i)
+			manData := (*advertisement.BluetoothLEManufacturerData)(element)
+			companyID, _ := manData.GetCompanyId()
+			buffer, _ := manData.GetData()
+			manufacturerData[companyID] = bufferToSlice(buffer)
+		}
+	}
+
+	// Note: the IsRandom bit is never set.
+	advertisement, _ := args.GetAdvertisement()
+	localName, _ := advertisement.GetLocalName()
+	result.AdvertisementPayload = &advertisementFields{
+		AdvertisementFields{
+			LocalName:        localName,
+			ManufacturerData: manufacturerData,
+		},
+	}
+
+	return result
+}
+
+func bufferToSlice(buffer *streams.IBuffer) []byte {
+	dataReader, _ := streams.FromBuffer(buffer)
+	defer dataReader.Release()
+	bufferSize, _ := buffer.GetLength()
+	data, _ := dataReader.ReadBytes(bufferSize)
+	return data
 }
 
 // StopScan stops any in-progress scan. It can be called from within a Scan
