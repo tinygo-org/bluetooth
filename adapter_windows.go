@@ -2,11 +2,11 @@ package bluetooth
 
 import (
 	"github.com/go-ole/go-ole"
-	"tinygo.org/x/bluetooth/winbt"
+	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/advertisement"
 )
 
 type Adapter struct {
-	watcher *winbt.IBluetoothLEAdvertisementWatcher
+	watcher *advertisement.BluetoothLEAdvertisementWatcher
 
 	connectHandler func(device Addresser, connected bool)
 }
