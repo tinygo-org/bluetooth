@@ -12,8 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-macos:
-    name: build-macos
+  build:
+    name: build
     runs-on: macos-11
     steps:
       - name: Install Go
