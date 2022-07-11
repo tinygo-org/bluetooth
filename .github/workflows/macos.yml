@@ -22,5 +22,7 @@ jobs:
           go-version: '1.18.3'
       - name: Checkout
         uses: actions/checkout@v2
+      - name: Run unit tests
+        run: go test
       - name: "Run macOS smoke tests"
         run: make smoketest-macos
