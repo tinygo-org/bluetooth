@@ -1,0 +1,30 @@
+name: Linux
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - release
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: tinygo/tinygo-dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: TinyGo version check
+        run: tinygo version
+      - name: Run unit tests
+        run: go test
+      - name: Run TinyGo smoke tests
+        run: make smoketest-tinygo
+      - name: Run Linux smoke tests
+        run: make smoketest-linux
+      - name: Install Windows cross compiler
+        run: |
+          apt-get install -y gcc-mingw-w64-x86-64
+      - name: "Run Windows smoke tests"
+        run: make smoketest-windows
