@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -36,5 +37,37 @@ func TestStringUUID(t *testing.T) {
 	}
 	if u.String() != uuidString {
 		t.Errorf("expected %s but got %s", uuidString, u.String())
+	}
+}
+
+func TestStringUUIDUpperCase(t *testing.T) {
+	uuidString := strings.ToUpper("00001234-0000-1000-8000-00805f9b34fb")
+	u, e := ParseUUID(uuidString)
+	if e != nil {
+		t.Errorf("expected nil but got %v", e)
+	}
+	if !strings.EqualFold(u.String(), uuidString) {
+		t.Errorf("%s does not match %s ignoring case", uuidString, u.String())
+	}
+}
+
+func TestStringUUIDLowerCase(t *testing.T) {
+	uuidString := strings.ToLower("00001234-0000-1000-8000-00805f9b34fb")
+	u, e := ParseUUID(uuidString)
+	if e != nil {
+		t.Errorf("expected nil but got %v", e)
+	}
+	if !strings.EqualFold(u.String(), uuidString) {
+		t.Errorf("%s does not match %s ignoring case", uuidString, u.String())
+	}
+}
+
+func BenchmarkUUIDToString(b *testing.B) {
+	uuid, e := ParseUUID("00001234-0000-1000-8000-00805f9b34fb")
+	if e != nil {
+		b.Errorf("expected nil but got %v", e)
+	}
+	for i := 0; i < b.N; i++ {
+		_ = uuid.String()
 	}
 }
