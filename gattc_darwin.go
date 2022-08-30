@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/JuulLabs-OSS/cbgo"
+	"github.com/tinygo-org/cbgo"
 )
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service

@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/JuulLabs-OSS/cbgo"
+	"github.com/tinygo-org/cbgo"
 )
 
 // Adapter is a connection to BLE devices.
