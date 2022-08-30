@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/JuulLabs-OSS/cbgo"
+	"github.com/tinygo-org/cbgo"
 )
 
 // Address contains a Bluetooth address which on macOS is a UUID.
