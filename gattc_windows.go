@@ -15,7 +15,7 @@ import (
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d *Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 	// IAsyncOperation<GattDeviceServicesResult>
 	getServicesOperation, err := d.device.GetGattServicesWithCacheModeAsync(bluetooth.BluetoothCacheModeUncached)
 	if err != nil {
@@ -67,23 +67,25 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 		serviceUuid := winRTUuidToUuid(guid)
 
-		// add if in our original list
-		addToList := len(uuids) == 0
-
-		for _, uuid := range uuids {
-			if serviceUuid.String() == uuid.String() {
-				// one of the services we're looking for.
-				addToList = true
-				break
+		// only include services that are included in the input filter
+		if len(filterUUIDs) > 0 {
+			found := false
+			for _, uuid := range filterUUIDs {
+				if serviceUuid.String() == uuid.String() {
+					// One of the services we're looking for.
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
 			}
 		}
 
-		if addToList {
-			services = append(services, DeviceService{
-				uuidWrapper: serviceUuid,
-				service:     srv,
-			})
-		}
+		services = append(services, DeviceService{
+			uuidWrapper: serviceUuid,
+			service:     srv,
+		})
 	}
 
 	return services, nil
@@ -120,4 +122,106 @@ type DeviceService struct {
 // UUID returns the UUID for this DeviceService.
 func (s *DeviceService) UUID() UUID {
 	return s.uuidWrapper
+}
+
+// DiscoverCharacteristics discovers characteristics in this service. Pass a
+// list of characteristic UUIDs you are interested in to this function. Either a
+// list of all requested characteristics is returned, or if some characteristics could not be
+// discovered an error is returned. If there is no error, the characteristics
+// slice has the same length as the UUID slice with characteristics in the same
+// order in the slice as in the requested UUID list.
+//
+// Passing a nil slice of UUIDs will return a complete
+// list of characteristics.
+func (s *DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceCharacteristic, error) {
+	getCharacteristicsOp, err := s.service.GetCharacteristicsWithCacheModeAsync(bluetooth.BluetoothCacheModeUncached)
+	if err != nil {
+		return nil, err
+	}
+
+	// IAsyncOperation<GattCharacteristicsResult>
+	if err := awaitAsyncOperation(getCharacteristicsOp, genericattributeprofile.SignatureGattCharacteristicsResult); err != nil {
+		return nil, err
+	}
+
+	res, err := getCharacteristicsOp.GetResults()
+	if err != nil {
+		return nil, err
+	}
+
+	gattCharResult := (*genericattributeprofile.GattCharacteristicsResult)(res)
+
+	// IVectorView<GattCharacteristic>
+	charVector, err := gattCharResult.GetCharacteristics()
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert characteristics vector to array
+	characteristicsSize, err := charVector.GetSize()
+	if err != nil {
+		return nil, err
+	}
+
+	var characteristics []DeviceCharacteristic
+	for i := uint32(0); i < characteristicsSize; i++ {
+		s, err := charVector.GetAt(i)
+		if err != nil {
+			return nil, err
+		}
+
+		characteristic := (*genericattributeprofile.GattCharacteristic)(s)
+		guid, err := characteristic.GetUuid()
+		if err != nil {
+			return nil, err
+		}
+
+		characteristicUUID := winRTUuidToUuid(guid)
+
+		properties, err := characteristic.GetCharacteristicProperties()
+		if err != nil {
+			return nil, err
+		}
+
+		// only include characteristics that are included in the input filter
+		if len(filterUUIDs) > 0 {
+			found := false
+			for _, uuid := range filterUUIDs {
+				if characteristicUUID.String() == uuid.String() {
+					// One of the characteristics we're looking for.
+					found = true
+					break
+				}
+			}
+			if !found {
+				continue
+			}
+		}
+
+		characteristics = append(characteristics, DeviceCharacteristic{
+			uuidWrapper:    characteristicUUID,
+			characteristic: characteristic,
+			properties:     properties,
+		})
+	}
+
+	return characteristics, nil
+}
+
+// DeviceCharacteristic is a BLE characteristic on a connected peripheral
+// device.
+type DeviceCharacteristic struct {
+	uuidWrapper
+
+	characteristic *genericattributeprofile.GattCharacteristic
+	properties     genericattributeprofile.GattCharacteristicProperties
+}
+
+// UUID returns the UUID for this DeviceCharacteristic.
+func (c *DeviceCharacteristic) UUID() UUID {
+	return c.uuidWrapper
+}
+
+func (c *DeviceCharacteristic) Properties() uint32 {
+	return uint32(c.properties)
 }
