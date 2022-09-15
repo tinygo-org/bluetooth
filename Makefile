@@ -43,6 +43,8 @@ smoketest-linux:
 smoketest-windows:
 	# Test on Windows.
 	GOOS=windows CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o /tmp/go-build-discard ./examples/scanner
+	GOOS=windows CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o /tmp/go-build-discard ./examples/discover
+	GOOS=windows CGO_ENABLED=1 CC=x86_64-w64-mingw32-gcc go build -o /tmp/go-build-discard ./examples/heartrate-monitor
 
 smoketest-macos:
 	# Test on macos.
