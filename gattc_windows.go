@@ -1,11 +1,26 @@
 package bluetooth
 
 import (
+	"errors"
 	"fmt"
 	"syscall"
+	"unsafe"
 
+	"github.com/go-ole/go-ole"
+	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/devices/bluetooth"
 	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/genericattributeprofile"
+	"github.com/saltosystems/winrt-go/windows/foundation"
+	"github.com/saltosystems/winrt-go/windows/storage/streams"
+)
+
+var (
+	errNoWrite                   = errors.New("bluetooth: write not supported")
+	errNoWriteWithoutResponse    = errors.New("bluetooth: write without response not supported")
+	errWriteFailed               = errors.New("bluetooth: write failed")
+	errNoRead                    = errors.New("bluetooth: read not supported")
+	errNoNotify                  = errors.New("bluetooth: notify not supported")
+	errEnableNotificationsFailed = errors.New("bluetooth: enable notifications failed")
 )
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
@@ -224,4 +239,180 @@ func (c *DeviceCharacteristic) UUID() UUID {
 
 func (c *DeviceCharacteristic) Properties() uint32 {
 	return uint32(c.properties)
+}
+
+// Write replaces the characteristic value with a new value. The
+// call will return after all data has been written.
+func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
+	if c.properties&genericattributeprofile.GattCharacteristicPropertiesWrite == 0 {
+		return 0, errNoWrite
+	}
+
+	return c.write(p, genericattributeprofile.GattWriteOptionWriteWithResponse)
+}
+
+// WriteWithoutResponse replaces the characteristic value with a new value. The
+// call will return before all data has been written. A limited number of such
+// writes can be in flight at any given time. This call is also known as a
+// "write command" (as opposed to a write request).
+func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+	if c.properties&genericattributeprofile.GattCharacteristicPropertiesWriteWithoutResponse == 0 {
+		return 0, errNoWriteWithoutResponse
+	}
+	return c.write(p, genericattributeprofile.GattWriteOptionWriteWithoutResponse)
+}
+
+func (c DeviceCharacteristic) write(p []byte, mode genericattributeprofile.GattWriteOption) (n int, err error) {
+	// Convert data to buffer
+	writer, err := streams.NewDataWriter()
+	if err != nil {
+		return 0, err
+	}
+	defer writer.Release()
+
+	// Add bytes to writer
+	if err := writer.WriteBytes(uint32(len(p)), p); err != nil {
+		return 0, err
+	}
+
+	value, err := writer.DetachBuffer()
+	if err != nil {
+		return 0, err
+	}
+
+	// IAsyncOperation<GattCommunicationStatus>
+	asyncOp, err := c.characteristic.WriteValueWithOptionAsync(value, mode)
+
+	if err := awaitAsyncOperation(asyncOp, genericattributeprofile.SignatureGattCommunicationStatus); err != nil {
+		return 0, err
+	}
+
+	res, err := asyncOp.GetResults()
+	if err != nil {
+		return 0, err
+	}
+
+	status := genericattributeprofile.GattCommunicationStatus(uintptr(res))
+
+	// Is the status success?
+	if status != genericattributeprofile.GattCommunicationStatusSuccess {
+		return 0, errWriteFailed
+	}
+
+	// Success
+	return len(p), nil
+}
+
+// Read reads the current characteristic value.
+func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
+	if c.properties&genericattributeprofile.GattCharacteristicPropertiesRead == 0 {
+		return 0, errNoRead
+	}
+
+	readOp, err := c.characteristic.ReadValueAsync()
+	if err != nil {
+		return 0, err
+	}
+
+	// IAsyncOperation<GattReadResult>
+	if err := awaitAsyncOperation(readOp, genericattributeprofile.SignatureGattReadResult); err != nil {
+		return 0, err
+	}
+
+	res, err := readOp.GetResults()
+	if err != nil {
+		return 0, err
+	}
+
+	result := (*genericattributeprofile.GattReadResult)(res)
+
+	buffer, err := result.GetValue()
+	if err != nil {
+		return 0, err
+	}
+
+	datareader, err := streams.FromBuffer(buffer)
+	if err != nil {
+		return 0, err
+	}
+
+	bufferlen, err := buffer.GetLength()
+	if err != nil {
+		return 0, err
+	}
+
+	readBuffer, err := datareader.ReadBytes(bufferlen)
+	if err != nil {
+		return 0, err
+	}
+
+	copy(data, readBuffer)
+	return len(readBuffer), nil
+}
+
+// EnableNotifications enables notifications in the Client Characteristic
+// Configuration Descriptor (CCCD). This means that most peripherals will send a
+// notification with a new value every time the value of the characteristic
+// changes.
+func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+	if c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify == 0 {
+		return errNoNotify
+	}
+
+	// listen value changed event
+	// TypedEventHandler<GattCharacteristic,GattValueChangedEventArgs>
+	guid := winrt.ParameterizedInstanceGUID(foundation.GUIDTypedEventHandler, genericattributeprofile.SignatureGattCharacteristic, genericattributeprofile.SignatureGattValueChangedEventArgs)
+	valueChangedEventHandler := foundation.NewTypedEventHandler(ole.NewGUID(guid), func(instance *foundation.TypedEventHandler, sender, args unsafe.Pointer) {
+		valueChangedEvent := (*genericattributeprofile.GattValueChangedEventArgs)(args)
+
+		buf, err := valueChangedEvent.GetCharacteristicValue()
+		if err != nil {
+			return
+		}
+
+		reader, err := streams.FromBuffer(buf)
+		if err != nil {
+			return
+		}
+		defer reader.Release()
+
+		buflen, err := buf.GetLength()
+		if err != nil {
+			return
+		}
+
+		data, err := reader.ReadBytes(buflen)
+		if err != nil {
+			return
+		}
+
+		callback(data)
+	})
+	_, err := c.characteristic.AddValueChanged(valueChangedEventHandler)
+	if err != nil {
+		return err
+	}
+
+	writeOp, err := c.characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(genericattributeprofile.GattClientCharacteristicConfigurationDescriptorValueNotify)
+	if err != nil {
+		return err
+	}
+
+	// IAsyncOperation<GattCommunicationStatus>
+	if err := awaitAsyncOperation(writeOp, genericattributeprofile.SignatureGattCommunicationStatus); err != nil {
+		return err
+	}
+
+	res, err := writeOp.GetResults()
+	if err != nil {
+		return err
+	}
+
+	result := genericattributeprofile.GattCommunicationStatus(uintptr(res))
+
+	if result != genericattributeprofile.GattCommunicationStatusSuccess {
+		return errEnableNotificationsFailed
+	}
+
+	return nil
 }
