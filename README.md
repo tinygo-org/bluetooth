@@ -96,9 +96,9 @@ func must(action string, err error) {
 | -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ |
 | API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         |
 | Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: |
-| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: |
-| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :x:                | :heavy_check_mark: |
+| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
 | Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
 | Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
@@ -130,7 +130,7 @@ After you have followed the installation, you should be able to compile/run the 
 
 ## macOS
 
-Go Bluetooth support for macOS uses the [CoreBluetooth](https://developer.apple.com/documentation/corebluetooth?language=objc) libraries thanks to the https://github.com/JuulLabs-OSS/cbgo package. 
+Go Bluetooth support for macOS uses the [CoreBluetooth](https://developer.apple.com/documentation/corebluetooth?language=objc) libraries thanks to the https://github.com/tinygo-org/cbgo fork of the `cbgo` package.
 
 As a result, it should work with most versions of macOS, although it will require compiling using whatever specific version of XCode is required by your version of the operating system. 
 
@@ -155,13 +155,15 @@ After you have followed the installation, you should be able to compile/run the 
 
 ## Windows
 
-Go Bluetooth support for Windows uses the [WinRT Bluetooth](https://docs.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter?view=winrt-19041) interfaces by way of the https://github.com/tinygo-org/bluetooth/winbt package that is part of this package.
+Go Bluetooth support for Windows uses the [WinRT Bluetooth](https://docs.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter?view=winrt-19041) interfaces by way of the https://github.com/saltosystems/winrt-go package.
 
-The Windows support is still experimental, and needs additional development to be useful. At this time, it can only be used to perform scanning operations as a BLE Central.
-
-For specifics please see https://github.com/tinygo-org/bluetooth/issues/13
+The Windows support only can only act as a BLE Central at this time, with some additional development work needed for full functionality.
 
 ### Installation
+
+In order to compile Go Bluetooth code targeting Windows, you must have a GCC compiler installed.
+
+On Windows, you can download and install mingw-w64 (https://github.com/mingw-w64/mingw-w64)
 
 Once you have done this, you can obtain the Go Bluetooth package using Git:
 
