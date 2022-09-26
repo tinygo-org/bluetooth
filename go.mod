@@ -5,7 +5,7 @@ go 1.15
 require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/godbus/dbus/v5 v5.0.3
-	github.com/muka/go-bluetooth v0.0.0-20220323170840-382ca1d29f29
+	github.com/muka/go-bluetooth v0.0.0-20220830075246-0746e3a1ea53
 	github.com/saltosystems/winrt-go v0.0.0-20220826130236-ddc8202da421
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/tinygo-org/cbgo v0.0.4
