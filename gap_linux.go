@@ -246,6 +246,7 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 
 	mData := make(map[uint16][]byte)
 	for k, v := range props.ManufacturerData {
+		// can be either variant or just byte value
 		switch val := v.(type) {
 		case dbus.Variant:
 			mData[k] = val.Value().([]byte)
