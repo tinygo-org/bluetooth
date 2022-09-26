@@ -309,7 +309,7 @@ func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, errNoRead
 	}
 
-	readOp, err := c.characteristic.ReadValueAsync()
+	readOp, err := c.characteristic.ReadValueWithCacheModeAsync(bluetooth.BluetoothCacheModeUncached)
 	if err != nil {
 		return 0, err
 	}
