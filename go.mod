@@ -11,6 +11,6 @@ require (
 	github.com/tinygo-org/cbgo v0.0.4
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
 	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261 // indirect
-	tinygo.org/x/drivers v0.20.0
+	tinygo.org/x/drivers v0.23.0
 	tinygo.org/x/tinyterm v0.1.0
 )
