@@ -1,3 +1,29 @@
+0.6.0
+---
+* **core**
+  - unify UUID16 creation for all platforms
+  - Improve UUID (#107)
+  - gap: stop advertising
+  - advertising: add manufacturer data field to advertisement payload
+* **linux**
+  - gap: workaround for https://github.com/muka/go-bluetooth/issues/163
+  - update to latest muka/go-bluetooth
+* **windows**
+  - add characteristic read, write and notify operations
+  - add characteristic discovery
+  - add service discovery
+  - add device connection and disconnection
+  - add winrt-go dependency and remove manually generated code
+  - disable cache when reading characteristics
+* **macos**
+  - update to tinygo-org fork of cbgo v0.0.4
+  - use the same UUID format as expected by other standard
+* **docs**
+  - update README with info on Windows support
+* **build**
+  - add Github Action based CI build (#108)
+
+
 0.5.0
 ---
 * **core**
