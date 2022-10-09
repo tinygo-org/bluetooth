@@ -300,6 +300,11 @@ func (buf *rawAdvertisementPayload) ManufacturerData() map[uint16][]byte {
 	return mData
 }
 
+// ServiceData is not implemented yet.
+func (buf *rawAdvertisementPayload) ServiceData() map[uint16][]byte {
+	return map[uint16][]byte{}
+}
+
 // reset restores this buffer to the original state.
 func (buf *rawAdvertisementPayload) reset() {
 	// The data is not reset (only the length), because with a zero length the
