@@ -128,7 +128,7 @@ type AdvertisementPayload interface {
 	Bytes() []byte
 
 	// ManufacturerData returns a map with all the manufacturer data present in the
-	//advertising. IT may be empty.
+	// advertising. It may be empty.
 	ManufacturerData() map[uint16][]byte
 }
 
