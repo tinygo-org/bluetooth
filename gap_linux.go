@@ -255,6 +255,28 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 		}
 	}
 
+	sData := make(map[uint16][]byte)
+	for k, v := range props.ServiceData {
+		uuid, err := ParseUUID(k)
+		if err != nil || uuid.String() != k {
+			continue
+		}
+		svcID := uuid.Get16Bit()
+		switch data := v.(type) {
+		case []byte:
+			sData[svcID] = data[:]
+		case dbus.Variant:
+			switch dbusData := data.Value().(type) {
+			case []byte:
+				sData[svcID] = dbusData[:]
+			default:
+				continue
+			}
+		default:
+			continue
+		}
+	}
+
 	return ScanResult{
 		RSSI:    props.RSSI,
 		Address: a,
@@ -263,6 +285,7 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 				LocalName:        props.Name,
 				ServiceUUIDs:     serviceUUIDs,
 				ManufacturerData: mData,
+				ServiceData:      sData,
 			},
 		},
 	}
