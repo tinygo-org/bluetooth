@@ -137,6 +137,9 @@ func bufferToSlice(buffer *streams.IBuffer) []byte {
 	dataReader, _ := streams.FromBuffer(buffer)
 	defer dataReader.Release()
 	bufferSize, _ := buffer.GetLength()
+	if bufferSize == 0 {
+		return nil
+	}
 	data, _ := dataReader.ReadBytes(bufferSize)
 	return data
 }
