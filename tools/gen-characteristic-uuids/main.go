@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -8,9 +9,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"tinygo.org/x/bluetooth"
 )
@@ -24,12 +29,12 @@ type Characteristic struct {
 
 func (c Characteristic) VarName() string {
 	str := strings.ReplaceAll(c.Name, "Characteristic", "")
-	str = strings.ReplaceAll(str, ":", "")
-	str = strings.ReplaceAll(str, "-", "")
-	str = strings.ReplaceAll(str, "(", "")
-	str = strings.ReplaceAll(str, ")", "")
-	str = strings.ReplaceAll(str, "/", "")
-	str = strings.Title(str)
+
+	// Remove non-alphanumeric characters.
+	var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
+	str = nonAlphanumericRegex.ReplaceAllString(str, "")
+
+	str = cases.Title(language.Und, cases.NoLower).String(str)
 	return strings.ReplaceAll(str, " ", "")
 }
 
@@ -50,8 +55,30 @@ func (c Characteristic) UUIDFunc() string {
 	return "NewUUID([16]byte{" + bss + "})"
 }
 
+func dedupCharacteristics(characteristics []Characteristic) []Characteristic {
+	// Group characteristics by name.
+	byName := make(map[string][]Characteristic)
+	for _, c := range characteristics {
+		byName[c.Name] = append(byName[c.Name], c)
+	}
+
+	var newCharacteristics []Characteristic
+
+	// Find duplicate characteristics and rename them.
+	for name, cs := range byName {
+		for i, c := range cs {
+			if len(cs) > 1 {
+				c.Name = fmt.Sprintf("%s %d", name, i+1)
+			}
+			newCharacteristics = append(newCharacteristics, c)
+		}
+	}
+
+	return newCharacteristics
+}
+
 func main() {
-	jsonFile, err := os.Open("data/characteristic_uuids.json")
+	jsonFile, err := os.Open("bluetooth-numbers-database/v1/characteristic_uuids.json")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -62,6 +89,8 @@ func main() {
 
 	var characteristics []Characteristic
 	json.Unmarshal(data, &characteristics)
+
+	characteristics = dedupCharacteristics(characteristics)
 
 	f, err := os.Create("characteristic_uuids.go")
 	if err != nil {
