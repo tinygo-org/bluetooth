@@ -1,3 +1,4 @@
+//go:build ignore
 // +build ignore
 
 package main
@@ -8,9 +9,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 
 	"tinygo.org/x/bluetooth"
 )
@@ -24,9 +29,12 @@ type Service struct {
 
 func (s Service) VarName() string {
 	str := strings.ReplaceAll(s.Name, "Service", "")
-	str = strings.ReplaceAll(str, ":", "")
-	str = strings.ReplaceAll(str, "-", "")
-	str = strings.Title(str)
+
+	// Remove non-alphanumeric characters.
+	var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
+	str = nonAlphanumericRegex.ReplaceAllString(str, "")
+
+	str = cases.Title(language.Und, cases.NoLower).String(str)
 	return strings.ReplaceAll(str, " ", "")
 }
 
@@ -47,8 +55,30 @@ func (s Service) UUIDFunc() string {
 	return "NewUUID([16]byte{" + bss + "})"
 }
 
+func dedupServices(services []Service) []Service {
+	// Group services by name.
+	byName := make(map[string][]Service)
+	for _, svc := range services {
+		byName[svc.Name] = append(byName[svc.Name], svc)
+	}
+
+	var newServices []Service
+
+	// Find duplicate services and rename them.
+	for name, svcs := range byName {
+		for i, svc := range svcs {
+			if len(svcs) > 1 {
+				svc.Name = fmt.Sprintf("%s %d", name, i+1)
+			}
+			newServices = append(newServices, svc)
+		}
+	}
+
+	return newServices
+}
+
 func main() {
-	jsonFile, err := os.Open("data/service_uuids.json")
+	jsonFile, err := os.Open("bluetooth-numbers-database/v1/service_uuids.json")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -59,6 +89,8 @@ func main() {
 
 	var services []Service
 	json.Unmarshal(data, &services)
+
+	services = dedupServices(services)
 
 	f, err := os.Create("service_uuids.go")
 	if err != nil {

@@ -1,0 +1,3 @@
+[submodule "bluetooth-numbers-database"]
+	path = bluetooth-numbers-database
+	url = https://github.com/NordicSemiconductor/bluetooth-numbers-database.git
