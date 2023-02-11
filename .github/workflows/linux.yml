@@ -14,7 +14,7 @@ jobs:
     container: tinygo/tinygo-dev
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: TinyGo version check
         run: tinygo version
       - name: Run unit tests
