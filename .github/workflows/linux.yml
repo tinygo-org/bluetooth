@@ -13,6 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     container: tinygo/tinygo-dev
     steps:
+      - name: Work around CVE-2022-24765
+        # We're not on a multi-user machine, so this is safe.
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Checkout
         uses: actions/checkout@v3
       - name: TinyGo version check
