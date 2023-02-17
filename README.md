@@ -2,7 +2,7 @@
 
 [![Go Bluetooth](./images/gobluetooth.png)](https://tinygo.org/bluetooth)
 
-[![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/tinygo.org/x/bluetooth)](https://pkg.go.dev/tinygo.org/x/bluetooth) [![Linux](https://github.com/tinygo-org/bluetooth/actions/workflows/linux.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/tinygo/actions/workflows/linux.yml) [![macOS](https://github.com/tinygo-org/bluetooth/actions/workflows/macos.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/tinygo/actions/workflows/macos.yml)
+[![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/tinygo.org/x/bluetooth)](https://pkg.go.dev/tinygo.org/x/bluetooth) [![Linux](https://github.com/tinygo-org/bluetooth/actions/workflows/linux.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/bluetooth/actions/workflows/linux.yml) [![macOS](https://github.com/tinygo-org/bluetooth/actions/workflows/macos.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/bluetooth/actions/workflows/macos.yml)
 
 Go Bluetooth is a cross-platform package for using [Bluetooth Low Energy](https://en.wikipedia.org/wiki/Bluetooth_Low_Energy) hardware from the Go programming language. 
 
