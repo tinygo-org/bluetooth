@@ -19,7 +19,7 @@ var (
 	errNoWriteWithoutResponse    = errors.New("bluetooth: write without response not supported")
 	errWriteFailed               = errors.New("bluetooth: write failed")
 	errNoRead                    = errors.New("bluetooth: read not supported")
-	errNoNotify                  = errors.New("bluetooth: notify not supported")
+	errNoNotify                  = errors.New("bluetooth: notify/indicate not supported")
 	errEnableNotificationsFailed = errors.New("bluetooth: enable notifications failed")
 )
 
@@ -355,7 +355,8 @@ func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
 // notification with a new value every time the value of the characteristic
 // changes.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
-	if c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify == 0 {
+	if (c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify == 0) &&
+		(c.properties&genericattributeprofile.GattCharacteristicPropertiesIndicate == 0) {
 		return errNoNotify
 	}
 
@@ -393,7 +394,12 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 		return err
 	}
 
-	writeOp, err := c.characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(genericattributeprofile.GattClientCharacteristicConfigurationDescriptorValueNotify)
+	var writeOp *foundation.IAsyncOperation
+	if c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify != 0 {
+		writeOp, err = c.characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(genericattributeprofile.GattClientCharacteristicConfigurationDescriptorValueNotify)
+	} else {
+		writeOp, err = c.characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(genericattributeprofile.GattClientCharacteristicConfigurationDescriptorValueIndicate)
+	}
 	if err != nil {
 		return err
 	}
