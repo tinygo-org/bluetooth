@@ -24,7 +24,7 @@ type Adapter struct {
 	// used to allow multiple callers to call Connect concurrently.
 	connectMap sync.Map
 
-	connectHandler func(device Addresser, connected bool)
+	connectHandler func(device Address, connected bool)
 }
 
 // DefaultAdapter is the default adapter on the system.
@@ -35,7 +35,7 @@ var DefaultAdapter = &Adapter{
 	pm:         cbgo.NewPeripheralManager(nil),
 	connectMap: sync.Map{},
 
-	connectHandler: func(device Addresser, connected bool) {
+	connectHandler: func(device Address, connected bool) {
 		return
 	},
 }
