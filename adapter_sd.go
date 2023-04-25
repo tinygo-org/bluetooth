@@ -61,6 +61,8 @@ var DefaultAdapter = &Adapter{isDefault: true,
 		return
 	}}
 
+var eventBufLen uint16
+
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
 func (a *Adapter) Enable() error {
@@ -71,7 +73,7 @@ func (a *Adapter) Enable() error {
 	// Enable the IRQ that handles all events.
 	intr := interrupt.New(nrf.IRQ_SWI2, func(interrupt.Interrupt) {
 		for {
-			eventBufLen := uint16(unsafe.Sizeof(eventBuf))
+			eventBufLen = uint16(unsafe.Sizeof(eventBuf))
 			errCode := C.sd_ble_evt_get((*uint8)(unsafe.Pointer(&eventBuf)), &eventBufLen)
 			if errCode != 0 {
 				// Possible error conditions:
