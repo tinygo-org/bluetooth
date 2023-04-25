@@ -23,6 +23,8 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/scanner
 	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/stop-advertisement
+	@md5sum test.hex
 	# Test some more boards that are not tested above.
 	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/advertisement
 	@md5sum test.hex
