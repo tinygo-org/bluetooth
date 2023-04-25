@@ -48,7 +48,7 @@ func handleEvent() {
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
 			currentConnection.Reg = gapEvent.conn_handle
-			DefaultAdapter.connectHandler(nil, true)
+			DefaultAdapter.connectHandler(Address{}, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
@@ -60,7 +60,7 @@ func handleEvent() {
 				defaultAdvertisement.start()
 			}
 			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
-			DefaultAdapter.connectHandler(nil, false)
+			DefaultAdapter.connectHandler(Address{}, false)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
 			// nil:

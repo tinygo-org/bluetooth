@@ -163,9 +163,7 @@ type Device struct {
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // On Linux and Windows, the IsRandom part of the address is ignored.
-func (a *Adapter) Connect(addresser Addresser, params ConnectionParams) (*Device, error) {
-	address := addresser.(Address).MACAddress
-
+func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
 	var winAddr uint64
 	for i := range address.MAC {
 		winAddr += uint64(address.MAC[i]) << (8 * i)

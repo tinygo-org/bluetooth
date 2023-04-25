@@ -113,13 +113,12 @@ var connectionAttempt struct {
 // connection attempt at once and that the address parameter must have the
 // IsRandom bit set correctly. This bit is set correctly for scan results, so
 // you can reuse that address directly.
-func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, error) {
-	adr := address.(Address)
+func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
 	// Construct an address object as used in the SoftDevice.
 	var addr C.ble_gap_addr_t
-	addr.addr = adr.MAC
+	addr.addr = address.MAC
 	if address.IsRandom() {
-		switch adr.MAC[5] >> 6 {
+		switch address.MAC[5] >> 6 {
 		case 0b11:
 			addr.set_bitfield_addr_type(C.BLE_GAP_ADDR_TYPE_RANDOM_STATIC)
 		case 0b01:

@@ -95,15 +95,14 @@ type Device struct {
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
-func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, error) {
-	adr := address.(Address)
-	uuid, err := cbgo.ParseUUID(adr.UUID.String())
+func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+	uuid, err := cbgo.ParseUUID(address.UUID.String())
 	if err != nil {
 		return nil, err
 	}
 	prphs := a.cm.RetrievePeripheralsWithIdentifiers([]cbgo.UUID{uuid})
 	if len(prphs) == 0 {
-		return nil, fmt.Errorf("Connect failed: no peer with address: %s", adr.UUID.String())
+		return nil, fmt.Errorf("Connect failed: no peer with address: %s", address.UUID.String())
 	}
 
 	id := prphs[0].Identifier().String()
@@ -127,7 +126,7 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 		d.delegate = &peripheralDelegate{d: d}
 		p.SetDelegate(d.delegate)
 
-		a.connectHandler(nil, true)
+		a.connectHandler(Address{}, true)
 
 		return d, nil
 	case <-time.NewTimer(10 * time.Second).C:

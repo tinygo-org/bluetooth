@@ -19,7 +19,7 @@ type Adapter struct {
 	cancelChan           chan struct{}
 	defaultAdvertisement *Advertisement
 
-	connectHandler func(device Addresser, connected bool)
+	connectHandler func(device Address, connected bool)
 }
 
 // DefaultAdapter is the default adapter on the system. On Linux, it is the
@@ -27,7 +27,7 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
-	connectHandler: func(device Addresser, connected bool) {
+	connectHandler: func(device Address, connected bool) {
 		return
 	},
 }

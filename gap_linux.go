@@ -276,9 +276,8 @@ type Device struct {
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // On Linux and Windows, the IsRandom part of the address is ignored.
-func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, error) {
-	adr := address.(Address)
-	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(adr.MAC.String(), ":", "_", -1))
+func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
 	dev, err := device.NewDevice1(devicePath)
 	if err != nil {
 		return nil, err
@@ -294,7 +293,7 @@ func (a *Adapter) Connect(address Addresser, params ConnectionParams) (*Device, 
 	}
 
 	// TODO: a proper async callback.
-	a.connectHandler(nil, true)
+	a.connectHandler(Address{}, true)
 
 	return &Device{
 		device: dev,
