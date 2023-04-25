@@ -153,6 +153,10 @@ After you have followed the installation, you should be able to compile/run the 
 	cd bluetooth
 	go run ./examples/scanner
 
+### Troubleshooting
+
+There is a known issue with iTerm2 and the Bluetooth package. If you are getting a message like `abort: trap`, try whitelisting iTerm2 manually through System Settings -> Privacy & Security -> Bluetooth.
+
 ## Windows
 
 Go Bluetooth support for Windows uses the [WinRT Bluetooth](https://docs.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter?view=winrt-19041) interfaces by way of the https://github.com/saltosystems/winrt-go package.
