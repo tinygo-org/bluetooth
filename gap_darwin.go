@@ -20,11 +20,11 @@ func (ad Address) IsRandom() bool {
 }
 
 // SetRandom ignored on macOS.
-func (ad Address) SetRandom(val bool) {
+func (ad *Address) SetRandom(val bool) {
 }
 
 // Set the address
-func (ad Address) Set(val string) {
+func (ad *Address) Set(val string) {
 	uuid, err := ParseUUID(val)
 	if err != nil {
 		return
