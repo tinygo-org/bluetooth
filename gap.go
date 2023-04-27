@@ -25,12 +25,12 @@ func (mac MACAddress) IsRandom() bool {
 }
 
 // SetRandom if is a random address.
-func (mac MACAddress) SetRandom(val bool) {
+func (mac *MACAddress) SetRandom(val bool) {
 	mac.isRandom = val
 }
 
 // Set the address
-func (mac MACAddress) Set(val string) {
+func (mac *MACAddress) Set(val string) {
 	m, err := ParseMAC(val)
 	if err != nil {
 		return
