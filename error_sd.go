@@ -1,5 +1,4 @@
 //go:build softdevice
-// +build softdevice
 
 package bluetooth
 

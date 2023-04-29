@@ -1,4 +1,4 @@
-// +build linux,!baremetal darwin
+//go:build (linux && !baremetal) || darwin
 
 // Package rawterm provides some sort of raw terminal interface, both on hosted
 // systems and baremetal. It is intended only for use by examples.

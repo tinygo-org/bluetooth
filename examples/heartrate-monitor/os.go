@@ -1,4 +1,4 @@
-// +build !baremetal
+//go:build !baremetal
 
 package main
 
