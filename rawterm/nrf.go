@@ -1,4 +1,4 @@
-// +build nrf
+//go:build nrf
 
 package rawterm
 

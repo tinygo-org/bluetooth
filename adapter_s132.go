@@ -1,5 +1,4 @@
 //go:build softdevice && s132v6
-// +build softdevice,s132v6
 
 package bluetooth
 
