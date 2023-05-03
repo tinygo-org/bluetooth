@@ -8,6 +8,9 @@ import (
 	"github.com/tinygo-org/cbgo"
 )
 
+// default connection timeout
+const defaultConnectionTimeout time.Duration = 10 * time.Second
+
 // Address contains a Bluetooth address which on macOS is a UUID.
 type Address struct {
 	// UUID since this is macOS.
@@ -105,6 +108,11 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 		return nil, fmt.Errorf("Connect failed: no peer with address: %s", address.UUID.String())
 	}
 
+	timeout := defaultConnectionTimeout
+	if params.ConnectionTimeout != 0 {
+		timeout = time.Duration(int64(params.ConnectionTimeout)*625) * time.Microsecond
+	}
+
 	id := prphs[0].Identifier().String()
 	prphCh := make(chan cbgo.Peripheral)
 
@@ -112,25 +120,38 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 	defer a.connectMap.Delete(id)
 
 	a.cm.Connect(prphs[0], nil)
+	timeoutTimer := time.NewTimer(timeout)
+	var connectionError error
 
-	// wait on channel for connect
-	select {
-	case p := <-prphCh:
-		d := &Device{
-			cm:           a.cm,
-			prph:         p,
-			servicesChan: make(chan error),
-			charsChan:    make(chan error),
+	for {
+		// wait on channel for connect
+		select {
+		case p := <-prphCh:
+
+			// check if we have received a disconnected peripheral
+			if p.State() == cbgo.PeripheralStateDisconnected {
+				return nil, connectionError
+			}
+
+			d := &Device{
+				cm:           a.cm,
+				prph:         p,
+				servicesChan: make(chan error),
+				charsChan:    make(chan error),
+			}
+
+			d.delegate = &peripheralDelegate{d: d}
+			p.SetDelegate(d.delegate)
+
+			a.connectHandler(address, true)
+
+			return d, nil
+		case <-timeoutTimer.C:
+			a.cm.CancelConnect(prphs[0]) // we need to cancel the connection if we have timed out ourselves
+			connectionError = errors.New("timeout on Connect")
+			// we are not ready to return yet, we need to wait for the disconnect event to come through so continue from this case and wait for prphCh
+			continue
 		}
-
-		d.delegate = &peripheralDelegate{d: d}
-		p.SetDelegate(d.delegate)
-
-		a.connectHandler(Address{}, true)
-
-		return d, nil
-	case <-time.NewTimer(10 * time.Second).C:
-		return nil, errors.New("timeout on Connect")
 	}
 }
 
