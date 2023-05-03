@@ -100,6 +100,21 @@ func (cmd *centralManagerDelegate) DidDiscoverPeripheral(cmgr cbgo.CentralManage
 	}
 }
 
+// DidDisconnectPeripheral when peripheral is disconnected.
+func (cmd *centralManagerDelegate) DidDisconnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral, err error) {
+	id := prph.Identifier().String()
+	addr := Address{}
+	uuid, _ := ParseUUID(id)
+	addr.UUID = uuid
+	cmd.a.connectHandler(addr, false)
+
+	// like with DidConnectPeripheral, check if we have a chan allocated for this and send through the peripheral
+	// this will only be true if the receiving side is still waiting for a connection to complete
+	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
+		ch.(chan cbgo.Peripheral) <- prph
+	}
+}
+
 // DidConnectPeripheral when peripheral is connected.
 func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral) {
 	id := prph.Identifier().String()
