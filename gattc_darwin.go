@@ -93,38 +93,58 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	// wait on channel for characteristic discovery
 	select {
 	case <-s.device.charsChan:
-		chars := []DeviceCharacteristic{}
+		var chars []DeviceCharacteristic
+		if len(uuids) > 0 {
+			// The caller wants to get a list of characteristics in a specific
+			// order.
+			chars = make([]DeviceCharacteristic, len(uuids))
+		}
 		for _, dchar := range s.service.Characteristics() {
 			dcuuid, _ := ParseUUID(dchar.UUID().String())
-			// add if in our original list
 			if len(uuids) > 0 {
-				found := false
-				for _, uuid := range uuids {
-					if dcuuid.String() == uuid.String() {
+				// The caller wants to get a list of characteristics in a
+				// specific order. Check whether this is one of those.
+				for i, uuid := range uuids {
+					if chars[i] != (DeviceCharacteristic{}) {
+						// To support multiple identical characteristics, we
+						// need to ignore the characteristics that are already
+						// found. See:
+						// https://github.com/tinygo-org/bluetooth/issues/131
+						continue
+					}
+					if dcuuid == uuid {
 						// one of the characteristics we're looking for.
-						found = true
+						chars[i] = s.makeCharacteristic(dcuuid, dchar)
 						break
 					}
 				}
-				if !found {
-					continue
-				}
+			} else {
+				// The caller wants to get all characteristics, in any order.
+				chars = append(chars, s.makeCharacteristic(dcuuid, dchar))
 			}
-
-			char := DeviceCharacteristic{
-				deviceCharacteristic: &deviceCharacteristic{
-					uuidWrapper:    dcuuid,
-					service:        s,
-					characteristic: dchar,
-				},
+		}
+		for _, char := range chars {
+			if char == (DeviceCharacteristic{}) {
+				return nil, errors.New("bluetooth: did not find all requested characteristic")
 			}
-			chars = append(chars, char)
-			s.device.characteristics[char.uuidWrapper] = &char
 		}
 		return chars, nil
 	case <-time.NewTimer(10 * time.Second).C:
 		return nil, errors.New("timeout on DiscoverCharacteristics")
 	}
+}
+
+// Small helper to create a DeviceCharacteristic object.
+func (s *DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic) DeviceCharacteristic {
+	char := DeviceCharacteristic{
+		deviceCharacteristic: &deviceCharacteristic{
+			uuidWrapper:    uuid,
+			service:        s,
+			characteristic: dchar,
+		},
+	}
+	s.device.characteristics[char.uuidWrapper] = &char
+	return char
 }
 
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
