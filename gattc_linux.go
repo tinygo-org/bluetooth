@@ -5,9 +5,11 @@ package bluetooth
 
 import (
 	"errors"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/godbus/dbus/v5"
 	"github.com/muka/go-bluetooth/bluez"
 	"github.com/muka/go-bluetooth/bluez/profile/gatt"
 )
@@ -70,15 +72,20 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if err != nil {
 		return nil, err
 	}
+	objects := make([]string, 0, len(list))
 	for objectPath := range list {
-		if !strings.HasPrefix(string(objectPath), string(d.device.Path())+"/service") {
+		objects = append(objects, string(objectPath))
+	}
+	sort.Strings(objects)
+	for _, objectPath := range objects {
+		if !strings.HasPrefix(objectPath, string(d.device.Path())+"/service") {
 			continue
 		}
-		suffix := string(objectPath)[len(d.device.Path()+"/"):]
+		suffix := objectPath[len(d.device.Path()+"/"):]
 		if len(strings.Split(suffix, "/")) != 1 {
 			continue
 		}
-		service, err := gatt.NewGattService1(objectPath)
+		service, err := gatt.NewGattService1(dbus.ObjectPath(objectPath))
 		if err != nil {
 			return nil, err
 		}
@@ -160,15 +167,20 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	if err != nil {
 		return nil, err
 	}
+	objects := make([]string, 0, len(list))
 	for objectPath := range list {
-		if !strings.HasPrefix(string(objectPath), string(s.service.Path())+"/char") {
+		objects = append(objects, string(objectPath))
+	}
+	sort.Strings(objects)
+	for _, objectPath := range objects {
+		if !strings.HasPrefix(objectPath, string(s.service.Path())+"/char") {
 			continue
 		}
-		suffix := string(objectPath)[len(s.service.Path()+"/"):]
+		suffix := objectPath[len(s.service.Path()+"/"):]
 		if len(strings.Split(suffix, "/")) != 1 {
 			continue
 		}
-		characteristic, err := gatt.NewGattCharacteristic1(objectPath)
+		characteristic, err := gatt.NewGattCharacteristic1(dbus.ObjectPath(objectPath))
 		if err != nil {
 			return nil, err
 		}
