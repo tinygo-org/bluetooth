@@ -146,10 +146,16 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 			a.connectHandler(address, true)
 
 			return d, nil
+
 		case <-timeoutTimer.C:
-			a.cm.CancelConnect(prphs[0]) // we need to cancel the connection if we have timed out ourselves
+			// we need to cancel the connection if we have timed out ourselves
+			a.cm.CancelConnect(prphs[0])
+
+			// record an error to use when the disconnect comes through later.
 			connectionError = errors.New("timeout on Connect")
-			// we are not ready to return yet, we need to wait for the disconnect event to come through so continue from this case and wait for prphCh
+
+			// we are not ready to return yet, we need to wait for the disconnect event to come through
+			// so continue on from this case and wait for something to show up on prphCh
 			continue
 		}
 	}

@@ -4,11 +4,13 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"strings"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/muka/go-bluetooth/api"
+	"github.com/muka/go-bluetooth/bluez"
 	"github.com/muka/go-bluetooth/bluez/profile/advertising"
 	"github.com/muka/go-bluetooth/bluez/profile/device"
 )
@@ -270,7 +272,12 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	device *device.Device1
+	device      *device.Device1             // bluez device interface
+	ctx         context.Context             // context for our event watcher, canceled on disconnect event
+	cancel      context.CancelFunc          // cancel function to halt our event watcher context
+	propchanged chan *bluez.PropertyChanged // channel that device property changes will show up on
+	adapter     *Adapter                    // the adapter that was used to form this device connection
+	address     Address                     // the address of the device
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -283,25 +290,74 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 		return nil, err
 	}
 
+	device := &Device{
+		device:  dev,
+		adapter: a,
+		address: address,
+	}
+	device.ctx, device.cancel = context.WithCancel(context.Background())
+	device.watchForConnect() // Set this up before we trigger a connection so we can capture the connect event
+
 	if !dev.Properties.Connected {
 		// Not yet connected, so do it now.
 		// The properties have just been read so this is fresh data.
 		err := dev.Connect()
 		if err != nil {
+			device.cancel() // cancel our watcher routine
 			return nil, err
 		}
 	}
 
-	// TODO: a proper async callback.
-	a.connectHandler(Address{}, true)
-
-	return &Device{
-		device: dev,
-	}, nil
+	return device, nil
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
 // wait until the connection is fully gone.
 func (d *Device) Disconnect() error {
+	// we don't call our cancel function here, instead we wait for the
+	// property change in `watchForConnect` and cancel things then
 	return d.device.Disconnect()
+}
+
+// watchForConnect watches for a signal from the bluez device interface that indicates a Connection/Disconnection.
+//
+// We can add extra signals to watch for here,
+// see https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/device-api.txt, for a full list
+func (d *Device) watchForConnect() error {
+	var err error
+	d.propchanged, err = d.device.WatchProperties()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case changed := <-d.propchanged:
+
+				// we will receive a nil if bluez.UnwatchProperties(a, ch) is called, if so we can stop watching
+				if changed == nil {
+					d.cancel()
+					return
+				}
+
+				switch changed.Name {
+				case "Connected":
+					// Send off a notification indicating we have connected or disconnected
+					d.adapter.connectHandler(d.address, d.device.Properties.Connected)
+
+					if !d.device.Properties.Connected {
+						d.cancel()
+						return
+					}
+				}
+
+				continue
+			case <-d.ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return nil
 }
