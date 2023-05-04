@@ -5,6 +5,7 @@ package bluetooth
 
 import (
 	"errors"
+	"io"
 	"strings"
 	"time"
 
@@ -126,6 +127,7 @@ type DeviceCharacteristic struct {
 	uuidWrapper
 
 	characteristic *gatt.GattCharacteristic1
+	cachedRead     []byte
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -249,11 +251,18 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 
 // Read reads the current characteristic value.
 func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
-	options := make(map[string]interface{})
-	result, err := c.characteristic.ReadValue(options)
-	if err != nil {
-		return 0, err
+	if len(c.cachedRead) == 0 {
+		//	options := make(map[string]interface{})
+		var err error
+		c.cachedRead, err = c.characteristic.ReadValue(nil)
+		if err != nil {
+			return 0, err
+		}
 	}
-	copy(data, result)
-	return len(result), nil
+	n := copy(data, c.cachedRead)
+	c.cachedRead = c.cachedRead[n:]
+	if len(c.cachedRead) == 0 {
+		return n, io.EOF
+	}
+	return n, nil
 }
