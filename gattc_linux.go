@@ -143,9 +143,12 @@ func (c *DeviceCharacteristic) UUID() UUID {
 // Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
 func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
-	chars := []DeviceCharacteristic{}
-	uuidChars := make(map[string]string)
-	characteristicsFound := 0
+	var chars []DeviceCharacteristic
+	if len(uuids) > 0 {
+		// The caller wants to get a list of characteristics in a specific
+		// order.
+		chars = make([]DeviceCharacteristic, len(uuids))
+	}
 
 	// Iterate through all objects managed by BlueZ, hoping to find the
 	// characteristic we're looking for.
@@ -165,43 +168,43 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 		if len(strings.Split(suffix, "/")) != 1 {
 			continue
 		}
-		char, err := gatt.NewGattCharacteristic1(objectPath)
+		characteristic, err := gatt.NewGattCharacteristic1(objectPath)
 		if err != nil {
 			return nil, err
 		}
+		cuuid, _ := ParseUUID(characteristic.Properties.UUID)
+		char := DeviceCharacteristic{
+			uuidWrapper:    cuuid,
+			characteristic: characteristic,
+		}
 
 		if len(uuids) > 0 {
-			found := false
-			for _, uuid := range uuids {
-				if char.Properties.UUID == uuid.String() {
-					// One of the services we're looking for.
-					found = true
+			// The caller wants to get a list of characteristics in a specific
+			// order. Check whether this is one of those.
+			for i, uuid := range uuids {
+				if chars[i] != (DeviceCharacteristic{}) {
+					// To support multiple identical characteristics, we need to
+					// ignore the characteristics that are already found. See:
+					// https://github.com/tinygo-org/bluetooth/issues/131
+					continue
+				}
+				if cuuid == uuid {
+					// one of the characteristics we're looking for.
+					chars[i] = char
 					break
 				}
 			}
-			if !found {
-				continue
-			}
+		} else {
+			// The caller wants to get all characteristics, in any order.
+			chars = append(chars, char)
 		}
-
-		if _, ok := uuidChars[char.Properties.UUID]; ok {
-			// There is more than one characteristic with the same UUID?
-			// Don't overwrite it, to keep the servicesFound count correct.
-			continue
-		}
-
-		uuid, _ := ParseUUID(char.Properties.UUID)
-		dc := DeviceCharacteristic{uuidWrapper: uuid,
-			characteristic: char,
-		}
-
-		chars = append(chars, dc)
-		characteristicsFound++
-		uuidChars[char.Properties.UUID] = char.Properties.UUID
 	}
 
-	if characteristicsFound < len(uuids) {
-		return nil, errors.New("bluetooth: could not find some characteristics")
+	// Check that we have found all characteristics.
+	for _, char := range chars {
+		if char == (DeviceCharacteristic{}) {
+			return nil, errors.New("bluetooth: could not find some characteristics")
+		}
 	}
 
 	return chars, nil
