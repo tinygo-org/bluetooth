@@ -36,6 +36,13 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 		a.watcher = nil
 	}()
 
+	// Set scanning mode to active so we receive scan responses
+	// from devices in advertising mode
+	err = a.watcher.SetScanningMode(advertisement.BluetoothLEScanningModeActive)
+	if err != nil {
+		return
+	}
+
 	// Listen for incoming BLE advertisement packets.
 	// We need a TypedEventHandler<TSender, TResult> to listen to events, but since this is a parameterized delegate
 	// its GUID depends on the classes used as sender and result, so we need to compute it:
