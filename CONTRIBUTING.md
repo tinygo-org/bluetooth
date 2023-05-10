@@ -18,6 +18,11 @@ We probably have not implemented it yet. Your pull request adding the functional
 
 Please open a Github issue. We want to help, and also make sure that there is no duplications of efforts. Sometimes what you need is already being worked on by someone else.
 
+If your contribution includes a new API (one that does not exist yet for any BLE stack), please make sure it is portable:
+
+  * Ideally, add support for it to two different Bluetooth APIs at the same time, for example CoreBluetooth and BlueZ.
+  * If you are unable to do so, please explain (with links to documentation!) why this feature also fits a different API.
+
 ## How to use our Github repository
 
 The `release` branch of this repo will always have the latest released version of the Go Bluetooth module. All of the active development work for the next release will take place in the `dev` branch. The Go Bluetooth module will use semantic versioning and will create a tag/release for each release.
