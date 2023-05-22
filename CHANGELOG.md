@@ -1,3 +1,38 @@
+0.7.0
+---
+
+* **build**
+  - switch to ghcr.io for docker container
+  - update to actions/checkout@v3
+  - work around for CVE-2022-24765
+* **core**
+  - gap: Set and SetRandom methods should have a pointer receiver
+  - mtu-{darwin,linux,windows,sd}: add get mtu function
+  - remove Addresser
+  - update uuid generation
+* **docs**
+  - CONTRIBUTING: add note on new APIs
+  - correct badge link for GH actions
+  - README: add note on macOS Big Sur and iTerm2
+* **linux**
+  - do not randomize order of returned discovered services/chars
+  - fix characteristic scan order
+  - implement disconnect handling
+* **macos**
+  - implement disconnect handling
+  - fix characteristic scan order
+* **examples**
+  - add examples/stop-advertisement
+* **nordic semi**
+  - nrf528xx: handle BLE_GAP_EVT_PHY_UPDATE_REQUEST and explicitly ignore some other events
+  - softdevice: avoid a heap allocation in the SoftDevice event handler
+* **windows**
+  - Added Indicate support to Windows driver
+  - gap/windows: Scan should set scanning mode to active to match other platforms
+  - support empty manufacturer data
+  - winrt-go: bump to latest
+
+
 0.6.0
 ---
 * **core**
