@@ -14,6 +14,10 @@ import (
 	"github.com/muka/go-bluetooth/bluez/profile/gatt"
 )
 
+var (
+	errDupNotif = errors.New("unclosed notifications")
+)
+
 // UUIDWrapper is a type alias for UUID so we ensure no conflicts with
 // struct method of the same name.
 type uuidWrapper = UUID
@@ -133,6 +137,7 @@ type DeviceCharacteristic struct {
 	uuidWrapper
 
 	characteristic *gatt.GattCharacteristic1
+	property       chan *bluez.PropertyChanged // channel where notifications are reported
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -238,19 +243,60 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
 // notification with a new value every time the value of the characteristic
 // changes.
-func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
-	ch, err := c.characteristic.WatchProperties()
-	if err != nil {
-		return err
-	}
-	go func() {
-		for update := range ch {
-			if update.Interface == "org.bluez.GattCharacteristic1" && update.Name == "Value" {
-				callback(update.Value.([]byte))
-			}
+//
+// Users may call EnableNotifications with a nil callback to disable notifications.
+func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+	switch callback {
+	default:
+		if c.property != nil {
+			return errDupNotif
 		}
-	}()
-	return c.characteristic.StartNotify()
+
+		ch, err := c.characteristic.WatchProperties()
+		if err != nil {
+			return err
+		}
+
+		err = c.characteristic.StartNotify()
+		if err != nil {
+			_ = c.characteristic.UnwatchProperties(ch)
+			return err
+		}
+		c.property = ch
+
+		go func() {
+			for update := range ch {
+				if update == nil {
+					continue
+				}
+				if update.Interface == "org.bluez.GattCharacteristic1" && update.Name == "Value" {
+					callback(update.Value.([]byte))
+				}
+			}
+		}()
+
+		return nil
+
+	case nil:
+		if c.property == nil {
+			return nil
+		}
+
+		e1 := c.characteristic.StopNotify()
+		e2 := c.characteristic.UnwatchProperties(c.property)
+		c.property = nil
+
+		// FIXME(sbinet): use errors.Join(e1, e2)
+		if e1 != nil {
+			return e1
+		}
+
+		if e2 != nil {
+			return e2
+		}
+
+		return nil
+	}
 }
 
 // GetMTU returns the MTU for the characteristic.
