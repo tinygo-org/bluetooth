@@ -42,9 +42,11 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 			}
 
 			svc := DeviceService{
-				uuidWrapper: dsvcuuid,
-				device:      d,
-				service:     dsvc,
+				deviceService: &deviceService{
+					uuidWrapper: dsvcuuid,
+					device:      d,
+					service:     dsvc,
+				},
 			}
 			svcs = append(svcs, svc)
 			d.services[svc.uuidWrapper] = &svc
@@ -61,11 +63,16 @@ type uuidWrapper = UUID
 
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
+	*deviceService // embdedded as pointer to enable returning by []value in DiscoverServices
+}
+
+type deviceService struct {
 	uuidWrapper
 
 	device *Device
 
-	service cbgo.Service
+	service         cbgo.Service
+	characteristics map[UUID]*DeviceCharacteristic
 }
 
 // UUID returns the UUID for this DeviceService.
@@ -88,7 +95,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
 	// clear cache of characteristics
-	s.device.characteristics = make(map[UUID]*DeviceCharacteristic)
+	s.characteristics = make(map[UUID]*DeviceCharacteristic)
 
 	// wait on channel for characteristic discovery
 	select {
@@ -143,7 +150,7 @@ func (s *DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic)
 			characteristic: dchar,
 		},
 	}
-	s.device.characteristics[char.uuidWrapper] = &char
+	s.characteristics[char.uuidWrapper] = &char
 	return char
 }
 
