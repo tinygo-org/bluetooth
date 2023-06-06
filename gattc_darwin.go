@@ -72,7 +72,7 @@ type deviceService struct {
 	device *Device
 
 	service         cbgo.Service
-	characteristics map[UUID]DeviceCharacteristic
+	characteristics []DeviceCharacteristic
 }
 
 // UUID returns the UUID for this DeviceService.
@@ -95,7 +95,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
 	// clear cache of characteristics
-	s.characteristics = make(map[UUID]DeviceCharacteristic)
+	s.characteristics = make([]DeviceCharacteristic, 0)
 
 	// wait on channel for characteristic discovery
 	select {
@@ -150,7 +150,7 @@ func (s *DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic)
 			characteristic: dchar,
 		},
 	}
-	s.characteristics[char.uuidWrapper] = char
+	s.characteristics = append(s.characteristics, char)
 	return char
 }
 
