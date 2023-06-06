@@ -195,14 +195,19 @@ func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripher
 	svcuuid, _ := ParseUUID(chr.Service().UUID().String())
 
 	if svc, ok := pd.d.services[svcuuid]; ok {
-		if char, ok := svc.characteristics[uuid]; ok {
-			if err == nil && char.callback != nil {
-				go char.callback(chr.Value())
+		for _, char := range svc.characteristics {
+
+			if char.characteristic == chr && uuid == char.UUID() { // compare pointers
+				if err == nil && char.callback != nil {
+					go char.callback(chr.Value())
+				}
+
+				if char.readChan != nil {
+					char.readChan <- err
+				}
 			}
 
-			if char.readChan != nil {
-				char.readChan <- err
-			}
 		}
+
 	}
 }
