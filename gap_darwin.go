@@ -93,7 +93,7 @@ type Device struct {
 	servicesChan chan error
 	charsChan    chan error
 
-	services map[UUID]*DeviceService
+	services map[UUID]DeviceService
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
