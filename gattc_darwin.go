@@ -18,7 +18,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	d.prph.DiscoverServices([]cbgo.UUID{})
 
 	// clear cache of services
-	d.services = make(map[UUID]*DeviceService)
+	d.services = make(map[UUID]DeviceService)
 
 	// wait on channel for service discovery
 	select {
@@ -49,7 +49,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 				},
 			}
 			svcs = append(svcs, svc)
-			d.services[svc.uuidWrapper] = &svc
+			d.services[svc.uuidWrapper] = svc
 		}
 		return svcs, nil
 	case <-time.NewTimer(10 * time.Second).C:
@@ -72,7 +72,7 @@ type deviceService struct {
 	device *Device
 
 	service         cbgo.Service
-	characteristics map[UUID]*DeviceCharacteristic
+	characteristics map[UUID]DeviceCharacteristic
 }
 
 // UUID returns the UUID for this DeviceService.
@@ -95,7 +95,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
 	// clear cache of characteristics
-	s.characteristics = make(map[UUID]*DeviceCharacteristic)
+	s.characteristics = make(map[UUID]DeviceCharacteristic)
 
 	// wait on channel for characteristic discovery
 	select {
@@ -150,7 +150,7 @@ func (s *DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic)
 			characteristic: dchar,
 		},
 	}
-	s.characteristics[char.uuidWrapper] = &char
+	s.characteristics[char.uuidWrapper] = char
 	return char
 }
 
