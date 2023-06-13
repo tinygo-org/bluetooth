@@ -36,8 +36,8 @@ github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINE
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/sago35/go-bdf v0.0.0-20200313142241-6c17821c91c4/go.mod h1:rOebXGuMLsXhZAC6mF/TjxONsm45498ZyzVhel++6KM=
-github.com/saltosystems/winrt-go v0.0.0-20230510070731-e096b9afa761 h1:xEscoMxTrGSpdho1mP9VnGsK0DGhXKwm0qP7kYcjgrI=
-github.com/saltosystems/winrt-go v0.0.0-20230510070731-e096b9afa761/go.mod h1:UvKm1lyhg+8ehk99i8g5Q7AX1LXUJgks0lRyAkG/ahQ=
+github.com/saltosystems/winrt-go v0.0.0-20230613063811-c792451fa808 h1:OmW/lr7pviC5Fcsiz3qqc8dh0uo1r3EqqI/mDTSpGmc=
+github.com/saltosystems/winrt-go v0.0.0-20230613063811-c792451fa808/go.mod h1:UvKm1lyhg+8ehk99i8g5Q7AX1LXUJgks0lRyAkG/ahQ=
 github.com/sirupsen/logrus v1.5.0/go.mod h1:+F7Ogzej0PZc/94MaYx/nvG9jOFMD2osvC3s+Squfpo=
 github.com/sirupsen/logrus v1.6.0/go.mod h1:7uNnSEd1DgxDLC74fIahvMZmmYsHGZGEOFrfsX/uA88=
 github.com/sirupsen/logrus v1.9.0 h1:trlNQbNUG3OdDrDil03MCb1H2o9nJ1x4/5LYw7byDE0=
