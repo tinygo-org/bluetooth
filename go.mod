@@ -6,7 +6,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/godbus/dbus/v5 v5.0.3
 	github.com/muka/go-bluetooth v0.0.0-20220830075246-0746e3a1ea53
-	github.com/saltosystems/winrt-go v0.0.0-20230510070731-e096b9afa761
+	github.com/saltosystems/winrt-go v0.0.0-20230613063811-c792451fa808
 	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/tinygo-org/cbgo v0.0.4
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
