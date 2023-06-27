@@ -18,6 +18,7 @@ type CharacteristicConfig struct {
 	Value      []byte
 	Flags      CharacteristicPermissions
 	WriteEvent func(client Connection, offset int, value []byte)
+	ReadEvent  func(client Connection) ([]byte, error)
 }
 
 // CharacteristicPermissions lists a number of basic permissions/capabilities

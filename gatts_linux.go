@@ -84,6 +84,14 @@ func (a *Adapter) AddService(s *Service) error {
 			})
 		}
 
+		// Lazy read value
+		if char.ReadEvent != nil {
+			callback := char.ReadEvent
+			bluezChar.OnRead(func(c *service.Char, options map[string]interface{}) ([]byte, error) {
+				return callback(0)
+			})
+		}
+
 		// Add characteristic to the service, to activate it.
 		err = bluezService.AddChar(bluezChar)
 		if err != nil {
