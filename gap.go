@@ -53,6 +53,10 @@ type AdvertisementOptions struct {
 
 	// Interval in BLE-specific units. Create an interval by using NewDuration.
 	Interval Duration
+
+	// ManufacturerData stores Advertising Data.
+	// Keys are the Manufacturer ID to associate with the data.
+	ManufacturerData map[uint16]interface{}
 }
 
 // Duration is the unit of time used in BLE, in 0.625µs units. This unit of time
