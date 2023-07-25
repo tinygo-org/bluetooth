@@ -49,9 +49,10 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	}
 
 	a.properties = &advertising.LEAdvertisement1Properties{
-		Type:      advertising.AdvertisementTypeBroadcast,
-		Timeout:   1<<16 - 1,
-		LocalName: options.LocalName,
+		Type:             advertising.AdvertisementTypeBroadcast,
+		Timeout:          1<<16 - 1,
+		LocalName:        options.LocalName,
+		ManufacturerData: options.ManufacturerData,
 	}
 	for _, uuid := range options.ServiceUUIDs {
 		a.properties.ServiceUUIDs = append(a.properties.ServiceUUIDs, uuid.String())
