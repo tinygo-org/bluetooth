@@ -55,6 +55,15 @@ func TestCreateAdvertisementPayload(t *testing.T) {
 				},
 			},
 		},
+		{
+			raw: "\x02\x01\x06" + // flags
+				"\x0a\xff\x4c\x00\x05" + // manufacturer data
+				"\x12\x00\x00\x00\x00\x12", // manufacturer data
+			parsed: AdvertisementOptions{
+				ManufacturerData: map[uint16]interface{}{
+					0x004C: []byte{0x5, 0x12, 0x0, 0x0, 0x0, 0x0, 0x12},
+				}},
+		},
 	}
 	for _, tc := range tests {
 		var expectedRaw rawAdvertisementPayload
