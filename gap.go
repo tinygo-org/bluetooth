@@ -299,6 +299,37 @@ func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions)
 			return false
 		}
 	}
+
+	if len(options.ManufacturerData) > 0 {
+		buf.addManufacturerData(options.ManufacturerData)
+	}
+
+	return true
+}
+
+// addManufacturerData adds manufacturer data ([]byte) entries to the advertisement payload.
+func (buf *rawAdvertisementPayload) addManufacturerData(manufacturerData map[uint16]interface{}) (ok bool) {
+	payloadData := buf.Bytes()
+	for manufacturerID, rawData := range manufacturerData {
+		data := rawData.([]byte)
+		// Check if the manufacturer ID is within the range of 16 bits (0-65535).
+		if manufacturerID > 0xFFFF {
+			// Invalid manufacturer ID.
+			return false
+		}
+
+		fieldLength := len(data) + 3
+
+		// Build manufacturer ID parts
+		manufacturerDataBit := byte(0xFF)
+		manufacturerIDPart1 := byte(manufacturerID & 0xFF)
+		manufacturerIDPart2 := byte((manufacturerID >> 8) & 0xFF)
+
+		payloadData = append(payloadData, byte(fieldLength), manufacturerDataBit, manufacturerIDPart1, manufacturerIDPart2)
+		payloadData = append(payloadData, data...)
+	}
+	buf.len = uint8(len(payloadData))
+	copy(buf.data[:], payloadData)
 	return true
 }
 
