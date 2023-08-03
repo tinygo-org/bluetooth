@@ -36,7 +36,7 @@ func main() {
 				Handle: &ledColorCharacteristic,
 				UUID:   bluetooth.NewUUID(charUUID),
 				Value:  ledColor[:],
-				Flags:  bluetooth.CharacteristicReadPermission | bluetooth.CharacteristicWritePermission,
+				Flags:  bluetooth.CharacteristicReadPermission | bluetooth.CharacteristicWritePermission | bluetooth.CharacteristicWriteWithoutResponsePermission,
 				WriteEvent: func(client bluetooth.Connection, offset int, value []byte) {
 					if offset != 0 || len(value) != 3 {
 						return
