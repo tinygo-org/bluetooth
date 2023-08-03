@@ -1,7 +1,6 @@
 // This example is intended to be used with the Adafruit Circuitplay Bluefruit board.
 // It allows you to control the color of the built-in NeoPixel LEDS while they animate
 // in a circular pattern.
-//
 package main
 
 import (
@@ -67,7 +66,7 @@ func main() {
 				Handle: &ledColorCharacteristic,
 				UUID:   bluetooth.NewUUID(charUUID),
 				Value:  ledColor[:],
-				Flags:  bluetooth.CharacteristicReadPermission | bluetooth.CharacteristicWritePermission,
+				Flags:  bluetooth.CharacteristicReadPermission | bluetooth.CharacteristicWritePermission | bluetooth.CharacteristicWriteWithoutResponsePermission,
 				WriteEvent: func(client bluetooth.Connection, offset int, value []byte) {
 					if offset != 0 || len(value) != 3 {
 						return
