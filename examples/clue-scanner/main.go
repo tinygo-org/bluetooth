@@ -8,8 +8,8 @@ import (
 
 	"tinygo.org/x/bluetooth"
 	"tinygo.org/x/drivers/st7789"
+	"tinygo.org/x/tinyfont/proggy"
 	"tinygo.org/x/tinyterm"
-	"tinygo.org/x/tinyterm/fonts/proggy"
 )
 
 var (
