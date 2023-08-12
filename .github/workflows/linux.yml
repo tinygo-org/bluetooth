@@ -20,6 +20,8 @@ jobs:
         uses: actions/checkout@v3.5.3
       - name: TinyGo version check
         run: tinygo version
+      - name: Download Go modules
+        run: go mod download
       - name: Run unit tests
         run: go test
       - name: Run TinyGo smoke tests
