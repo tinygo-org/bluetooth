@@ -24,7 +24,8 @@ type Adapter struct {
 	// used to allow multiple callers to call Connect concurrently.
 	connectMap sync.Map
 
-	connectHandler func(device Address, connected bool)
+	connectHandler     func(device Address, connected bool)
+	stateChangeHandler func(newState AdapterState)
 }
 
 // DefaultAdapter is the default adapter on the system.
@@ -36,6 +37,9 @@ var DefaultAdapter = &Adapter{
 	connectMap: sync.Map{},
 
 	connectHandler: func(device Address, connected bool) {
+		return
+	},
+	stateChangeHandler: func(newState AdapterState) {
 		return
 	},
 }
@@ -65,6 +69,8 @@ func (a *Adapter) Enable() error {
 	for len(a.poweredChan) > 0 {
 		<-a.poweredChan
 	}
+	// we are done with this chan so lets remove it, this lets Enable() be reentrant if needed
+	a.poweredChan = nil
 
 	// wait until powered?
 	a.pmd = &peripheralManagerDelegate{a: a}
@@ -83,9 +89,23 @@ type centralManagerDelegate struct {
 
 // CentralManagerDidUpdateState when central manager state updated.
 func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
-	// powered on?
-	if cmgr.State() == cbgo.ManagerStatePoweredOn {
-		cmd.a.poweredChan <- nil
+
+	switch cmgr.State() {
+	case cbgo.ManagerStatePoweredOn:
+		// if we are waiting for a PoweredOn signal then send it
+		if cmd.a.poweredChan != nil {
+			cmd.a.poweredChan <- nil
+		}
+		cmd.a.stateChangeHandler(AdapterStatePoweredOn)
+
+	case cbgo.ManagerStatePoweredOff:
+		cmd.a.stateChangeHandler(AdapterStatePoweredOff)
+
+	case cbgo.ManagerStateResetting:
+		cmd.a.stateChangeHandler(AdapterStateResetting)
+
+	default:
+		cmd.a.stateChangeHandler(AdapterStateUnknown)
 	}
 
 	// TODO: handle other state changes.
