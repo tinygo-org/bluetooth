@@ -6,9 +6,11 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 
 	"github.com/muka/go-bluetooth/api"
+	"github.com/muka/go-bluetooth/bluez"
 	"github.com/muka/go-bluetooth/bluez/profile/adapter"
 )
 
@@ -18,7 +20,12 @@ type Adapter struct {
 	cancelChan           chan struct{}
 	defaultAdvertisement *Advertisement
 
-	connectHandler func(device Address, connected bool)
+	ctx         context.Context             // context for our event watcher, canceled on power off event
+	cancel      context.CancelFunc          // cancel function to halt our event watcher context
+	propchanged chan *bluez.PropertyChanged // channel that adapter property changes will show up on
+
+	connectHandler     func(device Address, connected bool)
+	stateChangeHandler func(newState AdapterState)
 }
 
 // DefaultAdapter is the default adapter on the system. On Linux, it is the
@@ -27,6 +34,9 @@ type Adapter struct {
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
 	connectHandler: func(device Address, connected bool) {
+		return
+	},
+	stateChangeHandler: func(newState AdapterState) {
 		return
 	},
 }
@@ -40,6 +50,8 @@ func (a *Adapter) Enable() (err error) {
 			return
 		}
 		a.id, err = a.adapter.GetAdapterID()
+		a.ctx, a.cancel = context.WithCancel(context.Background())
+		a.watchForStateChange()
 	}
 	return nil
 }
@@ -53,4 +65,39 @@ func (a *Adapter) Address() (MACAddress, error) {
 		return MACAddress{}, err
 	}
 	return MACAddress{MAC: mac}, nil
+}
+
+func (a *Adapter) watchForStateChange() error {
+	var err error
+	a.propchanged, err = a.adapter.WatchProperties()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			select {
+			case changed := <-a.propchanged:
+				// we will receive a nil if bluez.UnwatchProperties(a, ch) is called, if so we can stop watching
+				if changed == nil {
+					a.cancel()
+					return
+				}
+				switch changed.Name {
+				case "Powered":
+					if changed.Value.(bool) {
+						a.stateChangeHandler(AdapterStatePoweredOn)
+					} else {
+						a.stateChangeHandler(AdapterStatePoweredOff)
+					}
+				}
+
+				continue
+			case <-a.ctx.Done():
+				return
+			}
+		}
+	}()
+
+	return nil
 }
