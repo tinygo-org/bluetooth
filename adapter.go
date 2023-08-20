@@ -11,8 +11,6 @@ const (
 	AdapterStatePoweredOff = AdapterState(iota)
 	// AdapterStatePoweredOn is the state of the adaptor when it is powered on.
 	AdapterStatePoweredOn
-	// AdapterStateResetting is the state of the adaptor when it is resetting.
-	AdapterStateResetting
 	// AdapterStateUnknown is the state of the adaptor when it is unknown.
 	AdapterStateUnknown
 )
@@ -23,8 +21,6 @@ func (as *AdapterState) String() string {
 		return "PoweredOff"
 	case AdapterStatePoweredOn:
 		return "PoweredOn"
-	case AdapterStateResetting:
-		return "Resetting"
 	case AdapterStateUnknown:
 		return "Unknown"
 	default:

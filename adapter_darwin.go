@@ -101,9 +101,6 @@ func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.Centra
 	case cbgo.ManagerStatePoweredOff:
 		cmd.a.stateChangeHandler(AdapterStatePoweredOff)
 
-	case cbgo.ManagerStateResetting:
-		cmd.a.stateChangeHandler(AdapterStateResetting)
-
 	default:
 		cmd.a.stateChangeHandler(AdapterStateUnknown)
 	}
