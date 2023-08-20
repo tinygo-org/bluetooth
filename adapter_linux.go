@@ -67,6 +67,16 @@ func (a *Adapter) Address() (MACAddress, error) {
 	return MACAddress{MAC: mac}, nil
 }
 
+// SetStateChangeHandler sets a handler function to be called whenever the adaptor's
+// state changes.
+func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
+	a.stateChangeHandler = c
+}
+
+// watchForConnect watches for a signal from the bluez adapter interface that indicates a Powered/Unpowered event.
+//
+// We can add extra signals to watch for here,
+// see https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/adapter-api.txt, for a full list
 func (a *Adapter) watchForStateChange() error {
 	var err error
 	a.propchanged, err = a.adapter.WatchProperties()

@@ -34,10 +34,3 @@ func (as *AdapterState) String() string {
 func (a *Adapter) SetConnectHandler(c func(device Address, connected bool)) {
 	a.connectHandler = c
 }
-
-// SetStateChangeHandler sets a handler function to be called whenever the adaptor's
-// state changes.
-// This is a no-op on bare metal.
-func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
-	a.stateChangeHandler = c
-}

@@ -79,6 +79,12 @@ func (a *Adapter) Enable() error {
 	return nil
 }
 
+// SetStateChangeHandler sets a handler function to be called whenever the adaptor's
+// state changes.
+func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
+	a.stateChangeHandler = c
+}
+
 // CentralManager delegate functions
 
 type centralManagerDelegate struct {
