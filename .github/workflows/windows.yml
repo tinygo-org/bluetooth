@@ -1,0 +1,24 @@
+name: Windows
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - release
+
+jobs:
+  build-windows:
+    name: build-windows
+    runs-on: windows-2022
+    steps:
+      - name: Install Go
+        uses: actions/setup-go@v4.1.0
+        with:
+          go-version: '1.21.0'
+      - name: Checkout
+        uses: actions/checkout@v3.6.0
+      - name: Run unit tests
+        run: go test
+      - name: "Run Windows smoke tests"
+        run: make smoketest-windows
