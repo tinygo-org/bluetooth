@@ -5,6 +5,16 @@ package bluetooth
 /*
 #include "ble_gap.h"
 #include "ble_gatts.h"
+
+// Workaround wrapper functions which prevent pointer arguments escaping to heap
+static inline uint32_t sd_ble_gatts_hvx_noescape(uint16_t conn_handle, uint16_t handle, uint8_t type, uint16_t offset, uint16_t len, uint8_t *p_data) {
+	ble_gatts_hvx_params_t p_hvx_params = {handle, type, offset, &len, p_data};
+	return sd_ble_gatts_hvx(conn_handle, &p_hvx_params);
+}
+
+static inline uint32_t sd_ble_gatts_value_set_noescape(uint16_t conn_handle, uint16_t handle, ble_gatts_value_t p_value) {
+	return sd_ble_gatts_value_set(conn_handle, handle, &p_value);
+}
 */
 import "C"
 
@@ -110,12 +120,13 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 	if connHandle != C.BLE_CONN_HANDLE_INVALID {
 		// There is a connected central.
 		p_len := uint16(len(p))
-		errCode := C.sd_ble_gatts_hvx(connHandle, &C.ble_gatts_hvx_params_t{
-			handle: c.handle,
-			_type:  C.BLE_GATT_HVX_NOTIFICATION,
-			p_len:  &p_len,
-			p_data: &p[0],
-		})
+		errCode := C.sd_ble_gatts_hvx_noescape(connHandle,
+			c.handle,
+			C.BLE_GATT_HVX_NOTIFICATION,
+			0,
+			p_len,
+			&p[0],
+		)
 
 		// Check for some expected errors. Don't report them as errors, but
 		// instead fall through and do a normal characteristic value update.
@@ -133,7 +144,7 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 		}
 	}
 
-	errCode := C.sd_ble_gatts_value_set(C.BLE_CONN_HANDLE_INVALID, c.handle, &C.ble_gatts_value_t{
+	errCode := C.sd_ble_gatts_value_set_noescape(C.BLE_CONN_HANDLE_INVALID, c.handle, C.ble_gatts_value_t{
 		len:     uint16(len(p)),
 		p_value: &p[0],
 	})
