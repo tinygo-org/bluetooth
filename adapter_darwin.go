@@ -85,6 +85,18 @@ func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
 	a.stateChangeHandler = c
 }
 
+// State returns the current state of the adapter.
+func (a *Adapter) State() AdapterState {
+	switch a.cm.State() {
+	case cbgo.ManagerStatePoweredOn:
+		return AdapterStatePoweredOn
+	case cbgo.ManagerStatePoweredOff:
+		return AdapterStatePoweredOff
+	default:
+		return AdapterStateUnknown
+	}
+}
+
 // CentralManager delegate functions
 
 type centralManagerDelegate struct {
