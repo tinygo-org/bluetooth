@@ -73,6 +73,22 @@ func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
 	a.stateChangeHandler = c
 }
 
+// State returns the current state of the adapter.
+func (a *Adapter) State() AdapterState {
+	if a.adapter == nil {
+		return AdapterStateUnknown
+	}
+
+	powered, err := a.adapter.GetPowered()
+	if err != nil {
+		return AdapterStateUnknown
+	}
+	if powered {
+		return AdapterStatePoweredOn
+	}
+	return AdapterStatePoweredOff
+}
+
 // watchForConnect watches for a signal from the bluez adapter interface that indicates a Powered/Unpowered event.
 //
 // We can add extra signals to watch for here,
