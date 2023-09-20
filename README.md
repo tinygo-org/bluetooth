@@ -165,11 +165,9 @@ The Windows support only can only act as a BLE Central at this time, with some a
 
 ### Installation
 
-In order to compile Go Bluetooth code targeting Windows, you must have a GCC compiler installed.
+Only the Go compiler itself is needed to compile Go Bluetooth code targeting Windows.
 
-On Windows, you can download and install mingw-w64 (https://github.com/mingw-w64/mingw-w64)
-
-Once you have done this, you can obtain the Go Bluetooth package using Git:
+You can obtain the Go Bluetooth package using Git:
 
 	git clone https://github.com/tinygo-org/bluetooth.git
 
