@@ -26,8 +26,5 @@ jobs:
         run: make smoketest-tinygo
       - name: Run Linux smoke tests
         run: make smoketest-linux
-      - name: Install Windows cross compiler
-        run: |
-          apt-get install -y gcc-mingw-w64-x86-64
-      - name: "Run Windows smoke tests"
+      - name: "Run Windows cross-compiled smoke tests"
         run: make smoketest-windows
