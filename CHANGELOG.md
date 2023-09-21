@@ -1,3 +1,29 @@
+0.8.0
+---
+
+* **build**
+  - remove CGo dependencies for Windows cross-compiler tests
+  - add Windows to GH actions build jobs
+  - add macOS 12 to GH actions build jobs
+* **core**
+  - go 1.18 and remove old-style build tags
+  - Noescape workaround
+* **docs**
+  - update README to remove CGo requirement for Windows
+  - add documentation to heartrate-monitor
+* **linux**
+  - Added option to add ManufacturerData to Advertisement
+* **macos**
+  - enable support for duplicate chars by moving from a map to a slice
+* **examples**
+  - Include WriteWithoutResponse permission, for examples, where Write exists
+* **nordic semi**
+  - softdevice: added manufacturer data support
+  - softdevice: test creation of raw BLE advertisement packets
+* **windows**
+  - update github.com/saltosystems/winrt-go to no longer require CGo
+
+
 0.7.0
 ---
 
