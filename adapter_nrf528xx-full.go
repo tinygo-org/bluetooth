@@ -30,7 +30,7 @@ func handleEvent() {
 				if debug {
 					println("evt: connected in peripheral role")
 				}
-				currentConnection.Reg = gapEvent.conn_handle
+				currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
 				DefaultAdapter.connectHandler(Address{}, true)
 			case C.BLE_GAP_ROLE_CENTRAL:
 				if debug {
@@ -46,11 +46,11 @@ func handleEvent() {
 			}
 			// Clean up state for this connection.
 			for i, cb := range gattcNotificationCallbacks {
-				if cb.connectionHandle == currentConnection.Reg {
+				if uint16(cb.connectionHandle) == currentConnection.handle.Reg {
 					gattcNotificationCallbacks[i].valueHandle = 0 // 0 means invalid
 				}
 			}
-			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
+			currentConnection.handle.Reg = C.BLE_CONN_HANDLE_INVALID
 			// Auto-restart advertisement if needed.
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
@@ -64,7 +64,7 @@ func handleEvent() {
 			DefaultAdapter.connectHandler(Address{}, false)
 		case C.BLE_GAP_EVT_ADV_REPORT:
 			advReport := gapEvent.params.unionfield_adv_report()
-			if debug && &scanReportBuffer.data[0] != advReport.data.p_data {
+			if debug && &scanReportBuffer.data[0] != (*byte)(unsafe.Pointer(advReport.data.p_data)) {
 				// Sanity check.
 				panic("scanReportBuffer != advReport.p_data")
 			}
@@ -73,7 +73,7 @@ func handleEvent() {
 			scanReportBuffer.len = byte(advReport.data.len)
 			globalScanResult.RSSI = int16(advReport.rssi)
 			globalScanResult.Address = Address{
-				MACAddress{MAC: advReport.peer_addr.addr,
+				MACAddress{MAC: makeAddress(advReport.peer_addr.addr),
 					isRandom: advReport.peer_addr.bitfield_addr_type() != 0},
 			}
 			globalScanResult.AdvertisementPayload = &scanReportBuffer

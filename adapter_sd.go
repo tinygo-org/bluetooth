@@ -28,7 +28,7 @@ var (
 )
 
 // There can only be one connection at a time in the default configuration.
-var currentConnection = volatile.Register16{C.BLE_CONN_HANDLE_INVALID}
+var currentConnection = volatileHandle{handle: volatile.Register16{C.BLE_CONN_HANDLE_INVALID}}
 
 // Globally allocated buffer for incoming SoftDevice events.
 var eventBuf struct {
@@ -60,7 +60,7 @@ var DefaultAdapter = &Adapter{isDefault: true,
 		return
 	}}
 
-var eventBufLen uint16
+var eventBufLen C.uint16_t
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
@@ -72,8 +72,8 @@ func (a *Adapter) Enable() error {
 	// Enable the IRQ that handles all events.
 	intr := interrupt.New(nrf.IRQ_SWI2, func(interrupt.Interrupt) {
 		for {
-			eventBufLen = uint16(unsafe.Sizeof(eventBuf))
-			errCode := C.sd_ble_evt_get((*uint8)(unsafe.Pointer(&eventBuf)), &eventBufLen)
+			eventBufLen = C.uint16_t(unsafe.Sizeof(eventBuf))
+			errCode := C.sd_ble_evt_get((*C.uint8_t)(unsafe.Pointer(&eventBuf)), &eventBufLen)
 			if errCode != 0 {
 				// Possible error conditions:
 				//  * NRF_ERROR_NOT_FOUND: no events left, break
@@ -97,7 +97,7 @@ func (a *Adapter) Enable() error {
 		return err
 	}
 
-	errCode := C.sd_ble_gap_device_name_set(&secModeOpen, &defaultDeviceName[0], uint16(len(defaultDeviceName)))
+	errCode := C.sd_ble_gap_device_name_set(&secModeOpen, (*C.uint8_t)(unsafe.Pointer(&defaultDeviceName[0])), C.uint16_t(len(defaultDeviceName)))
 	if errCode != 0 {
 		return Error(errCode)
 	}
@@ -116,7 +116,7 @@ func (a *Adapter) Enable() error {
 // play well with the SoftDevice. Restore interrupts to the previous state with
 // RestoreInterrupts.
 func DisableInterrupts() uintptr {
-	var is_nested_critical_region uint8
+	var is_nested_critical_region C.uint8_t
 	C.sd_nvic_critical_region_enter(&is_nested_critical_region)
 	return uintptr(is_nested_critical_region)
 }
@@ -125,5 +125,43 @@ func DisableInterrupts() uintptr {
 // DisableInterrupts. The mask parameter must be the value returned by
 // DisableInterrupts.
 func RestoreInterrupts(mask uintptr) {
-	C.sd_nvic_critical_region_exit(uint8(mask))
+	C.sd_nvic_critical_region_exit(C.uint8_t(mask))
+}
+
+// Wrapper for volatile.Register16 that uses C.uint16_t instead of uint16, for
+// easier interoperability with C.
+type volatileHandle struct {
+	handle volatile.Register16
+}
+
+func (a *volatileHandle) Set(handle C.uint16_t) {
+	a.handle.Set(uint16(handle))
+}
+
+func (a *volatileHandle) Get() C.uint16_t {
+	return C.uint16_t(a.handle.Get())
+}
+
+// Convert a SoftDevice MAC address into a Go MAC address.
+func makeAddress(mac [6]C.uint8_t) MAC {
+	return MAC{
+		uint8(mac[0]),
+		uint8(mac[1]),
+		uint8(mac[2]),
+		uint8(mac[3]),
+		uint8(mac[4]),
+		uint8(mac[5]),
+	}
+}
+
+// Convert a Go MAC address into a SoftDevice MAC Address.
+func makeSDAddress(mac MAC) [6]C.uint8_t {
+	return [6]C.uint8_t{
+		C.uint8_t(mac[0]),
+		C.uint8_t(mac[1]),
+		C.uint8_t(mac[2]),
+		C.uint8_t(mac[3]),
+		C.uint8_t(mac[4]),
+		C.uint8_t(mac[5]),
+	}
 }

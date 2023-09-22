@@ -46,7 +46,7 @@ func (a *Adapter) enable() error {
 	}
 
 	// Enable the BLE stack.
-	appRAMBase := uint32(uintptr(unsafe.Pointer(&appRAMBase)))
+	appRAMBase := C.uint32_t(uintptr(unsafe.Pointer(&appRAMBase)))
 	errCode = C.sd_ble_enable(&appRAMBase)
 	return makeError(errCode)
 }
@@ -57,5 +57,5 @@ func (a *Adapter) Address() (MACAddress, error) {
 	if errCode != 0 {
 		return MACAddress{}, Error(errCode)
 	}
-	return MACAddress{MAC: addr.addr}, nil
+	return MACAddress{MAC: makeAddress(addr.addr)}, nil
 }

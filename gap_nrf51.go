@@ -15,6 +15,7 @@ import "C"
 import (
 	"runtime/volatile"
 	"time"
+	"unsafe"
 )
 
 // Address contains a Bluetooth MAC address.
@@ -52,7 +53,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		return errAdvertisementPacketTooBig
 	}
 
-	errCode := C.sd_ble_gap_adv_data_set(&payload.data[0], payload.len, nil, 0)
+	errCode := C.sd_ble_gap_adv_data_set((*C.uint8_t)(unsafe.Pointer(&payload.data[0])), C.uint8_t(payload.len), nil, 0)
 	a.interval = options.Interval
 	return makeError(errCode)
 }
@@ -73,11 +74,11 @@ func (a *Advertisement) Stop() error {
 
 // Low-level version of Start. Used to restart advertisement when a connection
 // is lost.
-func (a *Advertisement) start() uint32 {
+func (a *Advertisement) start() C.uint32_t {
 	params := C.ble_gap_adv_params_t{
 		_type:    C.BLE_GAP_ADV_TYPE_ADV_IND,
 		fp:       C.BLE_GAP_ADV_FP_ANY,
-		interval: uint16(a.interval),
+		interval: C.uint16_t(a.interval),
 		timeout:  0, // no timeout
 	}
 	return C.sd_ble_gap_adv_start_noescape(params)

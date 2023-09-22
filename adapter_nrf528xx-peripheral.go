@@ -27,13 +27,13 @@ func handleEvent() {
 			if debug {
 				println("evt: connected in peripheral role")
 			}
-			currentConnection.Reg = gapEvent.conn_handle
+			currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
 			DefaultAdapter.connectHandler(Address{}, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
 				println("evt: disconnected")
 			}
-			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
+			currentConnection.handle.Reg = C.BLE_CONN_HANDLE_INVALID
 			// Auto-restart advertisement if needed.
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped

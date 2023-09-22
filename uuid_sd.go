@@ -10,9 +10,9 @@ import "unsafe"
 
 type shortUUID C.ble_uuid_t
 
-func (uuid UUID) shortUUID() (C.ble_uuid_t, uint32) {
+func (uuid UUID) shortUUID() (C.ble_uuid_t, C.uint32_t) {
 	var short C.ble_uuid_t
-	short.uuid = uint16(uuid[3])
+	short.uuid = C.uint16_t(uuid[3])
 	if uuid.Is16Bit() {
 		short._type = C.BLE_UUID_TYPE_BLE
 		return short, 0
@@ -24,7 +24,7 @@ func (uuid UUID) shortUUID() (C.ble_uuid_t, uint32) {
 // UUID returns the full length UUID for this short UUID.
 func (s shortUUID) UUID() UUID {
 	if s._type == C.BLE_UUID_TYPE_BLE {
-		return New16BitUUID(s.uuid)
+		return New16BitUUID(uint16(s.uuid))
 	}
 	var outLen C.uint8_t
 	var outUUID UUID

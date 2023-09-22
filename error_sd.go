@@ -2,6 +2,7 @@
 
 package bluetooth
 
+// #include <stdint.h>
 // #include "nrf_error.h"
 // #include "nrf_error_sdm.h"
 import "C"
@@ -83,7 +84,7 @@ func (e Error) Error() string {
 
 // makeError returns an error (using the Error type) if the error code is
 // non-zero, otherwise it returns nil. It is used with internal API calls.
-func makeError(code uint32) error {
+func makeError(code C.uint32_t) error {
 	if code != 0 {
 		return Error(code)
 	}

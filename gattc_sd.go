@@ -11,6 +11,7 @@ import (
 	"device/arm"
 	"errors"
 	"runtime/volatile"
+	"unsafe"
 )
 
 const (
@@ -28,8 +29,8 @@ var (
 // program and the event handler.
 var discoveringService struct {
 	state       volatile.Register8 // 0 means nothing happening, 1 means in progress, 2 means found something
-	startHandle volatile.Register16
-	endHandle   volatile.Register16
+	startHandle volatileHandle
+	endHandle   volatileHandle
 	uuid        C.ble_uuid_t
 }
 
@@ -38,9 +39,9 @@ var discoveringService struct {
 type DeviceService struct {
 	uuid shortUUID
 
-	connectionHandle uint16
-	startHandle      uint16
-	endHandle        uint16
+	connectionHandle C.uint16_t
+	startHandle      C.uint16_t
+	endHandle        C.uint16_t
 }
 
 // UUID returns the UUID for this DeviceService.
@@ -76,7 +77,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if len(uuids) > 0 {
 		shortUUIDs = make([]C.ble_uuid_t, sz)
 		for i, uuid := range uuids {
-			var errCode uint32
+			var errCode C.uint32_t
 			shortUUIDs[i], errCode = uuid.shortUUID()
 			if errCode != 0 {
 				return nil, Error(errCode)
@@ -86,7 +87,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 	numFound := 0
 
-	var startHandle uint16 = 1
+	var startHandle C.uint16_t = 1
 
 	for i := 0; i < sz; i++ {
 		var suuid C.ble_uuid_t
@@ -96,7 +97,7 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 		// Start discovery of this service.
 		discoveringService.state.Set(1)
-		var errCode uint32
+		var errCode C.uint32_t
 		if len(uuids) > 0 {
 			errCode = C.sd_ble_gattc_primary_services_discover(d.connectionHandle, startHandle, &suuid)
 		} else {
@@ -159,9 +160,9 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 type DeviceCharacteristic struct {
 	uuid shortUUID
 
-	connectionHandle uint16
-	valueHandle      uint16
-	cccdHandle       uint16
+	connectionHandle C.uint16_t
+	valueHandle      C.uint16_t
+	cccdHandle       C.uint16_t
 	permissions      CharacteristicPermissions
 }
 
@@ -175,7 +176,7 @@ func (c *DeviceCharacteristic) UUID() UUID {
 var discoveringCharacteristic struct {
 	uuid         C.ble_uuid_t
 	char_props   C.ble_gatt_char_props_t
-	handle_value volatile.Register16
+	handle_value volatileHandle
 }
 
 // DiscoverCharacteristics discovers characteristics in this service. Pass a
@@ -204,7 +205,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	if len(uuids) > 0 {
 		shortUUIDs = make([]C.ble_uuid_t, sz)
 		for i, uuid := range uuids {
-			var errCode uint32
+			var errCode C.uint32_t
 			shortUUIDs[i], errCode = uuid.shortUUID()
 			if errCode != 0 {
 				return nil, Error(errCode)
@@ -324,8 +325,8 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 		write_op: C.BLE_GATT_OP_WRITE_CMD,
 		handle:   c.valueHandle,
 		offset:   0,
-		len:      uint16(len(p)),
-		p_value:  &p[0],
+		len:      C.uint16_t(len(p)),
+		p_value:  (*C.uint8_t)(unsafe.Pointer(&p[0])),
 	})
 	if errCode != 0 {
 		return 0, Error(errCode)
@@ -334,8 +335,8 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 }
 
 type gattcNotificationCallback struct {
-	connectionHandle uint16
-	valueHandle      uint16 // may be 0 if the slot is empty
+	connectionHandle C.uint16_t
+	valueHandle      C.uint16_t // may be 0 if the slot is empty
 	callback         func([]byte)
 }
 
@@ -400,7 +401,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	}
 
 	// Write to the CCCD to enable notifications. Don't wait for a response.
-	value := [2]byte{0x01, 0x00} // 0x0001 enables notifications (and disables indications)
+	value := [2]C.uint8_t{0x01, 0x00} // 0x0001 enables notifications (and disables indications)
 	errCode := C.sd_ble_gattc_write(c.connectionHandle, &C.ble_gattc_write_params_t{
 		write_op: C.BLE_GATT_OP_WRITE_CMD,
 		handle:   c.cccdHandle,
@@ -414,9 +415,9 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 // A global used to pass information from the event handler back to the
 // Read function below.
 var readingCharacteristic struct {
-	handle_value volatile.Register16
-	offset       uint16
-	length       uint16
+	handle_value volatileHandle
+	offset       C.uint16_t
+	length       C.uint16_t
 	value        []byte
 }
 
