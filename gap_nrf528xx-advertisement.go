@@ -5,6 +5,7 @@ package bluetooth
 import (
 	"runtime/volatile"
 	"time"
+	"unsafe"
 )
 
 /*
@@ -19,7 +20,7 @@ type Address struct {
 
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
-	handle        uint8
+	handle        C.uint8_t
 	isAdvertising volatile.Register8
 	payload       rawAdvertisementPayload
 }
@@ -57,14 +58,14 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 
 	data := C.ble_gap_adv_data_t{}
 	data.adv_data = C.ble_data_t{
-		p_data: &a.payload.data[0],
-		len:    uint16(a.payload.len),
+		p_data: (*C.uint8_t)(unsafe.Pointer(&a.payload.data[0])),
+		len:    C.uint16_t(a.payload.len),
 	}
 	params := C.ble_gap_adv_params_t{
 		properties: C.ble_gap_adv_properties_t{
 			_type: C.BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED,
 		},
-		interval: uint32(options.Interval),
+		interval: C.uint32_t(options.Interval),
 	}
 	errCode := C.sd_ble_gap_adv_set_configure(&a.handle, &data, &params)
 	return makeError(errCode)

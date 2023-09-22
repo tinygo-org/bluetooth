@@ -17,11 +17,12 @@ static inline uint32_t sd_ble_gatts_value_set_noescape(uint16_t conn_handle, uin
 }
 */
 import "C"
+import "unsafe"
 
 // Characteristic is a single characteristic in a service. It has an UUID and a
 // value.
 type Characteristic struct {
-	handle      uint16
+	handle      C.uint16_t
 	permissions CharacteristicPermissions
 }
 
@@ -32,18 +33,18 @@ func (a *Adapter) AddService(service *Service) error {
 	if errCode != 0 {
 		return Error(errCode)
 	}
-	errCode = C.sd_ble_gatts_service_add(C.BLE_GATTS_SRVC_TYPE_PRIMARY, &uuid, &service.handle)
+	errCode = C.sd_ble_gatts_service_add(C.BLE_GATTS_SRVC_TYPE_PRIMARY, &uuid, (*C.uint16_t)(unsafe.Pointer(&service.handle)))
 	if errCode != 0 {
 		return Error(errCode)
 	}
 	for _, char := range service.Characteristics {
 		metadata := C.ble_gatts_char_md_t{}
-		metadata.char_props.set_bitfield_broadcast(uint8(char.Flags>>0) & 1)
-		metadata.char_props.set_bitfield_read(uint8(char.Flags>>1) & 1)
-		metadata.char_props.set_bitfield_write_wo_resp(uint8(char.Flags>>2) & 1)
-		metadata.char_props.set_bitfield_write(uint8(char.Flags>>3) & 1)
-		metadata.char_props.set_bitfield_notify(uint8(char.Flags>>4) & 1)
-		metadata.char_props.set_bitfield_indicate(uint8(char.Flags>>5) & 1)
+		metadata.char_props.set_bitfield_broadcast(C.uint8_t(char.Flags>>0) & 1)
+		metadata.char_props.set_bitfield_read(C.uint8_t(char.Flags>>1) & 1)
+		metadata.char_props.set_bitfield_write_wo_resp(C.uint8_t(char.Flags>>2) & 1)
+		metadata.char_props.set_bitfield_write(C.uint8_t(char.Flags>>3) & 1)
+		metadata.char_props.set_bitfield_notify(C.uint8_t(char.Flags>>4) & 1)
+		metadata.char_props.set_bitfield_indicate(C.uint8_t(char.Flags>>5) & 1)
 		handles := C.ble_gatts_char_handles_t{}
 		charUUID, errCode := char.UUID.shortUUID()
 		if errCode != 0 {
@@ -55,16 +56,16 @@ func (a *Adapter) AddService(service *Service) error {
 				read_perm:  secModeOpen,
 				write_perm: secModeOpen,
 			},
-			init_len:  uint16(len(char.Value)),
+			init_len:  C.uint16_t(len(char.Value)),
 			init_offs: 0,
 			max_len:   20, // This is a conservative maximum length.
 		}
 		if len(char.Value) != 0 {
-			value.p_value = &char.Value[0]
+			value.p_value = (*C.uint8_t)(unsafe.Pointer(&char.Value[0]))
 		}
 		value.p_attr_md.set_bitfield_vloc(C.BLE_GATTS_VLOC_STACK)
 		value.p_attr_md.set_bitfield_vlen(1)
-		errCode = C.sd_ble_gatts_characteristic_add(service.handle, &metadata, &value, &handles)
+		errCode = C.sd_ble_gatts_characteristic_add(C.uint16_t(service.handle), &metadata, &value, &handles)
 		if errCode != 0 {
 			return Error(errCode)
 		}
@@ -88,13 +89,13 @@ func (a *Adapter) AddService(service *Service) error {
 // charWriteHandler contains a handler->callback mapping for characteristic
 // writes.
 type charWriteHandler struct {
-	handle   uint16
+	handle   C.uint16_t
 	callback func(connection Connection, offset int, value []byte)
 }
 
 // getCharWriteHandler returns a characteristic write handler if one matches the
 // handle, or nil otherwise.
-func (a *Adapter) getCharWriteHandler(handle uint16) *charWriteHandler {
+func (a *Adapter) getCharWriteHandler(handle C.uint16_t) *charWriteHandler {
 	// Look through all handlers for a match.
 	// There is probably a way to do this more efficiently (with a hashmap for
 	// example) but the number of event handlers is likely low and improving
@@ -124,8 +125,8 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 			c.handle,
 			C.BLE_GATT_HVX_NOTIFICATION,
 			0,
-			p_len,
-			&p[0],
+			C.uint16_t(p_len),
+			(*C.uint8_t)(unsafe.Pointer(&p[0])),
 		)
 
 		// Check for some expected errors. Don't report them as errors, but
@@ -145,8 +146,8 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 	}
 
 	errCode := C.sd_ble_gatts_value_set_noescape(C.BLE_CONN_HANDLE_INVALID, c.handle, C.ble_gatts_value_t{
-		len:     uint16(len(p)),
-		p_value: &p[0],
+		len:     C.uint16_t(len(p)),
+		p_value: (*C.uint8_t)(unsafe.Pointer(&p[0])),
 	})
 	if errCode != 0 {
 		return 0, Error(errCode)

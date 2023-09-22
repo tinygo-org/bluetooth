@@ -42,7 +42,7 @@ func handleEvent() {
 		gapEvent := eventBuf.evt.unionfield_gap_evt()
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
-			currentConnection.Reg = gapEvent.conn_handle
+			currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
 			DefaultAdapter.connectHandler(Address{}, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
@@ -54,7 +54,7 @@ func handleEvent() {
 				// necessary.
 				defaultAdvertisement.start()
 			}
-			currentConnection.Reg = C.BLE_CONN_HANDLE_INVALID
+			currentConnection.handle.Reg = C.BLE_CONN_HANDLE_INVALID
 			DefaultAdapter.connectHandler(Address{}, false)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
@@ -109,5 +109,5 @@ func (a *Adapter) Address() (MACAddress, error) {
 	if errCode != 0 {
 		return MACAddress{}, Error(errCode)
 	}
-	return MACAddress{MAC: addr.addr}, nil
+	return MACAddress{MAC: makeAddress(addr.addr)}, nil
 }

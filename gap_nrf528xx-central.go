@@ -7,6 +7,7 @@ import (
 	"errors"
 	"runtime/volatile"
 	"time"
+	"unsafe"
 )
 
 /*
@@ -40,12 +41,12 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	scanParams := C.ble_gap_scan_params_t{}
 	scanParams.set_bitfield_extended(0)
 	scanParams.set_bitfield_active(0)
-	scanParams.interval = uint16(NewDuration(40 * time.Millisecond))
-	scanParams.window = uint16(NewDuration(30 * time.Millisecond))
+	scanParams.interval = C.uint16_t(NewDuration(40 * time.Millisecond))
+	scanParams.window = C.uint16_t(NewDuration(30 * time.Millisecond))
 	scanParams.timeout = C.BLE_GAP_SCAN_TIMEOUT_UNLIMITED
 	scanReportBufferInfo := C.ble_data_t{
-		p_data: &scanReportBuffer.data[0],
-		len:    uint16(len(scanReportBuffer.data)),
+		p_data: (*C.uint8_t)(unsafe.Pointer(&scanReportBuffer.data[0])),
+		len:    C.uint16_t(len(scanReportBuffer.data)),
 	}
 	errCode := C.sd_ble_gap_scan_start(&scanParams, &scanReportBufferInfo)
 	if errCode != 0 {
@@ -93,13 +94,13 @@ func (a *Adapter) StopScan() error {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	connectionHandle uint16
+	connectionHandle C.uint16_t
 }
 
 // In-progress connection attempt.
 var connectionAttempt struct {
 	state            volatile.Register8 // 0 means unused, 1 means connecting, 2 means ready (connected or timeout)
-	connectionHandle uint16
+	connectionHandle C.uint16_t
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -111,7 +112,7 @@ var connectionAttempt struct {
 func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
 	// Construct an address object as used in the SoftDevice.
 	var addr C.ble_gap_addr_t
-	addr.addr = address.MAC
+	addr.addr = makeSDAddress(address.MAC)
 	if address.IsRandom() {
 		switch address.MAC[5] >> 6 {
 		case 0b11:
@@ -142,13 +143,13 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 	scanParams := C.ble_gap_scan_params_t{}
 	scanParams.set_bitfield_extended(0)
 	scanParams.set_bitfield_active(0)
-	scanParams.interval = uint16(NewDuration(40 * time.Millisecond))
-	scanParams.window = uint16(NewDuration(30 * time.Millisecond))
-	scanParams.timeout = uint16(params.ConnectionTimeout)
+	scanParams.interval = C.uint16_t(NewDuration(40 * time.Millisecond))
+	scanParams.window = C.uint16_t(NewDuration(30 * time.Millisecond))
+	scanParams.timeout = C.uint16_t(params.ConnectionTimeout)
 
 	connectionParams := C.ble_gap_conn_params_t{
-		min_conn_interval: uint16(params.MinInterval) / 2,
-		max_conn_interval: uint16(params.MaxInterval) / 2,
+		min_conn_interval: C.uint16_t(params.MinInterval) / 2,
+		max_conn_interval: C.uint16_t(params.MaxInterval) / 2,
 		slave_latency:     0,   // mostly relevant to connected keyboards etc
 		conn_sup_timeout:  200, // 2 seconds (in 10ms units), the minimum recommended by Apple
 	}
