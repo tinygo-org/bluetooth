@@ -49,6 +49,16 @@ type Adapter struct {
 	charWriteHandlers []charWriteHandler
 
 	connectHandler func(device Address, connected bool)
+
+	// System attributes in context of SoftDevice primarily mean Client Characteristic Configuration Descriptors (CCCD).
+	// It is mandated by Bluetooth specification that CCCD values for a bonded peer should be stored between connections.
+	//
+	// Our bluetooth stack stores system attributes on disconnect
+	// and provides them back to SoftDevice on BLE_GATTS_EVT_SYS_ATTR_MISSING event.
+	//
+	// Note: CCCD values can be altered only by the peer, so you cannot change them from the application.
+	// Treat this data as a blob of unknown format, i.e. store it as is and provide it back as is, without changing it.
+	systemAttributes []byte
 }
 
 // DefaultAdapter is the default adapter on the current system. On Nordic chips,
@@ -56,6 +66,7 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{isDefault: true,
+	systemAttributes: make([]byte, 64)[:0], // capacity 64, length 0
 	connectHandler: func(device Address, connected bool) {
 		return
 	}}
