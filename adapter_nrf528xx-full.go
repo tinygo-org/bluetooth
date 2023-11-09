@@ -99,8 +99,30 @@ func handleEvent() {
 		case C.BLE_GAP_EVT_PHY_UPDATE_REQUEST:
 			phyUpdateRequest := gapEvent.params.unionfield_phy_update_request()
 			C.sd_ble_gap_phy_update(gapEvent.conn_handle, &phyUpdateRequest.peer_preferred_phys)
+		case C.BLE_GAP_EVT_AUTH_STATUS:
+			// here we get auth response
+			// TODO: save keys to flash for pairing/bonding
 		case C.BLE_GAP_EVT_PHY_UPDATE:
-			// ignore confirmation of phy successfully updated
+		// ignore confirmation of phy successfully updated
+		case C.BLE_GAP_EVT_SEC_PARAMS_REQUEST:
+			if debug {
+				println("evt: security parameters request")
+			}
+			// would assume this depends on the role,
+			// as for central we need to call sd_ble_gap_authenticate after connection esteblished instead
+			errCode := C.sd_ble_gap_sec_params_reply(gapEvent.conn_handle, C.BLE_GAP_SEC_STATUS_SUCCESS, &secParams, &secKeySet)
+			if errCode != 0 {
+				println("security parameters response failed:", Error(errCode).Error())
+				return
+			}
+			if debug {
+				println("successfully established security parameters exchange")
+			}
+
+		case C.BLE_GAP_EVT_LESC_DHKEY_REQUEST:
+			// TODO: for LESC connection implementation
+		// 	peerPk := eventBuf.evt.unionfield_gatts_evt()
+		// 	sd_ble_gap_lesc_dhkey_reply(gapEvent.conn_handle, ble_gap_lesc_dhkey_t const *p_dhkey))
 		default:
 			if debug {
 				println("unknown GAP event:", id)
