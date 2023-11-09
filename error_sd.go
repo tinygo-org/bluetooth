@@ -4,6 +4,7 @@ package bluetooth
 
 // #include "nrf_error.h"
 // #include "nrf_error_sdm.h"
+// #include "ble_err.h"
 import "C"
 
 // Error is an error from within the SoftDevice.
@@ -74,7 +75,22 @@ func (e Error) Error() string {
 		return "other SoC error"
 	case e >= C.NRF_ERROR_STK_BASE_NUM && e < 0x4000:
 		// STK errors.
-		return "other STK error"
+		switch e {
+		case C.BLE_ERROR_NOT_ENABLED:
+			return "sd_ble_enable has not been called"
+		case C.BLE_ERROR_INVALID_CONN_HANDLE:
+			return "invalid connection handle"
+		case C.BLE_ERROR_INVALID_ATTR_HANDLE:
+			return "invalid attribute handle"
+		case C.BLE_ERROR_INVALID_ADV_HANDLE:
+			return "invalid advertising handle"
+		case C.BLE_ERROR_INVALID_ROLE:
+			return "invalid role"
+		case C.BLE_ERROR_BLOCKED_BY_OTHER_LINKS:
+			return "the attempt to change link settings failed due to the scheduling of other links"
+		default:
+			return "other STK error"
+		}
 	default:
 		// Other errors.
 		return "other error"
