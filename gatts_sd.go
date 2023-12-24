@@ -12,7 +12,12 @@ static inline uint32_t sd_ble_gatts_hvx_noescape(uint16_t conn_handle, uint16_t 
 	return sd_ble_gatts_hvx(conn_handle, &p_hvx_params);
 }
 
-static inline uint32_t sd_ble_gatts_value_set_noescape(uint16_t conn_handle, uint16_t handle, ble_gatts_value_t p_value) {
+static inline uint32_t sd_ble_gatts_value_set_noescape(uint16_t conn_handle, uint16_t handle, uint16_t len, uint8_t *value) {
+	ble_gatts_value_t p_value = {
+		.len     = len,
+		.offset  = 0,
+		.p_value = value,
+	};
 	return sd_ble_gatts_value_set(conn_handle, handle, &p_value);
 }
 */
@@ -145,10 +150,7 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 		}
 	}
 
-	errCode := C.sd_ble_gatts_value_set_noescape(C.BLE_CONN_HANDLE_INVALID, c.handle, C.ble_gatts_value_t{
-		len:     C.uint16_t(len(p)),
-		p_value: (*C.uint8_t)(unsafe.Pointer(&p[0])),
-	})
+	errCode := C.sd_ble_gatts_value_set_noescape(C.BLE_CONN_HANDLE_INVALID, c.handle, C.uint16_t(len(p)), unsafe.SliceData(p))
 	if errCode != 0 {
 		return 0, Error(errCode)
 	}
