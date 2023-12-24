@@ -123,7 +123,7 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 	}
 
 	connHandle := currentConnection.Get()
-	if connHandle != C.BLE_CONN_HANDLE_INVALID {
+	if connHandle != C.BLE_CONN_HANDLE_INVALID && c.permissions&(CharacteristicNotifyPermission|CharacteristicIndicatePermission) != 0 {
 		// There is a connected central.
 		p_len := uint16(len(p))
 		errCode := C.sd_ble_gatts_hvx_noescape(connHandle,
