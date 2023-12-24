@@ -62,6 +62,14 @@ func handleEvent() {
 				C.sd_ble_gap_adv_start(defaultAdvertisement.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 			}
 			DefaultAdapter.connectHandler(Address{}, false)
+		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE:
+			if debug {
+				// Print connection parameters for easy debugging.
+				params := gapEvent.params.unionfield_conn_param_update().conn_params
+				interval_ms := params.min_conn_interval * 125 / 100 // min and max are the same here
+				print("conn param update interval=", interval_ms, "ms latency=", params.slave_latency, " timeout=", params.conn_sup_timeout*10, "ms")
+				println()
+			}
 		case C.BLE_GAP_EVT_ADV_REPORT:
 			advReport := gapEvent.params.unionfield_adv_report()
 			if debug && &scanReportBuffer.data[0] != (*byte)(unsafe.Pointer(advReport.data.p_data)) {
