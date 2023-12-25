@@ -23,7 +23,7 @@ type Adapter struct {
 	address              string
 	defaultAdvertisement *Advertisement
 
-	connectHandler func(device Address, connected bool)
+	connectHandler func(device Device, connected bool)
 }
 
 // DefaultAdapter is the default adapter on the system. On Linux, it is the
@@ -32,7 +32,7 @@ type Adapter struct {
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
 	id: defaultAdapter,
-	connectHandler: func(device Address, connected bool) {
+	connectHandler: func(device Device, connected bool) {
 	},
 }
 

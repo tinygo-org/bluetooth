@@ -12,14 +12,14 @@ import (
 type Adapter struct {
 	watcher *advertisement.BluetoothLEAdvertisementWatcher
 
-	connectHandler func(device Address, connected bool)
+	connectHandler func(device Device, connected bool)
 }
 
 // DefaultAdapter is the default adapter on the system.
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
-	connectHandler: func(device Address, connected bool) {
+	connectHandler: func(device Device, connected bool) {
 		return
 	},
 }

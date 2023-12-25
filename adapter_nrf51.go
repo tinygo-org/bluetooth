@@ -44,8 +44,11 @@ func handleEvent() {
 		case C.BLE_GAP_EVT_CONNECTED:
 			currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
 			connectEvent := gapEvent.params.unionfield_connected()
-			address := Address{makeMACAddress(connectEvent.peer_addr)}
-			DefaultAdapter.connectHandler(address, true)
+			device := Device{
+				Address:          Address{makeMACAddress(connectEvent.peer_addr)},
+				connectionHandle: gapEvent.conn_handle,
+			}
+			DefaultAdapter.connectHandler(device, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
@@ -57,7 +60,10 @@ func handleEvent() {
 				defaultAdvertisement.start()
 			}
 			currentConnection.handle.Reg = C.BLE_CONN_HANDLE_INVALID
-			DefaultAdapter.connectHandler(Address{}, false)
+			device := Device{
+				connectionHandle: gapEvent.conn_handle,
+			}
+			DefaultAdapter.connectHandler(device, false)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
 			// nil:

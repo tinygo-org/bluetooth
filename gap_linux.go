@@ -292,9 +292,10 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
+	Address Address // the MAC address of the device
+
 	device  dbus.BusObject // bluez device interface
 	adapter *Adapter       // the adapter that was used to form this device connection
-	address Address        // the address of the device
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -303,9 +304,9 @@ type Device struct {
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
 	device := Device{
+		Address: address,
 		device:  a.bus.Object("org.bluez", devicePath),
 		adapter: a,
-		address: address,
 	}
 
 	// Already start watching for property changes. We do this before reading

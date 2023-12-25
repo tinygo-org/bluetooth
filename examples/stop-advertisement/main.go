@@ -21,7 +21,7 @@ func main() {
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName: "Go Bluetooth",
 	}))
-	adapter.SetConnectHandler(func(device bluetooth.Address, connected bool) {
+	adapter.SetConnectHandler(func(device bluetooth.Device, connected bool) {
 		if connected {
 			println("connected, not advertising...")
 			advState = false
