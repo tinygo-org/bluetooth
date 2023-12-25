@@ -52,7 +52,7 @@ func main() {
 		}
 	})
 
-	var device *bluetooth.Device
+	var device bluetooth.Device
 	select {
 	case result := <-ch:
 		device, err = adapter.Connect(result.Address, bluetooth.ConnectionParams{})

@@ -14,7 +14,7 @@ import (
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	d.prph.DiscoverServices([]cbgo.UUID{})
 
 	// clear cache of services
@@ -69,7 +69,7 @@ type DeviceService struct {
 type deviceService struct {
 	uuidWrapper
 
-	device *Device
+	device Device
 
 	service         cbgo.Service
 	characteristics []DeviceCharacteristic

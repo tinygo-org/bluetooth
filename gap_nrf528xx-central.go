@@ -109,7 +109,7 @@ var connectionAttempt struct {
 // connection attempt at once and that the address parameter must have the
 // IsRandom bit set correctly. This bit is set correctly for scan results, so
 // you can reuse that address directly.
-func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	// Construct an address object as used in the SoftDevice.
 	var addr C.ble_gap_addr_t
 	addr.addr = makeSDAddress(address.MAC)
@@ -158,7 +158,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 	// This should be safe as long as Connect is not called concurrently. And
 	// even then, it should catch most such race conditions.
 	if connectionAttempt.state.Get() != 0 {
-		return nil, errAlreadyConnecting
+		return Device{}, errAlreadyConnecting
 	}
 	connectionAttempt.state.Set(1)
 
@@ -166,7 +166,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 	errCode := C.sd_ble_gap_connect(&addr, &scanParams, &connectionParams, C.BLE_CONN_CFG_TAG_DEFAULT)
 	if errCode != 0 {
 		connectionAttempt.state.Set(0)
-		return nil, Error(errCode)
+		return Device{}, Error(errCode)
 	}
 
 	// Wait until the connection is established.
@@ -179,13 +179,13 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 	connectionAttempt.state.Set(0)
 
 	// Connection has been established.
-	return &Device{
+	return Device{
 		connectionHandle: connectionHandle,
 	}, nil
 }
 
 // Disconnect from the BLE device.
-func (d *Device) Disconnect() error {
+func (d Device) Disconnect() error {
 	errCode := C.sd_ble_gap_disconnect(d.connectionHandle, C.BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION)
 	if errCode != 0 {
 		return Error(errCode)

@@ -21,7 +21,7 @@ type Adapter struct {
 
 	connectHandler func(device Address, connected bool)
 
-	connectedDevices     []*Device
+	connectedDevices     []Device
 	notificationsStarted bool
 }
 
@@ -33,7 +33,7 @@ var DefaultAdapter = &Adapter{
 	connectHandler: func(device Address, connected bool) {
 		return
 	},
-	connectedDevices: make([]*Device, 0, maxConnections),
+	connectedDevices: make([]Device, 0, maxConnections),
 }
 
 // Enable configures the BLE stack. It must be called before any
@@ -185,7 +185,7 @@ func (a *Adapter) startNotifications() {
 				}
 
 				d := a.findDevice(not.connectionHandle)
-				if d == nil {
+				if d.deviceInternal == nil {
 					if _debug {
 						println("no device found for handle", not.connectionHandle)
 					}
@@ -212,7 +212,7 @@ func (a *Adapter) startNotifications() {
 	}()
 }
 
-func (a *Adapter) findDevice(handle uint16) *Device {
+func (a *Adapter) findDevice(handle uint16) Device {
 	for _, d := range a.connectedDevices {
 		if d.handle == handle {
 			if _debug {
@@ -223,5 +223,5 @@ func (a *Adapter) findDevice(handle uint16) *Device {
 		}
 	}
 
-	return nil
+	return Device{}
 }
