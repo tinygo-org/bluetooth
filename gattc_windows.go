@@ -366,7 +366,7 @@ func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
 // changes.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	if (c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify == 0) &&
-	   (c.properties&genericattributeprofile.GattCharacteristicPropertiesIndicate == 0) {
+		(c.properties&genericattributeprofile.GattCharacteristicPropertiesIndicate == 0) {
 		return errNoNotify
 	}
 
