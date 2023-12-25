@@ -391,7 +391,8 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 	}
 }
 
-// ConnectionParams are used when connecting to a peripherals.
+// ConnectionParams are used when connecting to a peripherals or when changing
+// the parameters of an active connection.
 type ConnectionParams struct {
 	// The timeout for the connection attempt. Not used during the rest of the
 	// connection. If no duration is specified, a default timeout will be used.
@@ -403,4 +404,9 @@ type ConnectionParams struct {
 	// will be used.
 	MinInterval Duration
 	MaxInterval Duration
+
+	// Connection Supervision Timeout. After this time has passed with no
+	// communication, the connection is considered lost. If no timeout is
+	// specified, the timeout will be unchanged.
+	Timeout Duration
 }

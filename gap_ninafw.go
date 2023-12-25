@@ -230,6 +230,16 @@ func (d Device) Disconnect() error {
 	return nil
 }
 
+// RequestConnectionParams requests a different connection latency and timeout
+// of the given device connection. Fields that are unset will be left alone.
+// Whether or not the device will actually honor this, depends on the device and
+// on the specific parameters.
+//
+// On NINA, this call hasn't been implemented yet.
+func (d Device) RequestConnectionParams(params ConnectionParams) error {
+	return nil
+}
+
 func (d Device) findNotificationRegistration(handle uint16) *notificationRegistration {
 	for _, n := range d.notificationRegistrations {
 		if n.handle == handle {

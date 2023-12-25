@@ -11,6 +11,8 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/circuitplay
 	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=circuitplay-bluefruit ./examples/connparams
+	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/discover
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/heartrate
@@ -40,6 +42,7 @@ smoketest-tinygo:
 smoketest-linux:
 	# Test on Linux.
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/advertisement
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/connparams
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate-monitor
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/nusserver
