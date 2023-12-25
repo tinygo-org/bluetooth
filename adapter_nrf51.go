@@ -43,7 +43,9 @@ func handleEvent() {
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
 			currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
-			DefaultAdapter.connectHandler(Address{}, true)
+			connectEvent := gapEvent.params.unionfield_connected()
+			address := Address{makeMACAddress(connectEvent.peer_addr)}
+			DefaultAdapter.connectHandler(address, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
@@ -110,4 +112,12 @@ func (a *Adapter) Address() (MACAddress, error) {
 		return MACAddress{}, Error(errCode)
 	}
 	return MACAddress{MAC: makeAddress(addr.addr)}, nil
+}
+
+// Convert a C.ble_gap_addr_t to a MACAddress struct.
+func makeMACAddress(addr C.ble_gap_addr_t) MACAddress {
+	return MACAddress{
+		MAC:      makeAddress(addr.addr),
+		isRandom: addr.addr_type != 0,
+	}
 }

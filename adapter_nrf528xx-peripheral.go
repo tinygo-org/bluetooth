@@ -28,7 +28,8 @@ func handleEvent() {
 				println("evt: connected in peripheral role")
 			}
 			currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
-			DefaultAdapter.connectHandler(Address{}, true)
+			connectEvent := gapEvent.params.unionfield_connected()
+			DefaultAdapter.connectHandler(Address{makeMACAddress(connectEvent.peer_addr)}, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
 				println("evt: disconnected")

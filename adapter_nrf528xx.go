@@ -59,3 +59,11 @@ func (a *Adapter) Address() (MACAddress, error) {
 	}
 	return MACAddress{MAC: makeAddress(addr.addr)}, nil
 }
+
+// Convert a C.ble_gap_addr_t to a MACAddress struct.
+func makeMACAddress(addr C.ble_gap_addr_t) MACAddress {
+	return MACAddress{
+		MAC:      makeAddress(addr.addr),
+		isRandom: addr.bitfield_addr_type() != 0,
+	}
+}
