@@ -176,6 +176,18 @@ func (d Device) Disconnect() error {
 	return nil
 }
 
+// RequestConnectionParams requests a different connection latency and timeout
+// of the given device connection. Fields that are unset will be left alone.
+// Whether or not the device will actually honor this, depends on the device and
+// on the specific parameters.
+//
+// This call has not yet been implemented on macOS.
+func (d Device) RequestConnectionParams(params ConnectionParams) error {
+	// TODO: implement this using setDesiredConnectionLatency, see:
+	// https://developer.apple.com/documentation/corebluetooth/cbperipheralmanager/1393277-setdesiredconnectionlatency
+	return nil
+}
+
 // Peripheral delegate functions
 
 type peripheralDelegate struct {

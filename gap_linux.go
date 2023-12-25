@@ -366,3 +366,14 @@ func (d Device) Disconnect() error {
 	// property change in `watchForConnect` and cancel things then
 	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err
 }
+
+// RequestConnectionParams requests a different connection latency and timeout
+// of the given device connection. Fields that are unset will be left alone.
+// Whether or not the device will actually honor this, depends on the device and
+// on the specific parameters.
+//
+// On Linux, this call doesn't do anything because BlueZ doesn't support
+// changing the connection latency.
+func (d Device) RequestConnectionParams(params ConnectionParams) error {
+	return nil
+}

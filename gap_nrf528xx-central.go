@@ -188,3 +188,34 @@ func (d Device) Disconnect() error {
 
 	return nil
 }
+
+// RequestConnectionParams requests a different connection latency and timeout
+// of the given device connection. Fields that are unset will be left alone.
+// Whether or not the device will actually honor this, depends on the device and
+// on the specific parameters.
+//
+// On the Nordic SoftDevice, this call will also set the slave latency to 0.
+func (d Device) RequestConnectionParams(params ConnectionParams) error {
+	// The default parameters if no specific parameters are picked.
+	connParams := C.ble_gap_conn_params_t{
+		min_conn_interval: C.BLE_GAP_CP_MIN_CONN_INTVL_NONE,
+		max_conn_interval: C.BLE_GAP_CP_MAX_CONN_INTVL_NONE,
+		slave_latency:     0,
+		conn_sup_timeout:  C.BLE_GAP_CP_CONN_SUP_TIMEOUT_NONE,
+	}
+
+	// Use specified parameters if available.
+	if params.MinInterval != 0 {
+		connParams.min_conn_interval = C.uint16_t(params.MinInterval) / 2
+	}
+	if params.MaxInterval != 0 {
+		connParams.max_conn_interval = C.uint16_t(params.MaxInterval) / 2
+	}
+	if params.Timeout != 0 {
+		connParams.conn_sup_timeout = C.uint16_t(params.Timeout) / 16
+	}
+
+	// Send them to peer device.
+	errCode := C.sd_ble_gap_conn_param_update(d.connectionHandle, &connParams)
+	return makeError(errCode)
+}
