@@ -25,20 +25,21 @@ func handleEvent() {
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
 			connectEvent := gapEvent.params.unionfield_connected()
+			address := Address{makeMACAddress(connectEvent.peer_addr)}
 			switch connectEvent.role {
 			case C.BLE_GAP_ROLE_PERIPH:
 				if debug {
 					println("evt: connected in peripheral role")
 				}
 				currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
-				DefaultAdapter.connectHandler(Address{}, true)
+				DefaultAdapter.connectHandler(address, true)
 			case C.BLE_GAP_ROLE_CENTRAL:
 				if debug {
 					println("evt: connected in central role")
 				}
 				connectionAttempt.connectionHandle = gapEvent.conn_handle
 				connectionAttempt.state.Set(2) // connection was successful
-				DefaultAdapter.connectHandler(Address{}, true)
+				DefaultAdapter.connectHandler(address, true)
 			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
@@ -81,8 +82,7 @@ func handleEvent() {
 			scanReportBuffer.len = byte(advReport.data.len)
 			globalScanResult.RSSI = int16(advReport.rssi)
 			globalScanResult.Address = Address{
-				MACAddress{MAC: makeAddress(advReport.peer_addr.addr),
-					isRandom: advReport.peer_addr.bitfield_addr_type() != 0},
+				makeMACAddress(advReport.peer_addr),
 			}
 			globalScanResult.AdvertisementPayload = &scanReportBuffer
 			// Signal to the main thread that there was a scan report.
