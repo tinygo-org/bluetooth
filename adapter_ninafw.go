@@ -19,7 +19,7 @@ type Adapter struct {
 	isDefault bool
 	scanning  bool
 
-	connectHandler func(device Address, connected bool)
+	connectHandler func(device Device, connected bool)
 
 	connectedDevices     []Device
 	notificationsStarted bool
@@ -30,7 +30,7 @@ type Adapter struct {
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
 	isDefault: true,
-	connectHandler: func(device Address, connected bool) {
+	connectHandler: func(device Device, connected bool) {
 		return
 	},
 	connectedDevices: make([]Device, 0, maxConnections),

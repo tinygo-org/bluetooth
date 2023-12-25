@@ -48,7 +48,7 @@ type Adapter struct {
 	scanning          bool
 	charWriteHandlers []charWriteHandler
 
-	connectHandler func(device Address, connected bool)
+	connectHandler func(device Device, connected bool)
 }
 
 // DefaultAdapter is the default adapter on the current system. On Nordic chips,
@@ -56,7 +56,7 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{isDefault: true,
-	connectHandler: func(device Address, connected bool) {
+	connectHandler: func(device Device, connected bool) {
 		return
 	}}
 

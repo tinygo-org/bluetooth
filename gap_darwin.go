@@ -85,6 +85,8 @@ func (a *Adapter) StopScan() error {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
+	Address Address
+
 	*deviceInternal
 }
 
@@ -137,7 +139,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			}
 
 			d := Device{
-				&deviceInternal{
+				Address: address,
+				deviceInternal: &deviceInternal{
 					cm:           a.cm,
 					prph:         p,
 					servicesChan: make(chan error),
@@ -148,7 +151,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			d.delegate = &peripheralDelegate{d: d}
 			p.SetDelegate(d.delegate)
 
-			a.connectHandler(address, true)
+			a.connectHandler(d, true)
 
 			return d, nil
 

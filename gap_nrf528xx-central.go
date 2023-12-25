@@ -92,11 +92,6 @@ func (a *Adapter) StopScan() error {
 	return nil
 }
 
-// Device is a connection to a remote peripheral.
-type Device struct {
-	connectionHandle C.uint16_t
-}
-
 // In-progress connection attempt.
 var connectionAttempt struct {
 	state            volatile.Register8 // 0 means unused, 1 means connecting, 2 means ready (connected or timeout)

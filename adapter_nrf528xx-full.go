@@ -25,21 +25,24 @@ func handleEvent() {
 		switch id {
 		case C.BLE_GAP_EVT_CONNECTED:
 			connectEvent := gapEvent.params.unionfield_connected()
-			address := Address{makeMACAddress(connectEvent.peer_addr)}
+			device := Device{
+				Address:          Address{makeMACAddress(connectEvent.peer_addr)},
+				connectionHandle: gapEvent.conn_handle,
+			}
 			switch connectEvent.role {
 			case C.BLE_GAP_ROLE_PERIPH:
 				if debug {
 					println("evt: connected in peripheral role")
 				}
 				currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
-				DefaultAdapter.connectHandler(address, true)
+				DefaultAdapter.connectHandler(device, true)
 			case C.BLE_GAP_ROLE_CENTRAL:
 				if debug {
 					println("evt: connected in central role")
 				}
 				connectionAttempt.connectionHandle = gapEvent.conn_handle
 				connectionAttempt.state.Set(2) // connection was successful
-				DefaultAdapter.connectHandler(address, true)
+				DefaultAdapter.connectHandler(device, true)
 			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
@@ -62,7 +65,10 @@ func handleEvent() {
 				// necessary.
 				C.sd_ble_gap_adv_start(defaultAdvertisement.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
 			}
-			DefaultAdapter.connectHandler(Address{}, false)
+			device := Device{
+				connectionHandle: gapEvent.conn_handle,
+			}
+			DefaultAdapter.connectHandler(device, false)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE:
 			if debug {
 				// Print connection parameters for easy debugging.
