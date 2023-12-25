@@ -300,9 +300,9 @@ type Device struct {
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // On Linux and Windows, the IsRandom part of the address is ignored.
-func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
-	device := &Device{
+	device := Device{
 		device:  a.bus.Object("org.bluez", devicePath),
 		adapter: a,
 		address: address,
@@ -321,7 +321,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 	// Read whether this device is already connected.
 	connected, err := device.device.GetProperty("org.bluez.Device1.Connected")
 	if err != nil {
-		return nil, err
+		return Device{}, err
 	}
 
 	// Connect to the device, if not already connected.
@@ -329,7 +329,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 		// Start connecting (async).
 		err := device.device.Call("org.bluez.Device1.Connect", 0).Err
 		if err != nil {
-			return nil, fmt.Errorf("bluetooth: failed to connect: %w", err)
+			return Device{}, fmt.Errorf("bluetooth: failed to connect: %w", err)
 		}
 
 		// Wait until the device has connected.
@@ -360,7 +360,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 
 // Disconnect from the BLE device. This method is non-blocking and does not
 // wait until the connection is fully gone.
-func (d *Device) Disconnect() error {
+func (d Device) Disconnect() error {
 	// we don't call our cancel function here, instead we wait for the
 	// property change in `watchForConnect` and cancel things then
 	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err

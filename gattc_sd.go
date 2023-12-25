@@ -59,7 +59,7 @@ func (s DeviceService) UUID() UUID {
 //
 // On the Nordic SoftDevice, only one service discovery procedure may be done at
 // a time.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if discoveringService.state.Get() != 0 {
 		// Not concurrency safe, but should catch most concurrency misuses.
 		return nil, errAlreadyDiscovering

@@ -133,7 +133,7 @@ type Address struct {
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
-func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	if _debug {
 		println("Connect")
 	}
@@ -145,14 +145,14 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 	if err := a.hci.leCreateConn(0x0060, 0x0030, 0x00,
 		random, makeNINAAddress(address.MAC),
 		0x00, 0x0006, 0x000c, 0x0000, 0x00c8, 0x0004, 0x0006); err != nil {
-		return nil, err
+		return Device{}, err
 	}
 
 	// are we connected?
 	start := time.Now().UnixNano()
 	for {
 		if err := a.hci.poll(); err != nil {
-			return nil, err
+			return Device{}, err
 		}
 
 		if a.hci.connectData.connected {
@@ -163,15 +163,18 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 				random = true
 			}
 
-			d := &Device{adapter: a,
-				handle: a.hci.connectData.handle,
+			d := Device{
 				Address: Address{
 					MACAddress{
 						MAC:      makeAddress(a.hci.connectData.peerBdaddr),
 						isRandom: random},
 				},
-				mtu:                       defaultMTU,
-				notificationRegistrations: make([]notificationRegistration, 0),
+				deviceInternal: &deviceInternal{
+					adapter:                   a,
+					handle:                    a.hci.connectData.handle,
+					mtu:                       defaultMTU,
+					notificationRegistrations: make([]notificationRegistration, 0),
+				},
 			}
 			a.connectedDevices = append(a.connectedDevices, d)
 
@@ -189,10 +192,10 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 
 	// cancel connection attempt that failed
 	if err := a.hci.leCancelConn(); err != nil {
-		return nil, err
+		return Device{}, err
 	}
 
-	return nil, ErrConnect
+	return Device{}, ErrConnect
 }
 
 type notificationRegistration struct {
@@ -202,8 +205,12 @@ type notificationRegistration struct {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	adapter *Adapter
 	Address Address
+	*deviceInternal
+}
+
+type deviceInternal struct {
+	adapter *Adapter
 	handle  uint16
 	mtu     uint16
 
@@ -211,7 +218,7 @@ type Device struct {
 }
 
 // Disconnect from the BLE device.
-func (d *Device) Disconnect() error {
+func (d Device) Disconnect() error {
 	if _debug {
 		println("Disconnect")
 	}
@@ -219,11 +226,11 @@ func (d *Device) Disconnect() error {
 		return err
 	}
 
-	d.adapter.connectedDevices = []*Device{}
+	d.adapter.connectedDevices = []Device{}
 	return nil
 }
 
-func (d *Device) findNotificationRegistration(handle uint16) *notificationRegistration {
+func (d Device) findNotificationRegistration(handle uint16) *notificationRegistration {
 	for _, n := range d.notificationRegistrations {
 		if n.handle == handle {
 			return &n
@@ -233,7 +240,7 @@ func (d *Device) findNotificationRegistration(handle uint16) *notificationRegist
 	return nil
 }
 
-func (d *Device) addNotificationRegistration(handle uint16, callback func([]byte)) {
+func (d Device) addNotificationRegistration(handle uint16, callback func([]byte)) {
 	d.notificationRegistrations = append(d.notificationRegistrations,
 		notificationRegistration{
 			handle:   handle,
@@ -241,6 +248,6 @@ func (d *Device) addNotificationRegistration(handle uint16, callback func([]byte
 		})
 }
 
-func (d *Device) startNotifications() {
+func (d Device) startNotifications() {
 	d.adapter.startNotifications()
 }

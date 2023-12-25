@@ -30,7 +30,7 @@ var (
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
-func (d *Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
+func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 	// IAsyncOperation<GattDeviceServicesResult>
 	getServicesOperation, err := d.device.GetGattServicesWithCacheModeAsync(bluetooth.BluetoothCacheModeUncached)
 	if err != nil {
@@ -133,7 +133,7 @@ type DeviceService struct {
 	uuidWrapper
 
 	service *genericattributeprofile.GattDeviceService
-	device  *Device
+	device  Device
 }
 
 // UUID returns the UUID for this DeviceService.

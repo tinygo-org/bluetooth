@@ -85,6 +85,10 @@ func (a *Adapter) StopScan() error {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
+	*deviceInternal
+}
+
+type deviceInternal struct {
 	delegate *peripheralDelegate
 
 	cm   cbgo.CentralManager
@@ -97,14 +101,14 @@ type Device struct {
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
-func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
+func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	uuid, err := cbgo.ParseUUID(address.UUID.String())
 	if err != nil {
-		return nil, err
+		return Device{}, err
 	}
 	prphs := a.cm.RetrievePeripheralsWithIdentifiers([]cbgo.UUID{uuid})
 	if len(prphs) == 0 {
-		return nil, fmt.Errorf("Connect failed: no peer with address: %s", address.UUID.String())
+		return Device{}, fmt.Errorf("Connect failed: no peer with address: %s", address.UUID.String())
 	}
 
 	timeout := defaultConnectionTimeout
@@ -129,14 +133,16 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 
 			// check if we have received a disconnected peripheral
 			if p.State() == cbgo.PeripheralStateDisconnected {
-				return nil, connectionError
+				return Device{}, connectionError
 			}
 
-			d := &Device{
-				cm:           a.cm,
-				prph:         p,
-				servicesChan: make(chan error),
-				charsChan:    make(chan error),
+			d := Device{
+				&deviceInternal{
+					cm:           a.cm,
+					prph:         p,
+					servicesChan: make(chan error),
+					charsChan:    make(chan error),
+				},
 			}
 
 			d.delegate = &peripheralDelegate{d: d}
@@ -162,7 +168,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 
 // Disconnect from the BLE device. This method is non-blocking and does not
 // wait until the connection is fully gone.
-func (d *Device) Disconnect() error {
+func (d Device) Disconnect() error {
 	d.cm.CancelConnect(d.prph)
 	return nil
 }
@@ -172,7 +178,7 @@ func (d *Device) Disconnect() error {
 type peripheralDelegate struct {
 	cbgo.PeripheralDelegateBase
 
-	d *Device
+	d Device
 }
 
 // DidDiscoverServices is called when the services for a Peripheral

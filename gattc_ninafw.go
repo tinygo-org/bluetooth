@@ -35,7 +35,7 @@ const (
 type DeviceService struct {
 	uuid UUID
 
-	device                 *Device
+	device                 Device
 	startHandle, endHandle uint16
 }
 
@@ -51,7 +51,7 @@ func (s DeviceService) UUID() UUID {
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if _debug {
 		println("DiscoverServices")
 	}
