@@ -43,9 +43,9 @@ func Putchar(ch byte) {
 // Getchar/Putchar). It must be restored after use with Restore. You can do this
 // with the following code:
 //
-//     rawterm.Configure()
-//     defer rawterm.Restore()
-//     // use raw terminal features
+//	rawterm.Configure()
+//	defer rawterm.Restore()
+//	// use raw terminal features
 func Configure() {
 	terminalState, _ = terminal.MakeRaw(0)
 }
