@@ -168,6 +168,7 @@ type deviceCharacteristic struct {
 	characteristic cbgo.Characteristic
 	callback       func(buf []byte)
 	readChan       chan error
+	writeChan      chan error
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -178,7 +179,20 @@ func (c *DeviceCharacteristic) UUID() UUID {
 // Write replaces the characteristic value with a new value. The
 // call will return after all data has been written.
 func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
+	c.writeChan = make(chan error)
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, true)
+
+	// wait for result
+	select {
+	case <-time.NewTimer(10 * time.Second).C:
+		err = errors.New("timeout on Write()")
+	case err = <-c.writeChan:
+	}
+
+	c.writeChan = nil
+	if err != nil {
+		return 0, err
+	}
 
 	return len(p), nil
 }
