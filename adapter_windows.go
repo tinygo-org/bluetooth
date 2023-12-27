@@ -40,11 +40,14 @@ func awaitAsyncOperation(asyncOperation *foundation.IAsyncOperation, genericPara
 
 	// Wait until the async operation completes.
 	waitChan := make(chan struct{})
-	asyncOperation.SetCompleted(foundation.NewAsyncOperationCompletedHandler(ole.NewGUID(iid), func(instance *foundation.AsyncOperationCompletedHandler, asyncInfo *foundation.IAsyncOperation, asyncStatus foundation.AsyncStatus) {
-		instance.Release()
+	handler := foundation.NewAsyncOperationCompletedHandler(ole.NewGUID(iid), func(instance *foundation.AsyncOperationCompletedHandler, asyncInfo *foundation.IAsyncOperation, asyncStatus foundation.AsyncStatus) {
 		status = asyncStatus
 		close(waitChan)
-	}))
+	})
+	defer handler.Release()
+
+	asyncOperation.SetCompleted(handler)
+
 	// Wait until async operation has stopped, and finish.
 	<-waitChan
 
