@@ -92,17 +92,17 @@ func must(action string, err error) {
 
 ## Current support
 
-|                                  | Linux              | macOS              | Windows            | Nordic Semi        |
-| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ |
-| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         |
-| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
-| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
-| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
-| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: |
+|                                  | Linux              | macOS              | Windows            | Nordic Semi        | ESP32 (NINA-FW)        |
+| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ |
+| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         | HCI         	|
+| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
+| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
+| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
+| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
+| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
 
 ## Linux
 
@@ -263,6 +263,16 @@ After that, don't reset the board but instead flash a new program to it. For exa
     tinygo flash -target=pca10040-s132v6 ./examples/heartrate
 
 Flashing will normally reset the board.
+
+## ESP32 (NINA)
+
+Go Bluetooth has bare metal support for boards that include a separate ESP32 Bluetooth Low Energy radio co-processor. The ESP32 must be running the Arduino or Adafruit `nina_fw` firmware.
+
+See https://github.com/arduino/nina-fw for more information.
+
+The only currently supported board is the Arduino Nano RP2040 Connect.
+
+More info soon...
 
 ## API stability
 
