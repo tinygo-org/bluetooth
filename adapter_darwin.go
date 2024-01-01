@@ -24,7 +24,8 @@ type Adapter struct {
 	// used to allow multiple callers to call Connect concurrently.
 	connectMap sync.Map
 
-	connectHandler func(device Address, connected bool)
+	connectHandler     func(device Address, connected bool)
+	stateChangeHandler func(newState AdapterState)
 }
 
 // DefaultAdapter is the default adapter on the system.
@@ -36,6 +37,9 @@ var DefaultAdapter = &Adapter{
 	connectMap: sync.Map{},
 
 	connectHandler: func(device Address, connected bool) {
+		return
+	},
+	stateChangeHandler: func(newState AdapterState) {
 		return
 	},
 }
@@ -65,12 +69,32 @@ func (a *Adapter) Enable() error {
 	for len(a.poweredChan) > 0 {
 		<-a.poweredChan
 	}
+	// we are done with this chan so lets remove it, this lets Enable() be reentrant if needed
+	a.poweredChan = nil
 
 	// wait until powered?
 	a.pmd = &peripheralManagerDelegate{a: a}
 	a.pm.SetDelegate(a.pmd)
 
 	return nil
+}
+
+// SetStateChangeHandler sets a handler function to be called whenever the adaptor's
+// state changes.
+func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
+	a.stateChangeHandler = c
+}
+
+// State returns the current state of the adapter.
+func (a *Adapter) State() AdapterState {
+	switch a.cm.State() {
+	case cbgo.ManagerStatePoweredOn:
+		return AdapterStatePoweredOn
+	case cbgo.ManagerStatePoweredOff:
+		return AdapterStatePoweredOff
+	default:
+		return AdapterStateUnknown
+	}
 }
 
 // CentralManager delegate functions
@@ -83,9 +107,20 @@ type centralManagerDelegate struct {
 
 // CentralManagerDidUpdateState when central manager state updated.
 func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
-	// powered on?
-	if cmgr.State() == cbgo.ManagerStatePoweredOn {
-		cmd.a.poweredChan <- nil
+
+	switch cmgr.State() {
+	case cbgo.ManagerStatePoweredOn:
+		// if we are waiting for a PoweredOn signal then send it
+		if cmd.a.poweredChan != nil {
+			cmd.a.poweredChan <- nil
+		}
+		cmd.a.stateChangeHandler(AdapterStatePoweredOn)
+
+	case cbgo.ManagerStatePoweredOff:
+		cmd.a.stateChangeHandler(AdapterStatePoweredOff)
+
+	default:
+		cmd.a.stateChangeHandler(AdapterStateUnknown)
 	}
 
 	// TODO: handle other state changes.
