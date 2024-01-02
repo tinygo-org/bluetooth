@@ -162,3 +162,13 @@ func (uuid UUID) String() string {
 
 	return s.String()
 }
+
+// IsIn checks the passed in slice of UUIDs to see if this uuid is in it.
+func (uuid UUID) IsIn(uuids []UUID) bool {
+	for _, u := range uuids {
+		if u == uuid {
+			return true
+		}
+	}
+	return false
+}
