@@ -6,11 +6,15 @@ import (
 	"time"
 )
 
-// replace this with the MAC address of the Bluetooth peripheral you want to connect to.
-const deviceAddress = "E4:B7:F4:11:8D:33"
+// DeviceAddress is the MAC address of the Bluetooth peripheral you want to connect to.
+// Replace this by using -ldflags="-X main.DeviceAddress=[MAC ADDRESS]"
+// where [MAC ADDRESS] is the actual MAC address of the peripheral.
+// For example:
+// tinygo flash -target circuitplay-bluefruit -ldflags="-X main.DeviceAddress=7B:36:98:8C:41:1C" ./examples/discover/
+var DeviceAddress string
 
 func connectAddress() string {
-	return deviceAddress
+	return DeviceAddress
 }
 
 // wait on baremetal, proceed immediately on desktop OS.
