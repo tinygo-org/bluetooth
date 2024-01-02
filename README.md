@@ -106,7 +106,7 @@ func must(action string, err error) {
 
 ## Linux
 
-Go Bluetooth support for Linux uses [BlueZ](http://www.bluez.org/) via the [D-Bus](https://en.wikipedia.org/wiki/D-Bus) interface thanks to the https://github.com/muka/go-bluetooth package. This should work with most distros that support BlueZ such as Ubuntu, Debian, Fedora, and Arch Linux, among others. 
+Go Bluetooth support for Linux uses [BlueZ](http://www.bluez.org/) via the [D-Bus](https://en.wikipedia.org/wiki/D-Bus) interface. This should work with most distros that support BlueZ such as Ubuntu, Debian, Fedora, and Arch Linux, among others.
 
 Linux can be used both as a BLE Central or as a BLE Peripheral.
 
