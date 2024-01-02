@@ -3,18 +3,20 @@
 package bluetooth
 
 import (
-	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"sync/atomic"
 
 	"github.com/godbus/dbus/v5"
-	"github.com/muka/go-bluetooth/api"
-	"github.com/muka/go-bluetooth/bluez"
-	"github.com/muka/go-bluetooth/bluez/profile/advertising"
-	"github.com/muka/go-bluetooth/bluez/profile/device"
+	"github.com/godbus/dbus/v5/prop"
 )
 
 var errAdvertisementNotStarted = errors.New("bluetooth: stop advertisement that was not started")
+var errAdvertisementAlreadyStarted = errors.New("bluetooth: start advertisement that was already started")
+
+// Unique ID per advertisement (to generate a unique object path).
+var advertisementID uint64
 
 // Address contains a Bluetooth MAC address.
 type Address struct {
@@ -23,10 +25,9 @@ type Address struct {
 
 // Advertisement encapsulates a single advertisement instance.
 type Advertisement struct {
-	adapter       *Adapter
-	advertisement *api.Advertisement
-	properties    *advertising.LEAdvertisement1Properties
-	cancel        func()
+	adapter    *Adapter
+	properties *prop.Properties
+	path       dbus.ObjectPath
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -44,42 +45,70 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 //
 // On Linux with BlueZ, it is not possible to set the advertisement interval.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
-	if a.advertisement != nil {
+	if a.properties != nil {
 		panic("todo: configure advertisement a second time")
 	}
 
-	a.properties = &advertising.LEAdvertisement1Properties{
-		Type:             advertising.AdvertisementTypeBroadcast,
-		Timeout:          1<<16 - 1,
-		LocalName:        options.LocalName,
-		ManufacturerData: options.ManufacturerData,
-	}
+	var serviceUUIDs []string
 	for _, uuid := range options.ServiceUUIDs {
-		a.properties.ServiceUUIDs = append(a.properties.ServiceUUIDs, uuid.String())
+		serviceUUIDs = append(serviceUUIDs, uuid.String())
 	}
+
+	// Build an org.bluez.LEAdvertisement1 object, to be exported over DBus.
+	id := atomic.AddUint64(&advertisementID, 1)
+	a.path = dbus.ObjectPath(fmt.Sprintf("/org/tinygo/bluetooth/advertisement%d", id))
+	propsSpec := map[string]map[string]*prop.Prop{
+		"org.bluez.LEAdvertisement1": {
+			"Type":             {Value: "broadcast"},
+			"ServiceUUIDs":     {Value: serviceUUIDs},
+			"ManufacturerData": {Value: options.ManufacturerData},
+			"LocalName":        {Value: options.LocalName},
+			// The documentation states:
+			// > Timeout of the advertisement in seconds. This defines the
+			// > lifetime of the advertisement.
+			// however, the value 0 also works, and presumably means "no
+			// timeout".
+			"Timeout": {Value: uint16(0)},
+			// TODO: MinInterval and MaxInterval (experimental as of BlueZ 5.71)
+		},
+	}
+	props, err := prop.Export(a.adapter.bus, a.path, propsSpec)
+	if err != nil {
+		return err
+	}
+	a.properties = props
 
 	return nil
 }
 
 // Start advertisement. May only be called after it has been configured.
 func (a *Advertisement) Start() error {
-	if a.advertisement != nil {
-		panic("todo: start advertisement a second time")
-	}
-	cancel, err := api.ExposeAdvertisement(a.adapter.id, a.properties, uint32(a.properties.Timeout))
+	// Register our advertisement object to start advertising.
+	err := a.adapter.adapter.Call("org.bluez.LEAdvertisingManager1.RegisterAdvertisement", 0, a.path, map[string]interface{}{}).Err
 	if err != nil {
-		return err
+		if err, ok := err.(dbus.Error); ok && err.Name == "org.bluez.Error.AlreadyExists" {
+			return errAdvertisementAlreadyStarted
+		}
+		return fmt.Errorf("bluetooth: could not start advertisement: %w", err)
 	}
-	a.cancel = cancel
+
+	// Make us discoverable.
+	err = a.adapter.adapter.SetProperty("org.bluez.Adapter1.Discoverable", dbus.MakeVariant(true))
+	if err != nil {
+		return fmt.Errorf("bluetooth: could not start advertisement: %w", err)
+	}
 	return nil
 }
 
 // Stop advertisement. May only be called after it has been started.
 func (a *Advertisement) Stop() error {
-	if a.cancel == nil {
-		return errAdvertisementNotStarted
+	err := a.adapter.adapter.Call("org.bluez.LEAdvertisingManager1.UnregisterAdvertisement", 0, a.path).Err
+	if err != nil {
+		if err, ok := err.(dbus.Error); ok && err.Name == "org.bluez.Error.DoesNotExist" {
+			return errAdvertisementNotStarted
+		}
+		return fmt.Errorf("bluetooth: could not stop advertisement: %w", err)
 	}
-	a.cancel()
 	return nil
 }
 
@@ -92,7 +121,7 @@ func (a *Advertisement) Stop() error {
 // possible some events are missed and perhaps even possible that some events
 // are duplicated.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
-	if a.cancelChan != nil {
+	if a.scanCancelChan != nil {
 		return errScanning
 	}
 
@@ -100,58 +129,61 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	// Detecting whether the scan is stopped can be done by doing a non-blocking
 	// read from it. If it succeeds, the scan is stopped.
 	cancelChan := make(chan struct{})
-	a.cancelChan = cancelChan
+	a.scanCancelChan = cancelChan
 
 	// This appears to be necessary to receive any BLE discovery results at all.
-	defer a.adapter.SetDiscoveryFilter(nil)
-	err := a.adapter.SetDiscoveryFilter(map[string]interface{}{
+	defer a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0)
+	err := a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0, map[string]interface{}{
 		"Transport": "le",
-	})
-	if err != nil {
-		return err
-	}
-
-	bus, err := dbus.SystemBus()
+	}).Err
 	if err != nil {
 		return err
 	}
 
 	signal := make(chan *dbus.Signal)
-	bus.Signal(signal)
-	defer bus.RemoveSignal(signal)
+	a.bus.Signal(signal)
+	defer a.bus.RemoveSignal(signal)
 
 	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
-	bus.AddMatchSignal(propertiesChangedMatchOptions...)
-	defer bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
+	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
+	defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
 
 	newObjectMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.ObjectManager")}
-	bus.AddMatchSignal(newObjectMatchOptions...)
-	defer bus.RemoveMatchSignal(newObjectMatchOptions...)
+	a.bus.AddMatchSignal(newObjectMatchOptions...)
+	defer a.bus.RemoveMatchSignal(newObjectMatchOptions...)
 
 	// Go through all connected devices and present the connected devices as
 	// scan results. Also save the properties so that the full list of
 	// properties is known on a PropertiesChanged signal. We can't present the
 	// list of cached devices as scan results as devices may be cached for a
 	// long time, long after they have moved out of range.
-	deviceList, err := a.adapter.GetDevices()
+	var deviceList map[dbus.ObjectPath]map[string]map[string]dbus.Variant
+	err = a.bluez.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&deviceList)
 	if err != nil {
 		return err
 	}
-	devices := make(map[dbus.ObjectPath]*device.Device1Properties)
-	for _, dev := range deviceList {
-		if dev.Properties.Connected {
-			callback(a, makeScanResult(dev.Properties))
+	devices := make(map[dbus.ObjectPath]map[string]dbus.Variant)
+	for path, v := range deviceList {
+		device, ok := v["org.bluez.Device1"]
+		if !ok {
+			continue // not a device
+		}
+		if !strings.HasPrefix(string(path), string(a.adapter.Path())) {
+			continue // not part of our adapter
+		}
+		if device["Connected"].Value().(bool) {
+			callback(a, makeScanResult(device))
 			select {
 			case <-cancelChan:
 				return nil
 			default:
 			}
 		}
-		devices[dev.Path()] = dev.Properties
+		devices[path] = device
 	}
 
 	// Instruct BlueZ to start discovering.
-	err = a.adapter.StartDiscovery()
+	err = a.adapter.Call("org.bluez.Adapter1.StartDiscovery", 0).Err
 	if err != nil {
 		return err
 	}
@@ -163,8 +195,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		// StopScan is called).
 		select {
 		case <-cancelChan:
-			a.adapter.StopDiscovery()
-			return nil
+			return a.adapter.Call("org.bluez.Adapter1.StopDiscovery", 0).Err
 		default:
 		}
 
@@ -180,35 +211,24 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				if !ok {
 					continue
 				}
-				var props *device.Device1Properties
-				props, _ = props.FromDBusMap(rawprops)
-				devices[objectPath] = props
-				callback(a, makeScanResult(props))
+				devices[objectPath] = rawprops
+				callback(a, makeScanResult(rawprops))
 			case "org.freedesktop.DBus.Properties.PropertiesChanged":
 				interfaceName := sig.Body[0].(string)
 				if interfaceName != "org.bluez.Device1" {
 					continue
 				}
 				changes := sig.Body[1].(map[string]dbus.Variant)
-				props := devices[sig.Path]
-				for field, val := range changes {
-					switch field {
-					case "RSSI":
-						props.RSSI = val.Value().(int16)
-					case "Name":
-						props.Name = val.Value().(string)
-					case "UUIDs":
-						props.UUIDs = val.Value().([]string)
-					case "ManufacturerData":
-						// work around for https://github.com/muka/go-bluetooth/issues/163
-						mData := make(map[uint16]interface{})
-						for k, v := range val.Value().(map[uint16]dbus.Variant) {
-							mData[k] = v.Value().(interface{})
-						}
-						props.ManufacturerData = mData
-					}
+				device, ok := devices[sig.Path]
+				if !ok {
+					// This shouldn't happen, but protect against it just in
+					// case.
+					continue
 				}
-				callback(a, makeScanResult(props))
+				for k, v := range changes {
+					device[k] = v
+				}
+				callback(a, makeScanResult(device))
 			}
 		case <-cancelChan:
 			continue
@@ -222,49 +242,49 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 // callback to stop the current scan. If no scan is in progress, an error will
 // be returned.
 func (a *Adapter) StopScan() error {
-	if a.cancelChan == nil {
+	if a.scanCancelChan == nil {
 		return errNotScanning
 	}
-	close(a.cancelChan)
-	a.cancelChan = nil
+	close(a.scanCancelChan)
+	a.scanCancelChan = nil
 	return nil
 }
 
-// makeScanResult creates a ScanResult from a Device1 object.
-func makeScanResult(props *device.Device1Properties) ScanResult {
+// makeScanResult creates a ScanResult from a raw DBus device.
+func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	// Assume the Address property is well-formed.
-	addr, _ := ParseMAC(props.Address)
+	addr, _ := ParseMAC(props["Address"].Value().(string))
 
 	// Create a list of UUIDs.
 	var serviceUUIDs []UUID
-	for _, uuid := range props.UUIDs {
+	for _, uuid := range props["UUIDs"].Value().([]string) {
 		// Assume the UUID is well-formed.
 		parsedUUID, _ := ParseUUID(uuid)
 		serviceUUIDs = append(serviceUUIDs, parsedUUID)
 	}
 
 	a := Address{MACAddress{MAC: addr}}
-	a.SetRandom(props.AddressType == "random")
+	a.SetRandom(props["AddressType"].Value().(string) == "random")
 
-	mData := make(map[uint16][]byte)
-	for k, v := range props.ManufacturerData {
-		// can be either variant or just byte value
-		switch val := v.(type) {
-		case dbus.Variant:
-			mData[k] = val.Value().([]byte)
-		case []byte:
-			mData[k] = val
+	manufacturerData := make(map[uint16][]byte)
+	if mdata, ok := props["ManufacturerData"].Value().(map[uint16]dbus.Variant); ok {
+		for k, v := range mdata {
+			manufacturerData[k] = v.Value().([]byte)
 		}
 	}
 
+	// Get optional properties.
+	localName, _ := props["Name"].Value().(string)
+	rssi, _ := props["RSSI"].Value().(int16)
+
 	return ScanResult{
-		RSSI:    props.RSSI,
+		RSSI:    rssi,
 		Address: a,
 		AdvertisementPayload: &advertisementFields{
 			AdvertisementFields{
-				LocalName:        props.Name,
+				LocalName:        localName,
 				ServiceUUIDs:     serviceUUIDs,
-				ManufacturerData: mData,
+				ManufacturerData: manufacturerData,
 			},
 		},
 	}
@@ -272,12 +292,9 @@ func makeScanResult(props *device.Device1Properties) ScanResult {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	device      *device.Device1             // bluez device interface
-	ctx         context.Context             // context for our event watcher, canceled on disconnect event
-	cancel      context.CancelFunc          // cancel function to halt our event watcher context
-	propchanged chan *bluez.PropertyChanged // channel that device property changes will show up on
-	adapter     *Adapter                    // the adapter that was used to form this device connection
-	address     Address                     // the address of the device
+	device  dbus.BusObject // bluez device interface
+	adapter *Adapter       // the adapter that was used to form this device connection
+	address Address        // the address of the device
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -285,27 +302,57 @@ type Device struct {
 // On Linux and Windows, the IsRandom part of the address is ignored.
 func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, error) {
 	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
-	dev, err := device.NewDevice1(devicePath)
+	device := &Device{
+		device:  a.bus.Object("org.bluez", devicePath),
+		adapter: a,
+		address: address,
+	}
+
+	// Already start watching for property changes. We do this before reading
+	// the Connected property below to avoid a race condition: if the device
+	// were connected between the two calls the signal wouldn't be picked up.
+	signal := make(chan *dbus.Signal)
+	a.bus.Signal(signal)
+	defer a.bus.RemoveSignal(signal)
+	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
+	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
+	defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
+
+	// Read whether this device is already connected.
+	connected, err := device.device.GetProperty("org.bluez.Device1.Connected")
 	if err != nil {
 		return nil, err
 	}
 
-	device := &Device{
-		device:  dev,
-		adapter: a,
-		address: address,
-	}
-	device.ctx, device.cancel = context.WithCancel(context.Background())
-	device.watchForConnect() // Set this up before we trigger a connection so we can capture the connect event
-
-	if !dev.Properties.Connected {
-		// Not yet connected, so do it now.
-		// The properties have just been read so this is fresh data.
-		err := dev.Connect()
+	// Connect to the device, if not already connected.
+	if !connected.Value().(bool) {
+		// Start connecting (async).
+		err := device.device.Call("org.bluez.Device1.Connect", 0).Err
 		if err != nil {
-			device.cancel() // cancel our watcher routine
-			return nil, err
+			return nil, fmt.Errorf("bluetooth: failed to connect: %w", err)
 		}
+
+		// Wait until the device has connected.
+		connectChan := make(chan struct{})
+		go func() {
+			for sig := range signal {
+				switch sig.Name {
+				case "org.freedesktop.DBus.Properties.PropertiesChanged":
+					interfaceName := sig.Body[0].(string)
+					if interfaceName != "org.bluez.Device1" {
+						continue
+					}
+					if sig.Path != device.device.Path() {
+						continue
+					}
+					changes := sig.Body[1].(map[string]dbus.Variant)
+					if connected, ok := changes["Connected"].Value().(bool); ok && connected {
+						close(connectChan)
+					}
+				}
+			}
+		}()
+		<-connectChan
 	}
 
 	return device, nil
@@ -316,48 +363,5 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 func (d *Device) Disconnect() error {
 	// we don't call our cancel function here, instead we wait for the
 	// property change in `watchForConnect` and cancel things then
-	return d.device.Disconnect()
-}
-
-// watchForConnect watches for a signal from the bluez device interface that indicates a Connection/Disconnection.
-//
-// We can add extra signals to watch for here,
-// see https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/device-api.txt, for a full list
-func (d *Device) watchForConnect() error {
-	var err error
-	d.propchanged, err = d.device.WatchProperties()
-	if err != nil {
-		return err
-	}
-
-	go func() {
-		for {
-			select {
-			case changed := <-d.propchanged:
-
-				// we will receive a nil if bluez.UnwatchProperties(a, ch) is called, if so we can stop watching
-				if changed == nil {
-					d.cancel()
-					return
-				}
-
-				switch changed.Name {
-				case "Connected":
-					// Send off a notification indicating we have connected or disconnected
-					d.adapter.connectHandler(d.address, d.device.Properties.Connected)
-
-					if !d.device.Properties.Connected {
-						d.cancel()
-						return
-					}
-				}
-
-				continue
-			case <-d.ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return nil
+	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err
 }

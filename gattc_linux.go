@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/godbus/dbus/v5"
-	"github.com/muka/go-bluetooth/bluez"
-	"github.com/muka/go-bluetooth/bluez/profile/gatt"
 )
 
 var (
@@ -24,8 +22,8 @@ type uuidWrapper = UUID
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
 	uuidWrapper
-
-	service *gatt.GattService1
+	adapter     *Adapter
+	servicePath string
 }
 
 // UUID returns the UUID for this DeviceService.
@@ -47,14 +45,16 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	start := time.Now()
 
 	for {
-		resolved, err := d.device.GetServicesResolved()
+		resolved, err := d.device.GetProperty("org.bluez.Device1.ServicesResolved")
 		if err != nil {
 			return nil, err
 		}
-		if resolved {
+		if resolved.Value().(bool) {
 			break
 		}
 		// This is a terrible hack, but I couldn't find another way.
+		// TODO: actually there is, by waiting for a property change event of
+		// ServicesResolved.
 		time.Sleep(10 * time.Millisecond)
 		if time.Since(start) > 10*time.Second {
 			return nil, errors.New("timeout on DiscoverServices")
@@ -62,16 +62,13 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	}
 
 	services := []DeviceService{}
-	uuidServices := make(map[string]string)
+	uuidServices := make(map[UUID]struct{})
 	servicesFound := 0
 
 	// Iterate through all objects managed by BlueZ, hoping to find the services
 	// we're looking for.
-	om, err := bluez.GetObjectManager()
-	if err != nil {
-		return nil, err
-	}
-	list, err := om.GetManagedObjects()
+	var list map[dbus.ObjectPath]map[string]map[string]dbus.Variant
+	err := d.adapter.bluez.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&list)
 	if err != nil {
 		return nil, err
 	}
@@ -84,19 +81,17 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		if !strings.HasPrefix(objectPath, string(d.device.Path())+"/service") {
 			continue
 		}
-		suffix := objectPath[len(d.device.Path()+"/"):]
-		if len(strings.Split(suffix, "/")) != 1 {
+		properties, ok := list[dbus.ObjectPath(objectPath)]["org.bluez.GattService1"]
+		if !ok {
 			continue
 		}
-		service, err := gatt.NewGattService1(dbus.ObjectPath(objectPath))
-		if err != nil {
-			return nil, err
-		}
+
+		serviceUUID, _ := ParseUUID(properties["UUID"].Value().(string))
 
 		if len(uuids) > 0 {
 			found := false
 			for _, uuid := range uuids {
-				if service.Properties.UUID == uuid.String() {
+				if uuid == serviceUUID {
 					// One of the services we're looking for.
 					found = true
 					break
@@ -107,20 +102,21 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 			}
 		}
 
-		if _, ok := uuidServices[service.Properties.UUID]; ok {
+		if _, ok := uuidServices[serviceUUID]; ok {
 			// There is more than one service with the same UUID?
 			// Don't overwrite it, to keep the servicesFound count correct.
 			continue
 		}
 
-		uuid, _ := ParseUUID(service.Properties.UUID)
-		ds := DeviceService{uuidWrapper: uuid,
-			service: service,
+		ds := DeviceService{
+			uuidWrapper: serviceUUID,
+			adapter:     d.adapter,
+			servicePath: objectPath,
 		}
 
 		services = append(services, ds)
 		servicesFound++
-		uuidServices[service.Properties.UUID] = service.Properties.UUID
+		uuidServices[serviceUUID] = struct{}{}
 	}
 
 	if servicesFound < len(uuids) {
@@ -134,9 +130,10 @@ func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 // device.
 type DeviceCharacteristic struct {
 	uuidWrapper
-
-	characteristic *gatt.GattCharacteristic1
-	property       chan *bluez.PropertyChanged // channel where notifications are reported
+	adapter                      *Adapter
+	characteristic               dbus.BusObject
+	property                     chan *dbus.Signal // channel where notifications are reported
+	propertiesChangedMatchOption dbus.MatchOption  // the same value must be passed to RemoveMatchSignal
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -163,11 +160,8 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 
 	// Iterate through all objects managed by BlueZ, hoping to find the
 	// characteristic we're looking for.
-	om, err := bluez.GetObjectManager()
-	if err != nil {
-		return nil, err
-	}
-	list, err := om.GetManagedObjects()
+	var list map[dbus.ObjectPath]map[string]map[string]dbus.Variant
+	err := s.adapter.bluez.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&list)
 	if err != nil {
 		return nil, err
 	}
@@ -177,21 +171,18 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 	}
 	sort.Strings(objects)
 	for _, objectPath := range objects {
-		if !strings.HasPrefix(objectPath, string(s.service.Path())+"/char") {
+		if !strings.HasPrefix(objectPath, s.servicePath+"/char") {
 			continue
 		}
-		suffix := objectPath[len(s.service.Path()+"/"):]
-		if len(strings.Split(suffix, "/")) != 1 {
+		properties, ok := list[dbus.ObjectPath(objectPath)]["org.bluez.GattCharacteristic1"]
+		if !ok {
 			continue
 		}
-		characteristic, err := gatt.NewGattCharacteristic1(dbus.ObjectPath(objectPath))
-		if err != nil {
-			return nil, err
-		}
-		cuuid, _ := ParseUUID(characteristic.Properties.UUID)
+		cuuid, _ := ParseUUID(properties["UUID"].Value().(string))
 		char := DeviceCharacteristic{
 			uuidWrapper:    cuuid,
-			characteristic: characteristic,
+			adapter:        s.adapter,
+			characteristic: s.adapter.bus.Object("org.bluez", dbus.ObjectPath(objectPath)),
 		}
 
 		if len(uuids) > 0 {
@@ -231,7 +222,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 // writes can be in flight at any given time. This call is also known as a
 // "write command" (as opposed to a write request).
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
-	err = c.characteristic.WriteValue(p, nil)
+	err = c.characteristic.Call("org.bluez.GattCharacteristic1.WriteValue", 0, p, map[string]dbus.Variant(nil)).Err
 	if err != nil {
 		return 0, err
 	}
@@ -251,25 +242,31 @@ func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) er
 			return errDupNotif
 		}
 
-		ch, err := c.characteristic.WatchProperties()
-		if err != nil {
-			return err
-		}
+		// Start watching for changes in the Value property.
+		c.property = make(chan *dbus.Signal)
+		c.adapter.bus.Signal(c.property)
+		c.propertiesChangedMatchOption = dbus.WithMatchInterface("org.freedesktop.DBus.Properties")
+		c.adapter.bus.AddMatchSignal(c.propertiesChangedMatchOption)
 
-		err = c.characteristic.StartNotify()
+		err := c.characteristic.Call("org.bluez.GattCharacteristic1.StartNotify", 0).Err
 		if err != nil {
-			_ = c.characteristic.UnwatchProperties(ch)
 			return err
 		}
-		c.property = ch
 
 		go func() {
-			for update := range ch {
-				if update == nil {
-					continue
-				}
-				if update.Interface == "org.bluez.GattCharacteristic1" && update.Name == "Value" {
-					callback(update.Value.([]byte))
+			for sig := range c.property {
+				if sig.Name == "org.freedesktop.DBus.Properties.PropertiesChanged" {
+					interfaceName := sig.Body[0].(string)
+					if interfaceName != "org.bluez.GattCharacteristic1" {
+						continue
+					}
+					if sig.Path != c.characteristic.Path() {
+						continue
+					}
+					changes := sig.Body[1].(map[string]dbus.Variant)
+					if value, ok := changes["Value"].Value().([]byte); ok {
+						callback(value)
+					}
 				}
 			}
 		}()
@@ -281,26 +278,16 @@ func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) er
 			return nil
 		}
 
-		e1 := c.characteristic.StopNotify()
-		e2 := c.characteristic.UnwatchProperties(c.property)
+		err := c.adapter.bus.RemoveMatchSignal(c.propertiesChangedMatchOption)
+		c.adapter.bus.RemoveSignal(c.property)
 		c.property = nil
-
-		// FIXME(sbinet): use errors.Join(e1, e2)
-		if e1 != nil {
-			return e1
-		}
-
-		if e2 != nil {
-			return e2
-		}
-
-		return nil
+		return err
 	}
 }
 
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
-	mtu, err := c.characteristic.GetProperty("MTU")
+	mtu, err := c.characteristic.GetProperty("org.bluez.GattCharacteristic1.MTU")
 	if err != nil {
 		return uint16(0), err
 	}
@@ -310,7 +297,8 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 // Read reads the current characteristic value.
 func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
 	options := make(map[string]interface{})
-	result, err := c.characteristic.ReadValue(options)
+	var result []byte
+	err := c.characteristic.Call("org.bluez.GattCharacteristic1.ReadValue", 0, options).Store(&result)
 	if err != nil {
 		return 0, err
 	}
