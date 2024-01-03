@@ -45,7 +45,7 @@ type DeviceService struct {
 }
 
 // UUID returns the UUID for this DeviceService.
-func (s *DeviceService) UUID() UUID {
+func (s DeviceService) UUID() UUID {
 	return s.uuid.UUID()
 }
 
@@ -167,7 +167,7 @@ type DeviceCharacteristic struct {
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
-func (c *DeviceCharacteristic) UUID() UUID {
+func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuid.UUID()
 }
 
@@ -188,7 +188,7 @@ var discoveringCharacteristic struct {
 //
 // Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
-func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
 	if discoveringCharacteristic.handle_value.Get() != 0 {
 		return nil, errAlreadyDiscovering
 	}
@@ -424,7 +424,7 @@ var readingCharacteristic struct {
 // Read reads the current characteristic value up to MTU length.
 // A future enhancement would be to be able to retrieve a longer
 // value by making multiple calls.
-func (c *DeviceCharacteristic) Read(data []byte) (n int, err error) {
+func (c DeviceCharacteristic) Read(data []byte) (n int, err error) {
 	// global will copy bytes from read operation into data slice
 	readingCharacteristic.value = data
 
