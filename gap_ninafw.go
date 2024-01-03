@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const defaultMTU = 23
+
 var (
 	ErrConnect = errors.New("bluetooth: could not connect")
 )
@@ -169,6 +171,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 						MAC:      makeAddress(a.hci.connectData.peerBdaddr),
 						isRandom: random},
 				},
+				mtu:                       defaultMTU,
 				notificationRegistrations: make([]notificationRegistration, 0),
 			}
 			a.connectedDevices = append(a.connectedDevices, d)
@@ -203,6 +206,7 @@ type Device struct {
 	adapter *Adapter
 	Address Address
 	handle  uint16
+	mtu     uint16
 
 	notificationRegistrations []notificationRegistration
 }
