@@ -73,6 +73,12 @@ func main() {
 		}
 		for _, char := range chars {
 			println("-- characteristic", char.UUID().String())
+			mtu, err := char.GetMTU()
+			if err != nil {
+				println("    mtu: error:", err.Error())
+			} else {
+				println("    mtu:", mtu)
+			}
 			n, err := char.Read(buf)
 			if err != nil {
 				println("    ", err.Error())
