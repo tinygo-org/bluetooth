@@ -274,7 +274,14 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
-	return 0, errNotYetImplemented
+	err := c.service.device.adapter.att.mtuReq(c.service.device.handle, c.service.device.mtu)
+	if err != nil {
+		return 0, err
+	}
+
+	c.service.device.mtu = c.service.device.adapter.att.mtu
+
+	return c.service.device.mtu, nil
 }
 
 // Read reads the current characteristic value.

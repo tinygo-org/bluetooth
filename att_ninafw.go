@@ -107,6 +107,7 @@ type att struct {
 	lastErrorOpcode uint8
 	lastErrorHandle uint16
 	lastErrorCode   uint8
+	mtu             uint16
 	services        []rawService
 	characteristics []rawCharacteristic
 	descriptors     []rawDescriptor
@@ -243,6 +244,25 @@ func (a *att) writeReq(connectionHandle, valueHandle uint16, data []byte) error 
 	return a.waitUntilResponse()
 }
 
+func (a *att) mtuReq(connectionHandle, mtu uint16) error {
+	if _debug {
+		println("att.mtuReq:", connectionHandle)
+	}
+
+	a.busy.Lock()
+	defer a.busy.Unlock()
+
+	var b [3]byte
+	b[0] = attOpMTUReq
+	binary.LittleEndian.PutUint16(b[1:], mtu)
+
+	if err := a.sendReq(connectionHandle, b[:]); err != nil {
+		return err
+	}
+
+	return a.waitUntilResponse()
+}
+
 func (a *att) sendReq(handle uint16, data []byte) error {
 	a.clearResponse()
 
@@ -284,6 +304,8 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		if _debug {
 			println("att.handleData: attOpMTUResponse")
 		}
+		a.responded = true
+		a.mtu = binary.LittleEndian.Uint16(buf[1:])
 
 	case attOpFindInfoReq:
 		if _debug {
