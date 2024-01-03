@@ -76,7 +76,7 @@ type deviceService struct {
 }
 
 // UUID returns the UUID for this DeviceService.
-func (s *DeviceService) UUID() UUID {
+func (s DeviceService) UUID() UUID {
 	return s.uuidWrapper
 }
 
@@ -89,7 +89,7 @@ func (s *DeviceService) UUID() UUID {
 //
 // Passing a nil slice of UUIDs will return a complete list of
 // characteristics.
-func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
 	cbuuids := []cbgo.UUID{}
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
@@ -142,7 +142,7 @@ func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacter
 }
 
 // Small helper to create a DeviceCharacteristic object.
-func (s *DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic) DeviceCharacteristic {
+func (s DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic) DeviceCharacteristic {
 	char := DeviceCharacteristic{
 		deviceCharacteristic: &deviceCharacteristic{
 			uuidWrapper:    uuid,
@@ -163,7 +163,7 @@ type DeviceCharacteristic struct {
 type deviceCharacteristic struct {
 	uuidWrapper
 
-	service *DeviceService
+	service DeviceService
 
 	characteristic cbgo.Characteristic
 	callback       func(buf []byte)
@@ -171,7 +171,7 @@ type deviceCharacteristic struct {
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
-func (c *DeviceCharacteristic) UUID() UUID {
+func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuidWrapper
 }
 

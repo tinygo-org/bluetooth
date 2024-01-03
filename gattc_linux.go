@@ -27,7 +27,7 @@ type DeviceService struct {
 }
 
 // UUID returns the UUID for this DeviceService.
-func (s *DeviceService) UUID() UUID {
+func (s DeviceService) UUID() UUID {
 	return s.uuidWrapper
 }
 
@@ -41,7 +41,7 @@ func (s *DeviceService) UUID() UUID {
 //
 // On Linux with BlueZ, this just waits for the ServicesResolved signal (if
 // services haven't been resolved yet) and uses this list of cached services.
-func (d *Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	start := time.Now()
 
 	for {
@@ -137,7 +137,7 @@ type DeviceCharacteristic struct {
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
-func (c *DeviceCharacteristic) UUID() UUID {
+func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuidWrapper
 }
 
@@ -150,7 +150,7 @@ func (c *DeviceCharacteristic) UUID() UUID {
 //
 // Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
-func (s *DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
 	var chars []DeviceCharacteristic
 	if len(uuids) > 0 {
 		// The caller wants to get a list of characteristics in a specific
@@ -235,7 +235,7 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 // changes.
 //
 // Users may call EnableNotifications with a nil callback to disable notifications.
-func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	switch callback {
 	default:
 		if c.property != nil {
@@ -295,7 +295,7 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 }
 
 // Read reads the current characteristic value.
-func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
+func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	options := make(map[string]interface{})
 	var result []byte
 	err := c.characteristic.Call("org.bluez.GattCharacteristic1.ReadValue", 0, options).Store(&result)

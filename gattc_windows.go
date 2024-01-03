@@ -137,7 +137,7 @@ type DeviceService struct {
 }
 
 // UUID returns the UUID for this DeviceService.
-func (s *DeviceService) UUID() UUID {
+func (s DeviceService) UUID() UUID {
 	return s.uuidWrapper
 }
 
@@ -150,7 +150,7 @@ func (s *DeviceService) UUID() UUID {
 //
 // Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
-func (s *DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceCharacteristic, error) {
+func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceCharacteristic, error) {
 	getCharacteristicsOp, err := s.service.GetCharacteristicsWithCacheModeAsync(bluetooth.BluetoothCacheModeUncached)
 	if err != nil {
 		return nil, err
@@ -234,20 +234,20 @@ type DeviceCharacteristic struct {
 	characteristic *genericattributeprofile.GattCharacteristic
 	properties     genericattributeprofile.GattCharacteristicProperties
 
-	service *DeviceService
+	service DeviceService
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
-func (c *DeviceCharacteristic) UUID() UUID {
+func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuidWrapper
 }
 
-func (c *DeviceCharacteristic) Properties() uint32 {
+func (c DeviceCharacteristic) Properties() uint32 {
 	return uint32(c.properties)
 }
 
 // GetMTU returns the MTU for the characteristic.
-func (c *DeviceCharacteristic) GetMTU() (uint16, error) {
+func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return c.service.device.session.GetMaxPduSize()
 }
 
@@ -314,7 +314,7 @@ func (c DeviceCharacteristic) write(p []byte, mode genericattributeprofile.GattW
 }
 
 // Read reads the current characteristic value.
-func (c *DeviceCharacteristic) Read(data []byte) (int, error) {
+func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	if c.properties&genericattributeprofile.GattCharacteristicPropertiesRead == 0 {
 		return 0, errNoRead
 	}
