@@ -149,6 +149,9 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		slave_latency:     0,   // mostly relevant to connected keyboards etc
 		conn_sup_timeout:  200, // 2 seconds (in 10ms units), the minimum recommended by Apple
 	}
+	if params.Timeout != 0 {
+		connectionParams.conn_sup_timeout = uint16(params.Timeout / 16)
+	}
 
 	// Flag to the event handler that we are waiting for incoming connections.
 	// This should be safe as long as Connect is not called concurrently. And
