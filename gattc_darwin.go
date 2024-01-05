@@ -175,6 +175,14 @@ func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuidWrapper
 }
 
+// Write replaces the characteristic value with a new value. The
+// call will return after all data has been written.
+func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
+	c.service.device.prph.WriteCharacteristic(p, c.characteristic, true)
+
+	return len(p), nil
+}
+
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time. This call is also known as a

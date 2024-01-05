@@ -312,6 +312,26 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	return characteristics, nil
 }
 
+// Write replaces the characteristic value with a new value. The
+// call will return after all data has been written.
+func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+
+	errCode := C.sd_ble_gattc_write(c.connectionHandle, &C.ble_gattc_write_params_t{
+		write_op: C.BLE_GATT_OP_WRITE_REQ,
+		handle:   c.valueHandle,
+		offset:   0,
+		len:      uint16(len(p)),
+		p_value:  &p[0],
+		})
+	if errCode != 0 {
+		return 0, Error(errCode)
+	}
+	return len(p), nil
+}
+
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time. This call is also known as a
