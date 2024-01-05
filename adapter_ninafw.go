@@ -19,7 +19,6 @@ type Adapter struct {
 	isDefault bool
 	scanning  bool
 
-	reset          func()
 	connectHandler func(device Address, connected bool)
 
 	connectedDevices     []*Device
@@ -31,7 +30,6 @@ type Adapter struct {
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
 	isDefault: true,
-	reset:     resetNINAInverted,
 	connectHandler: func(device Address, connected bool) {
 		return
 	},
@@ -45,14 +43,19 @@ func (a *Adapter) Enable() error {
 	machine.NINA_CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	machine.NINA_RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	machine.NINA_CS.Low()
-	a.reset()
+
+	if machine.NINA_RESET_INVERTED {
+		resetNINAInverted()
+	} else {
+		resetNINA()
+	}
 
 	// serial port for nina chip
 	uart := machine.UART1
 	uart.Configure(machine.UARTConfig{
 		TX:       machine.NINA_TX,
 		RX:       machine.NINA_RX,
-		BaudRate: 115200,
+		BaudRate: machine.NINA_BAUDRATE,
 		CTS:      machine.NINA_CTS,
 		RTS:      machine.NINA_RTS,
 	})
