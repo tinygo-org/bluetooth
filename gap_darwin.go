@@ -211,3 +211,20 @@ func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripher
 
 	}
 }
+
+// DidWriteValueForCharacteristic is called after the characteristic for a Service
+// for a Peripheral trigger a write with response. It contains the returned error or nil.
+func (pd *peripheralDelegate) DidWriteValueForCharacteristic(_ cbgo.Peripheral, chr cbgo.Characteristic, err error) {
+	uuid, _ := ParseUUID(chr.UUID().String())
+	svcuuid, _ := ParseUUID(chr.Service().UUID().String())
+
+	if svc, ok := pd.d.services[svcuuid]; ok {
+		for _, char := range svc.characteristics {
+			if char.characteristic == chr && uuid == char.UUID() { // compare pointers
+				if char.writeChan != nil {
+					char.writeChan <- err
+				}
+			}
+		}
+	}
+}
