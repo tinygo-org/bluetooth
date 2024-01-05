@@ -141,7 +141,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	scanParams.set_bitfield_active(0)
 	scanParams.interval = C.uint16_t(NewDuration(40 * time.Millisecond))
 	scanParams.window = C.uint16_t(NewDuration(30 * time.Millisecond))
-	scanParams.timeout = C.uint16_t(params.ConnectionTimeout)
+	scanParams.timeout = C.uint16_t(params.ConnectionTimeout / 16) // timeout in 10ms units
 
 	connectionParams := C.ble_gap_conn_params_t{
 		min_conn_interval: C.uint16_t(params.MinInterval) / 2,
