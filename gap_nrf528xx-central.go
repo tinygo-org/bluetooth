@@ -16,6 +16,7 @@ import (
 import "C"
 
 var errAlreadyConnecting = errors.New("bluetooth: already in a connection attempt")
+var errConnectionTimeout = errors.New("bluetooth: timeout while connecting")
 
 // Memory buffers needed by sd_ble_gap_scan_start.
 var (
@@ -94,7 +95,7 @@ func (a *Adapter) StopScan() error {
 
 // In-progress connection attempt.
 var connectionAttempt struct {
-	state            volatile.Register8 // 0 means unused, 1 means connecting, 2 means ready (connected or timeout)
+	state            volatile.Register8 // 0 means unused, 1 means connecting, 2 means connected, 3 means timeout
 	connectionHandle C.uint16_t
 }
 
@@ -165,18 +166,25 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	// Wait until the connection is established.
-	// TODO: use some sort of condition variable once the scheduler supports
-	// them.
-	for connectionAttempt.state.Get() != 2 {
-		arm.Asm("wfe")
+	for {
+		state := connectionAttempt.state.Get()
+		if state == 2 {
+			// Successfully connected.
+			connectionAttempt.state.Set(0)
+			connectionHandle := connectionAttempt.connectionHandle
+			return Device{
+				connectionHandle: connectionHandle,
+			}, nil
+		} else if state == 3 {
+			// Timeout while connecting.
+			connectionAttempt.state.Set(0)
+			return Device{}, errConnectionTimeout
+		} else {
+			// TODO: use some sort of condition variable once the scheduler
+			// supports them.
+			arm.Asm("wfe")
+		}
 	}
-	connectionHandle := connectionAttempt.connectionHandle
-	connectionAttempt.state.Set(0)
-
-	// Connection has been established.
-	return Device{
-		connectionHandle: connectionHandle,
-	}, nil
 }
 
 // Disconnect from the BLE device.

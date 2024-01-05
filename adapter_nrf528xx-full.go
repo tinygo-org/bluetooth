@@ -115,6 +115,21 @@ func handleEvent() {
 			C.sd_ble_gap_phy_update(gapEvent.conn_handle, &phyUpdateRequest.peer_preferred_phys)
 		case C.BLE_GAP_EVT_PHY_UPDATE:
 			// ignore confirmation of phy successfully updated
+		case C.BLE_GAP_EVT_TIMEOUT:
+			timeoutEvt := gapEvent.params.unionfield_timeout()
+			switch timeoutEvt.src {
+			case C.BLE_GAP_TIMEOUT_SRC_CONN:
+				// Failed to connect to a peripheral.
+				if debug {
+					println("gap timeout: conn")
+				}
+				connectionAttempt.state.Set(3) // connection timed out
+			default:
+				// For example a scan timeout.
+				if debug {
+					println("gap timeout: other")
+				}
+			}
 		default:
 			if debug {
 				println("unknown GAP event:", id)
