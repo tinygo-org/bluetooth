@@ -155,8 +155,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 			return nil, err
 		}
 
-		switch {
-		case a.hci.connectData.connected:
+		if a.hci.connectData.connected {
 			defer a.hci.clearConnectData()
 
 			random := false
@@ -178,7 +177,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (*Device, er
 
 			return d, nil
 
-		default:
+		} else {
 			// check for timeout
 			if (time.Now().UnixNano()-start)/int64(time.Second) > 5 {
 				break
