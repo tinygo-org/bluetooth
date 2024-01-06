@@ -117,6 +117,8 @@ type leConnectData struct {
 
 type hci struct {
 	uart              *machine.UART
+	softCTS           machine.Pin
+	softRTS           machine.Pin
 	att               *att
 	buf               []byte
 	address           [6]byte
@@ -129,12 +131,21 @@ type hci struct {
 }
 
 func newHCI(uart *machine.UART) *hci {
-	return &hci{uart: uart,
-		buf: make([]byte, 256),
+	return &hci{
+		uart:    uart,
+		softCTS: machine.NoPin,
+		softRTS: machine.NoPin,
+		buf:     make([]byte, 256),
 	}
 }
 
 func (h *hci) start() error {
+	if h.softRTS != machine.NoPin {
+		h.softRTS.Low()
+
+		defer h.softRTS.High()
+	}
+
 	for h.uart.Buffered() > 0 {
 		h.uart.ReadByte()
 	}
@@ -151,6 +162,12 @@ func (h *hci) reset() error {
 }
 
 func (h *hci) poll() error {
+	if h.softRTS != machine.NoPin {
+		h.softRTS.Low()
+
+		defer h.softRTS.High()
+	}
+
 	i := 0
 	for h.uart.Buffered() > 0 {
 		data, _ := h.uart.ReadByte()
@@ -322,7 +339,7 @@ func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
 	h.buf[3] = byte(len(params))
 	copy(h.buf[4:], params)
 
-	if _, err := h.uart.Write(h.buf[:4+len(params)]); err != nil {
+	if _, err := h.write(h.buf[:4+len(params)]); err != nil {
 		return err
 	}
 
@@ -356,11 +373,32 @@ func (h *hci) sendAclPkt(handle uint16, cid uint8, data []byte) error {
 		println("hci send acl data", handle, cid, hex.EncodeToString(h.buf[:9+len(data)]))
 	}
 
-	if _, err := h.uart.Write(h.buf[:9+len(data)]); err != nil {
+	if _, err := h.write(h.buf[:9+len(data)]); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+const writeAttempts = 200
+
+func (h *hci) write(buf []byte) (int, error) {
+	if h.softCTS != machine.NoPin {
+		retries := writeAttempts
+		for h.softCTS.Get() {
+			retries--
+			if retries == 0 {
+				return 0, ErrHCITimeout
+			}
+		}
+	}
+
+	n, err := h.uart.Write(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
 }
 
 type aclDataHeader struct {

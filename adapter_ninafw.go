@@ -41,7 +41,6 @@ var DefaultAdapter = &Adapter{
 func (a *Adapter) Enable() error {
 	// reset the NINA in BLE mode
 	machine.NINA_CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	machine.NINA_RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	machine.NINA_CS.Low()
 
 	if machine.NINA_RESET_INVERTED {
@@ -51,16 +50,28 @@ func (a *Adapter) Enable() error {
 	}
 
 	// serial port for nina chip
-	uart := machine.UART1
-	uart.Configure(machine.UARTConfig{
+	uart := machine.UART_NINA
+	cfg := machine.UARTConfig{
 		TX:       machine.NINA_TX,
 		RX:       machine.NINA_RX,
 		BaudRate: machine.NINA_BAUDRATE,
-		CTS:      machine.NINA_CTS,
-		RTS:      machine.NINA_RTS,
-	})
+	}
+	if !machine.NINA_SOFT_FLOWCONTROL {
+		cfg.CTS = machine.NINA_CTS
+		cfg.RTS = machine.NINA_RTS
+	}
+
+	uart.Configure(cfg)
 
 	a.hci, a.att = newBLEStack(uart)
+	if machine.NINA_SOFT_FLOWCONTROL {
+		a.hci.softRTS = machine.NINA_RTS
+		a.hci.softRTS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+		a.hci.softRTS.High()
+
+		a.hci.softCTS = machine.NINA_CTS
+		machine.NINA_CTS.Configure(machine.PinConfig{Mode: machine.PinInput})
+	}
 
 	a.hci.start()
 
@@ -122,6 +133,8 @@ func makeNINAAddress(mac MAC) [6]uint8 {
 }
 
 func resetNINA() {
+	machine.NINA_RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	machine.NINA_RESETN.High()
 	time.Sleep(100 * time.Millisecond)
 	machine.NINA_RESETN.Low()
@@ -129,6 +142,8 @@ func resetNINA() {
 }
 
 func resetNINAInverted() {
+	machine.NINA_RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
+
 	machine.NINA_RESETN.Low()
 	time.Sleep(100 * time.Millisecond)
 	machine.NINA_RESETN.High()
