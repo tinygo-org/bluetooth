@@ -32,9 +32,11 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/nusserver
 	@md5sum test.hex
-	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/scanner
-	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/discover
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=arduino-nano33 		  ./examples/discover
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=pyportal	          ./examples/discover
 	@md5sum test.hex
 
 smoketest-linux:
