@@ -114,7 +114,7 @@ func (a *Adapter) AddService(s *Service) error {
 				"UUID":    {Value: char.UUID.String()},
 				"Service": {Value: path},
 				"Flags":   {Value: flags},
-				"Value":   {Value: []byte("foobar"), Writable: true, Emit: prop.EmitTrue},
+				"Value":   {Value: char.Value, Writable: true, Emit: prop.EmitTrue},
 			},
 		}
 		objects[charPath] = propsSpec
