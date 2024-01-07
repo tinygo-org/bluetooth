@@ -284,6 +284,10 @@ For example, this command can be used to compile and flash an Arduino Nano RP204
 
 	tinygo flash -target nano-rp2040 ./examples/heartrate
 
+When using the AirLift WiFi Featherwing with one of Adafruit's feather boards, you can use `ninafw ninafw_featherwing_init` build tags to set up the hardware using the default pins. Make sure to [connect the solder pads on the underside of the board](https://learn.adafruit.com/adafruit-airlift-featherwing-esp32-wifi-co-processor-featherwing/pinouts#spi-and-control-pins-3029450) in order to enable BLE support (see "Optional Control Pins" section).
+
+To use ninafw with other boards, you will need to use the `ninafw` build tag as well as configure the pins and UART for communicating with the ESP32 module by configuring the `AdapterConfig` package variable before calling `DefaultAdapter.Enable()`. See [`adapter_ninafw-featherwing.go`](adapter_ninafw-featherwing.go) for an example of setting the hardware configuration options.
+
 If you want more information about the `nina-fw` firmware, or want to add support for other ESP32-equipped boards, please see https://github.com/arduino/nina-fw
 
 ## API stability

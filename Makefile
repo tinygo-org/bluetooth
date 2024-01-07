@@ -42,6 +42,10 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/advertisement
 	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=feather-m4 -tags="ninafw ninafw_featherwing_init" ./examples/advertisement
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=pybadge						./examples/advertisement
+	@md5sum test.hex
 
 smoketest-linux:
 	# Test on Linux.
