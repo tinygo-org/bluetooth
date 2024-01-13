@@ -288,7 +288,41 @@ func (h *hci) leSetAdvertiseEnable(enabled bool) error {
 		data[0] = 1
 	}
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetAdvertiseEnable, data[:])
+	return h.sendWithoutResponse(ogfLECtrl<<ogfCommandPos|ocfLESetAdvertiseEnable, data[:])
+}
+
+func (h *hci) leSetAdvertisingParameters(minInterval, maxInterval uint16,
+	advType, ownBdaddrType uint8,
+	directBdaddrType uint8, directBdaddr [6]byte,
+	chanMap, filter uint8) error {
+
+	var b [15]byte
+	binary.LittleEndian.PutUint16(b[0:], minInterval)
+	binary.LittleEndian.PutUint16(b[2:], maxInterval)
+	b[4] = advType
+	b[5] = ownBdaddrType
+	b[6] = directBdaddrType
+	copy(b[7:], directBdaddr[:])
+	b[13] = chanMap
+	b[14] = filter
+
+	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetAdvertisingParameters, b[:])
+}
+
+func (h *hci) leSetAdvertisingData(data []byte) error {
+	var b [32]byte
+	b[0] = byte(len(data))
+	copy(b[1:], data)
+
+	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetAdvertisingData, b[:])
+}
+
+func (h *hci) leSetScanResponseData(data []byte) error {
+	var b [32]byte
+	b[0] = byte(len(data))
+	copy(b[1:], data)
+
+	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetScanResponseData, b[:])
 }
 
 func (h *hci) leCreateConn(interval, window uint16,
@@ -356,6 +390,26 @@ func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
 			return ErrHCITimeout
 		}
 	}
+
+	return nil
+}
+
+func (h *hci) sendWithoutResponse(opcode uint16, params []byte) error {
+	if _debug {
+		println("hci send without response command", opcode, hex.EncodeToString(params))
+	}
+
+	h.buf[0] = hciCommandPkt
+	binary.LittleEndian.PutUint16(h.buf[1:], opcode)
+	h.buf[3] = byte(len(params))
+	copy(h.buf[4:], params)
+
+	if _, err := h.write(h.buf[:4+len(params)]); err != nil {
+		return err
+	}
+
+	h.cmdCompleteOpcode = 0xffff
+	h.cmdCompleteStatus = 0xff
 
 	return nil
 }
@@ -450,12 +504,9 @@ func (h *hci) handleEventData(buf []byte) error {
 		if _debug {
 			println("evtDisconnComplete")
 		}
-		// TODO: something with this data?
-		// status := buf[2]
-		// handle := buf[3] | (buf[4] << 8)
-		// reason := buf[5]
-		// ATT.removeConnection(disconnComplete->handle, disconnComplete->reason);
-		// L2CAPSignaling.removeConnection(disconnComplete->handle, disconnComplete->reason);
+
+		handle := binary.LittleEndian.Uint16(buf[3:])
+		h.att.removeConnection(handle)
 
 		return h.leSetAdvertiseEnable(true)
 
@@ -512,7 +563,9 @@ func (h *hci) handleEventData(buf []byte) error {
 			h.connectData.peerBdaddrType = buf[7]
 			copy(h.connectData.peerBdaddr[0:], buf[8:])
 
-			return nil
+			h.att.addConnection(h.connectData.handle)
+
+			return h.leSetAdvertiseEnable(false)
 
 		case leMetaEventAdvertisingReport:
 			h.advData.reported = true
@@ -567,7 +620,7 @@ func (h *hci) handleEventData(buf []byte) error {
 			binary.LittleEndian.PutUint16(b[10:], 0x000F)
 			binary.LittleEndian.PutUint16(b[12:], 0x0FFF)
 
-			return h.sendCommandWithParams(ogfLECtrl<<10|ocfLEParamRequestReply, b[:])
+			return h.sendWithoutResponse(ogfLECtrl<<10|ocfLEParamRequestReply, b[:])
 
 		case leMetaEventConnectionUpdateComplete:
 			if _debug {
@@ -582,6 +635,11 @@ func (h *hci) handleEventData(buf []byte) error {
 		case leMetaEventGenerateDHKeyComplete:
 			if _debug {
 				println("leMetaEventGenerateDHKeyComplete")
+			}
+
+		case leMetaEventDataLengthChange:
+			if _debug {
+				println("leMetaEventDataLengthChange")
 			}
 
 		default:

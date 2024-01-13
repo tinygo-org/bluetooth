@@ -61,3 +61,8 @@ func (p CharacteristicPermissions) WriteWithoutResponse() bool {
 func (p CharacteristicPermissions) Notify() bool {
 	return p&CharacteristicNotifyPermission != 0
 }
+
+// Indicate returns whether indications are permitted.
+func (p CharacteristicPermissions) Indicate() bool {
+	return p&CharacteristicIndicatePermission != 0
+}
