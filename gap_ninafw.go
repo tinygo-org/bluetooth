@@ -3,7 +3,9 @@
 package bluetooth
 
 import (
+	"encoding/binary"
 	"errors"
+	"slices"
 	"time"
 )
 
@@ -260,4 +262,138 @@ func (d Device) addNotificationRegistration(handle uint16, callback func([]byte)
 
 func (d Device) startNotifications() {
 	d.adapter.startNotifications()
+}
+
+var defaultAdvertisement Advertisement
+
+// Advertisement encapsulates a single advertisement instance.
+type Advertisement struct {
+	adapter *Adapter
+}
+
+// DefaultAdvertisement returns the default advertisement instance but does not
+// configure it.
+func (a *Adapter) DefaultAdvertisement() *Advertisement {
+	if defaultAdvertisement.adapter == nil {
+		defaultAdvertisement.adapter = a
+
+		a.AddService(
+			&Service{
+				UUID: ServiceUUIDGenericAccess,
+				Characteristics: []CharacteristicConfig{
+					{
+						UUID:  CharacteristicUUIDDeviceName,
+						Flags: CharacteristicReadPermission,
+					},
+					{
+						UUID:  CharacteristicUUIDAppearance,
+						Flags: CharacteristicReadPermission,
+					},
+				},
+			})
+		a.AddService(
+			&Service{
+				UUID: ServiceUUIDGenericAttribute,
+				Characteristics: []CharacteristicConfig{
+					{
+						UUID:  CharacteristicUUIDServiceChanged,
+						Flags: CharacteristicIndicatePermission,
+					},
+				},
+			})
+	}
+
+	return &defaultAdvertisement
+}
+
+// Configure this advertisement.
+func (a *Advertisement) Configure(options AdvertisementOptions) error {
+	//   uint8_t type = (_connectable) ? 0x00 : (_localName ? 0x02 : 0x03);
+	typ := uint8(0x00)
+
+	if err := a.adapter.hci.leSetAdvertisingParameters(uint16(options.Interval), uint16(options.Interval),
+		typ, 0x00, 0x00, [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0x07, 0); err != nil {
+		return err
+	}
+
+	var advertisingData [31]byte
+	advertisingDataLen := uint8(0)
+
+	advertisingData[0] = 0x02
+	advertisingData[1] = 0x01
+	advertisingData[2] = 0x06
+	advertisingDataLen += 3
+
+	// TODO: handle multiple service UUIDs
+	if len(options.ServiceUUIDs) > 0 {
+		uuid := options.ServiceUUIDs[0]
+		var sz uint8
+
+		switch {
+		case uuid.Is16Bit():
+			sz = 2
+			binary.LittleEndian.PutUint16(advertisingData[5:], uuid.Get16Bit())
+		case uuid.Is32Bit():
+			sz = 6
+			data := uuid.Bytes()
+			slices.Reverse(data[:])
+			copy(advertisingData[5:], data[:])
+		}
+
+		advertisingData[3] = sz + 1
+		advertisingData[4] = sz
+		advertisingDataLen += sz + 2
+	}
+
+	// TODO: handle manufacturer data
+
+	if err := a.adapter.hci.leSetAdvertisingData(advertisingData[:advertisingDataLen]); err != nil {
+		return err
+	}
+
+	var scanResponseData [31]byte
+	scanResponseDataLen := uint8(0)
+
+	switch {
+	case len(options.LocalName) > 29:
+		scanResponseData[1] = 0x08
+		scanResponseData[0] = 1 + 29
+		copy(scanResponseData[2:], options.LocalName[:29])
+		scanResponseDataLen = 31
+	case len(options.LocalName) > 0:
+		scanResponseData[1] = 0x09
+		scanResponseData[0] = uint8(1 + len(options.LocalName))
+		copy(scanResponseData[2:], options.LocalName)
+		scanResponseDataLen = uint8(2 + len(options.LocalName))
+	}
+
+	return a.adapter.hci.leSetScanResponseData(scanResponseData[:scanResponseDataLen])
+}
+
+// Start advertisement. May only be called after it has been configured.
+func (a *Advertisement) Start() error {
+	if err := a.adapter.hci.leSetAdvertiseEnable(true); err != nil {
+		return err
+	}
+
+	// go routine to poll for HCI events while advertising
+	go func() {
+		for {
+			if err := a.adapter.att.poll(); err != nil {
+				// TODO: handle error
+				if _debug {
+					println("error polling while advertising:", err.Error())
+				}
+			}
+
+			time.Sleep(10 * time.Millisecond)
+		}
+	}()
+
+	return nil
+}
+
+// Stop advertisement. May only be called after it has been started.
+func (a *Advertisement) Stop() error {
+	return a.adapter.hci.leSetAdvertiseEnable(false)
 }
