@@ -99,10 +99,10 @@ func must(action string, err error) {
 | Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
 | Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
-| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
-| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
-| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :x:                |
+| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
 
 ## Linux
 
@@ -268,11 +268,23 @@ Flashing will normally reset the board.
 
 Go Bluetooth has bare metal support for boards that include a separate ESP32 Bluetooth Low Energy radio co-processor. The ESP32 must be running the Arduino or Adafruit `nina_fw` firmware.
 
-See https://github.com/arduino/nina-fw for more information.
+Several boards created by Adafruit and Arduino already have the `nina-fw` firmware pre-loaded. This means you can use TinyGo and the Go Bluetooth package without any additional steps required.
 
-The only currently supported board is the Arduino Nano RP2040 Connect.
+Currently supported boards include:
 
-More info soon...
+* [Adafruit Metro M4 AirLift](https://www.adafruit.com/product/4000)
+* [Adafruit PyBadge](https://www.adafruit.com/product/4200) with [AirLift WiFi FeatherWing](https://www.adafruit.com/product/4264)
+* [Adafruit PyPortal](https://www.adafruit.com/product/4116)
+* [Arduino Nano 33 IoT](https://docs.arduino.cc/hardware/nano-33-iot)
+* [Arduino Nano RP2040 Connect](https://docs.arduino.cc/hardware/nano-rp2040-connect)
+
+After you have installed TinyGo and the Go Bluetooth package, you should be able to compile/run code for your device.
+
+For example, this command can be used to compile and flash an Arduino Nano RP2040 Connect board with the example we provide that turns it into a BLE peripheral to act like a heart rate monitor:
+
+	tinygo flash -target nano-rp2040 ./examples/heartrate
+
+If you want more information about the `nina-fw` firmware, or want to add support for other ESP32-equipped boards, please see https://github.com/arduino/nina-fw
 
 ## API stability
 
