@@ -40,6 +40,8 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=pyportal	          ./examples/discover
 	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/advertisement
+	@md5sum test.hex
 
 smoketest-linux:
 	# Test on Linux.
