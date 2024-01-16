@@ -155,7 +155,7 @@ func (a *Adapter) startNotifications() {
 		return
 	}
 
-	if _debug {
+	if debug {
 		println("starting notifications...")
 	}
 
@@ -166,7 +166,7 @@ func (a *Adapter) startNotifications() {
 		for {
 			if err := a.att.poll(); err != nil {
 				// TODO: handle error
-				if _debug {
+				if debug {
 					println("error polling for notifications:", err.Error())
 				}
 			}
@@ -180,13 +180,13 @@ func (a *Adapter) startNotifications() {
 		for {
 			select {
 			case not := <-a.att.notifications:
-				if _debug {
+				if debug {
 					println("notification received", not.connectionHandle, not.handle, not.data)
 				}
 
 				d := a.findDevice(not.connectionHandle)
 				if d.deviceInternal == nil {
-					if _debug {
+					if debug {
 						println("no device found for handle", not.connectionHandle)
 					}
 					continue
@@ -194,7 +194,7 @@ func (a *Adapter) startNotifications() {
 
 				n := d.findNotificationRegistration(not.handle)
 				if n == nil {
-					if _debug {
+					if debug {
 						println("no notification registered for handle", not.handle)
 					}
 					continue
@@ -215,7 +215,7 @@ func (a *Adapter) startNotifications() {
 func (a *Adapter) findDevice(handle uint16) Device {
 	for _, d := range a.connectedDevices {
 		if d.handle == handle {
-			if _debug {
+			if debug {
 				println("found device", handle, d.Address.String(), "with notifications registered", len(d.notificationRegistrations))
 			}
 

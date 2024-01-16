@@ -48,7 +48,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		case a.hci.advData.reported:
 			adf := AdvertisementFields{}
 			if a.hci.advData.eirLength > 31 {
-				if _debug {
+				if debug {
 					println("eirLength too long")
 				}
 
@@ -68,7 +68,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				case 0x06, 0x07:
 					// 128-bit Service Class UUID
 				case 0x08, 0x09:
-					if _debug {
+					if debug {
 						println("local name", string(a.hci.advData.eirData[i+2:i+1+l]))
 					}
 
@@ -103,7 +103,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				return nil
 			}
 
-			if _debug && (time.Now().UnixNano()-lastUpdate)/int64(time.Second) > 1 {
+			if debug && (time.Now().UnixNano()-lastUpdate)/int64(time.Second) > 1 {
 				println("still scanning...")
 				lastUpdate = time.Now().UnixNano()
 			}
@@ -136,7 +136,7 @@ type Address struct {
 
 // Connect starts a connection attempt to the given peripheral device address.
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
-	if _debug {
+	if debug {
 		println("Connect")
 	}
 
@@ -221,7 +221,7 @@ type deviceInternal struct {
 
 // Disconnect from the BLE device.
 func (d Device) Disconnect() error {
-	if _debug {
+	if debug {
 		println("Disconnect")
 	}
 	if err := d.adapter.hci.disconnect(d.handle); err != nil {
@@ -381,7 +381,7 @@ func (a *Advertisement) Start() error {
 		for {
 			if err := a.adapter.att.poll(); err != nil {
 				// TODO: handle error
-				if _debug {
+				if debug {
 					println("error polling while advertising:", err.Error())
 				}
 			}

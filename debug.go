@@ -2,4 +2,4 @@
 
 package bluetooth
 
-var _debug = true
+var debug = true
