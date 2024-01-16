@@ -171,7 +171,7 @@ func (a *Adapter) startNotifications() {
 				}
 			}
 
-			time.Sleep(250 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 		}
 	}()
 

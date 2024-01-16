@@ -925,6 +925,8 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 			if err := a.hci.sendAclPkt(handle, attCID, response[:pos]); err != nil {
 				return err
 			}
+
+			return nil
 		}
 
 	case attributeTypeDescriptor:
@@ -945,6 +947,8 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 			if err := a.hci.sendAclPkt(handle, attCID, response[:pos]); err != nil {
 				return err
 			}
+
+			return nil
 		}
 	}
 

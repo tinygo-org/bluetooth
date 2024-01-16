@@ -42,10 +42,14 @@ func (a *Adapter) AddService(service *Service) error {
 			endHandle = a.att.addLocalAttribute(attributeTypeDescriptor, charHandle, shortUUID(gattClientCharacteristicConfigUUID).UUID(), CharacteristicReadPermission|CharacteristicWritePermission, []byte{0, 0})
 		}
 
-		if service.Characteristics[i].Handle != nil {
-			service.Characteristics[i].Handle.adapter = a
-			service.Characteristics[i].Handle.handle = valueHandle
-			service.Characteristics[i].Handle.permissions = service.Characteristics[i].Flags
+		if service.Characteristics[i].Handle == nil {
+			service.Characteristics[i].Handle = &Characteristic{}
+		}
+
+		service.Characteristics[i].Handle.adapter = a
+		service.Characteristics[i].Handle.handle = valueHandle
+		service.Characteristics[i].Handle.permissions = service.Characteristics[i].Flags
+		if len(service.Characteristics[i].Value) > 0 {
 			service.Characteristics[i].Handle.value = service.Characteristics[i].Value
 		}
 
