@@ -52,7 +52,7 @@ func (s DeviceService) UUID() UUID {
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
 func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
-	if _debug {
+	if debug {
 		println("DiscoverServices")
 	}
 
@@ -67,7 +67,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 			return nil, err
 		}
 
-		if _debug {
+		if debug {
 			println("found d.adapter.att.services", len(d.adapter.att.services))
 		}
 
@@ -143,7 +143,7 @@ func (c DeviceCharacteristic) UUID() UUID {
 // Passing a nil slice of UUIDs will return a complete
 // list of characteristics.
 func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
-	if _debug {
+	if debug {
 		println("DiscoverCharacteristics")
 	}
 
@@ -165,7 +165,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 			return nil, err
 		}
 
-		if _debug {
+		if debug {
 			println("found s.device.adapter.att.characteristics", len(s.device.adapter.att.characteristics))
 		}
 
@@ -244,7 +244,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	switch {
 	case callback == nil:
 		// disable notifications
-		if _debug {
+		if debug {
 			println("disabling notifications")
 		}
 
@@ -254,7 +254,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 		}
 	default:
 		// enable notifications
-		if _debug {
+		if debug {
 			println("enabling notifications")
 		}
 

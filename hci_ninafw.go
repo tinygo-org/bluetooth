@@ -176,7 +176,7 @@ func (h *hci) poll() error {
 		done, err := h.processPacket(i)
 		switch {
 		case err == ErrHCIUnknown || err == ErrHCIInvalidPacket || err == ErrHCIUnknownEvent:
-			if _debug {
+			if debug {
 				println("hci error:", err.Error())
 			}
 			i = 0
@@ -203,7 +203,7 @@ func (h *hci) processPacket(i int) (bool, error) {
 			case pktlen > len(h.buf):
 				return true, ErrHCIInvalidPacket
 			case i >= (hciACLLenPos + pktlen):
-				if _debug {
+				if debug {
 					println("hci acl data:", i, hex.EncodeToString(h.buf[:1+hciACLLenPos+pktlen]))
 				}
 				return true, h.handleACLData(h.buf[1 : 1+hciACLLenPos+pktlen])
@@ -218,7 +218,7 @@ func (h *hci) processPacket(i int) (bool, error) {
 			case pktlen > len(h.buf):
 				return true, ErrHCIInvalidPacket
 			case i >= (hciEvtLenPos + pktlen):
-				if _debug {
+				if debug {
 					println("hci event data:", i, hex.EncodeToString(h.buf[:1+hciEvtLenPos+pktlen]))
 				}
 				return true, h.handleEventData(h.buf[1 : 1+hciEvtLenPos+pktlen])
@@ -226,7 +226,7 @@ func (h *hci) processPacket(i int) (bool, error) {
 		}
 
 	default:
-		if _debug {
+		if debug {
 			println("unknown packet data:", h.buf[0])
 		}
 		return true, ErrHCIUnknown
@@ -364,7 +364,7 @@ func (h *hci) sendCommand(opcode uint16) error {
 }
 
 func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
-	if _debug {
+	if debug {
 		println("hci send command", opcode, hex.EncodeToString(params))
 	}
 
@@ -395,7 +395,7 @@ func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
 }
 
 func (h *hci) sendWithoutResponse(opcode uint16, params []byte) error {
-	if _debug {
+	if debug {
 		println("hci send without response command", opcode, hex.EncodeToString(params))
 	}
 
@@ -423,7 +423,7 @@ func (h *hci) sendAclPkt(handle uint16, cid uint8, data []byte) error {
 
 	copy(h.buf[9:], data)
 
-	if _debug {
+	if debug {
 		println("hci send acl data", handle, cid, hex.EncodeToString(h.buf[:9+len(data)]))
 	}
 
@@ -479,7 +479,7 @@ func (h *hci) handleACLData(buf []byte) error {
 	case attCID:
 		if aclFlags == 0x01 {
 			// TODO: use buffered packet
-			if _debug {
+			if debug {
 				println("WARNING: att.handleACLData needs buffered packet")
 			}
 			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:aclHdr.len+8])
@@ -487,7 +487,7 @@ func (h *hci) handleACLData(buf []byte) error {
 			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:aclHdr.len+8])
 		}
 	default:
-		if _debug {
+		if debug {
 			println("unknown acl data cid", aclHdr.cid)
 		}
 	}
@@ -501,7 +501,7 @@ func (h *hci) handleEventData(buf []byte) error {
 
 	switch evt {
 	case evtDisconnComplete:
-		if _debug {
+		if debug {
 			println("evtDisconnComplete")
 		}
 
@@ -511,7 +511,7 @@ func (h *hci) handleEventData(buf []byte) error {
 		return h.leSetAdvertiseEnable(true)
 
 	case evtEncryptionChange:
-		if _debug {
+		if debug {
 			println("evtEncryptionChange")
 		}
 
@@ -524,7 +524,7 @@ func (h *hci) handleEventData(buf []byte) error {
 			h.cmdResponse = buf[:0]
 		}
 
-		if _debug {
+		if debug {
 			println("evtCmdComplete", h.cmdCompleteOpcode, h.cmdCompleteStatus)
 		}
 
@@ -533,7 +533,7 @@ func (h *hci) handleEventData(buf []byte) error {
 	case evtCmdStatus:
 		h.cmdCompleteStatus = buf[2]
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[4:])
-		if _debug {
+		if debug {
 			println("evtCmdStatus", h.cmdCompleteOpcode, h.cmdCompleteOpcode, h.cmdCompleteStatus)
 		}
 
@@ -542,17 +542,17 @@ func (h *hci) handleEventData(buf []byte) error {
 		return nil
 
 	case evtNumCompPkts:
-		if _debug {
+		if debug {
 			println("evtNumCompPkts")
 		}
 	case evtLEMetaEvent:
-		if _debug {
+		if debug {
 			println("evtLEMetaEvent")
 		}
 
 		switch buf[2] {
 		case leMetaEventConnComplete, leMetaEventEnhancedConnectionComplete:
-			if _debug {
+			if debug {
 				println("leMetaEventConnComplete")
 			}
 
@@ -575,13 +575,13 @@ func (h *hci) handleEventData(buf []byte) error {
 			copy(h.advData.peerBdaddr[0:], buf[6:])
 			h.advData.eirLength = buf[12]
 			h.advData.rssi = 0
-			if _debug {
+			if debug {
 				println("leMetaEventAdvertisingReport", plen, h.advData.numReports,
 					h.advData.typ, h.advData.peerBdaddrType, h.advData.eirLength)
 			}
 
 			if int(13+h.advData.eirLength+1) > len(buf) || h.advData.eirLength > 31 {
-				if _debug {
+				if debug {
 					println("invalid packet length", h.advData.eirLength, len(buf))
 				}
 				return ErrHCIInvalidPacket
@@ -596,12 +596,12 @@ func (h *hci) handleEventData(buf []byte) error {
 			return nil
 
 		case leMetaEventLongTermKeyRequest:
-			if _debug {
+			if debug {
 				println("leMetaEventLongTermKeyRequest")
 			}
 
 		case leMetaEventRemoteConnParamReq:
-			if _debug {
+			if debug {
 				println("leMetaEventRemoteConnParamReq")
 			}
 
@@ -623,27 +623,27 @@ func (h *hci) handleEventData(buf []byte) error {
 			return h.sendWithoutResponse(ogfLECtrl<<10|ocfLEParamRequestReply, b[:])
 
 		case leMetaEventConnectionUpdateComplete:
-			if _debug {
+			if debug {
 				println("leMetaEventConnectionUpdateComplete")
 			}
 
 		case leMetaEventReadLocalP256Complete:
-			if _debug {
+			if debug {
 				println("leMetaEventReadLocalP256Complete")
 			}
 
 		case leMetaEventGenerateDHKeyComplete:
-			if _debug {
+			if debug {
 				println("leMetaEventGenerateDHKeyComplete")
 			}
 
 		case leMetaEventDataLengthChange:
-			if _debug {
+			if debug {
 				println("leMetaEventDataLengthChange")
 			}
 
 		default:
-			if _debug {
+			if debug {
 				println("unknown metaevent", buf[2], buf[3], buf[4], buf[5])
 			}
 

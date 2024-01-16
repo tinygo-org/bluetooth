@@ -49,14 +49,14 @@ func (a *Adapter) AddService(service *Service) error {
 			service.Characteristics[i].Handle.value = service.Characteristics[i].Value
 		}
 
-		if _debug {
+		if debug {
 			println("added characteristic", charHandle, valueHandle, service.Characteristics[i].UUID.String())
 		}
 
 		a.att.addLocalCharacteristic(charHandle, service.Characteristics[i].Flags, valueHandle, service.Characteristics[i].UUID, service.Characteristics[i].Handle)
 	}
 
-	if _debug {
+	if debug {
 		println("added service", serviceHandle, endHandle, service.UUID.String())
 	}
 

@@ -288,7 +288,7 @@ func newATT(hci *hci) *att {
 }
 
 func (a *att) readByGroupReq(connectionHandle, startHandle, endHandle uint16, uuid shortUUID) error {
-	if _debug {
+	if debug {
 		println("att.readByGroupReq:", connectionHandle, startHandle, endHandle, uuid)
 	}
 
@@ -309,7 +309,7 @@ func (a *att) readByGroupReq(connectionHandle, startHandle, endHandle uint16, uu
 }
 
 func (a *att) readByTypeReq(connectionHandle, startHandle, endHandle uint16, typ uint16) error {
-	if _debug {
+	if debug {
 		println("att.readByTypeReq:", connectionHandle, startHandle, endHandle, typ)
 	}
 
@@ -330,7 +330,7 @@ func (a *att) readByTypeReq(connectionHandle, startHandle, endHandle uint16, typ
 }
 
 func (a *att) findInfoReq(connectionHandle, startHandle, endHandle uint16) error {
-	if _debug {
+	if debug {
 		println("att.findInfoReq:", connectionHandle, startHandle, endHandle)
 	}
 
@@ -350,7 +350,7 @@ func (a *att) findInfoReq(connectionHandle, startHandle, endHandle uint16) error
 }
 
 func (a *att) readReq(connectionHandle, valueHandle uint16) error {
-	if _debug {
+	if debug {
 		println("att.readReq:", connectionHandle, valueHandle)
 	}
 
@@ -369,7 +369,7 @@ func (a *att) readReq(connectionHandle, valueHandle uint16) error {
 }
 
 func (a *att) writeCmd(connectionHandle, valueHandle uint16, data []byte) error {
-	if _debug {
+	if debug {
 		println("att.writeCmd:", connectionHandle, valueHandle, hex.EncodeToString(data))
 	}
 
@@ -388,7 +388,7 @@ func (a *att) writeCmd(connectionHandle, valueHandle uint16, data []byte) error 
 }
 
 func (a *att) writeReq(connectionHandle, valueHandle uint16, data []byte) error {
-	if _debug {
+	if debug {
 		println("att.writeReq:", connectionHandle, valueHandle, hex.EncodeToString(data))
 	}
 
@@ -407,7 +407,7 @@ func (a *att) writeReq(connectionHandle, valueHandle uint16, data []byte) error 
 }
 
 func (a *att) mtuReq(connectionHandle, mtu uint16) error {
-	if _debug {
+	if debug {
 		println("att.mtuReq:", connectionHandle)
 	}
 
@@ -428,7 +428,7 @@ func (a *att) mtuReq(connectionHandle, mtu uint16) error {
 func (a *att) sendReq(handle uint16, data []byte) error {
 	a.clearResponse()
 
-	if _debug {
+	if debug {
 		println("att.sendReq:", handle, "data:", hex.EncodeToString(data))
 	}
 
@@ -440,7 +440,7 @@ func (a *att) sendReq(handle uint16, data []byte) error {
 }
 
 func (a *att) sendNotification(handle uint16, data []byte) error {
-	if _debug {
+	if debug {
 		println("att.sendNotifications:", handle, "data:", hex.EncodeToString(data))
 	}
 
@@ -452,7 +452,7 @@ func (a *att) sendNotification(handle uint16, data []byte) error {
 	binary.LittleEndian.PutUint16(b[1:], handle)
 
 	for connection := range a.connections {
-		if _debug {
+		if debug {
 			println("att.sendNotifications: sending to", connection)
 		}
 
@@ -467,7 +467,7 @@ func (a *att) sendNotification(handle uint16, data []byte) error {
 func (a *att) sendError(handle uint16, opcode uint8, hdl uint16, code uint8) error {
 	a.clearResponse()
 
-	if _debug {
+	if debug {
 		println("att.sendError:", handle, "data:", opcode, hdl, code)
 	}
 
@@ -485,7 +485,7 @@ func (a *att) sendError(handle uint16, opcode uint8, hdl uint16, code uint8) err
 }
 
 func (a *att) handleData(handle uint16, buf []byte) error {
-	if _debug {
+	if debug {
 		println("att.handleData:", handle, "data:", hex.EncodeToString(buf))
 	}
 
@@ -496,14 +496,14 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		a.lastErrorHandle = binary.LittleEndian.Uint16(buf[2:])
 		a.lastErrorCode = buf[4]
 
-		if _debug {
+		if debug {
 			println("att.handleData: attOpERROR", a.lastErrorOpcode, a.lastErrorCode)
 		}
 
 		return ErrATTOp
 
 	case attOpMTUReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpMTUReq")
 		}
 		a.mtu = binary.LittleEndian.Uint16(buf[1:])
@@ -513,14 +513,14 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		}
 
 	case attOpMTUResponse:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpMTUResponse")
 		}
 		a.responded = true
 		a.mtu = binary.LittleEndian.Uint16(buf[1:])
 
 	case attOpFindInfoReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpFindInfoReq")
 		}
 
@@ -530,7 +530,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		return a.handleFindInfoReq(handle, startHandle, endHandle)
 
 	case attOpFindInfoResponse:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpFindInfoResponse")
 		}
 		a.responded = true
@@ -541,7 +541,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 			d := rawDescriptor{}
 			d.Write(buf[i : i+lengthPerDescriptor])
 
-			if _debug {
+			if debug {
 				println("att.handleData: descriptor", d.handle, hex.EncodeToString(d.data))
 			}
 
@@ -549,12 +549,12 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		}
 
 	case attOpFindByTypeReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpFindByTypeReq")
 		}
 
 	case attOpReadByTypeReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadByTypeReq")
 		}
 
@@ -565,7 +565,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		return a.handleReadByTypeReq(handle, startHandle, endHandle, uuid)
 
 	case attOpReadByTypeResponse:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadByTypeResponse")
 		}
 		a.responded = true
@@ -576,7 +576,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 			c := rawCharacteristic{}
 			c.Write(buf[i : i+lengthPerCharacteristic])
 
-			if _debug {
+			if debug {
 				println("att.handleData: characteristic", c.startHandle, c.properties, c.valueHandle, c.uuid.String())
 			}
 
@@ -586,7 +586,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		return nil
 
 	case attOpReadByGroupReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadByGroupReq")
 		}
 
@@ -597,7 +597,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		return a.handleReadByGroupReq(handle, startHandle, endHandle, uuid)
 
 	case attOpReadByGroupResponse:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadByGroupResponse")
 		}
 		a.responded = true
@@ -608,7 +608,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 			service := rawService{}
 			service.Write(buf[i : i+lengthPerService])
 
-			if _debug {
+			if debug {
 				println("att.handleData: service", service.startHandle, service.endHandle, service.uuid.String())
 			}
 
@@ -618,7 +618,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		return nil
 
 	case attOpReadReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadReq")
 		}
 
@@ -626,19 +626,19 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		return a.handleReadReq(handle, attrHandle)
 
 	case attOpReadBlobReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadBlobReq")
 		}
 
 	case attOpReadResponse:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadResponse")
 		}
 		a.responded = true
 		a.value = append(a.value, buf[1:]...)
 
 	case attOpWriteReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpWriteReq")
 		}
 
@@ -646,28 +646,28 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		return a.handleWriteReq(handle, attrHandle, buf[3:])
 
 	case attOpWriteCmd:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpWriteCmd")
 		}
 
 	case attOpWriteResponse:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpWriteResponse")
 		}
 		a.responded = true
 
 	case attOpPrepWriteReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpPrepWriteReq")
 		}
 
 	case attOpExecWriteReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpExecWriteReq")
 		}
 
 	case attOpHandleNotify:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpHandleNotify")
 		}
 
@@ -685,27 +685,27 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 		}
 
 	case attOpHandleInd:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpHandleInd")
 		}
 
 	case attOpHandleCNF:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpHandleCNF")
 		}
 
 	case attOpReadMultiReq:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpReadMultiReq")
 		}
 
 	case attOpSignedWriteCmd:
-		if _debug {
+		if debug {
 			println("att.handleData: attOpSignedWriteCmd")
 		}
 
 	default:
-		if _debug {
+		if debug {
 			println("att.handleData: unknown")
 		}
 	}
@@ -723,7 +723,7 @@ func (a *att) handleReadByGroupReq(handle, start, end uint16, uuid shortUUID) er
 	case shortUUID(gattServiceUUID):
 		for _, s := range a.localServices {
 			if s.startHandle >= start && s.endHandle <= end {
-				if _debug {
+				if debug {
 					println("attOpReadByGroupReq: replying with service", s.startHandle, s.endHandle, s.uuid.String())
 				}
 
@@ -762,7 +762,7 @@ func (a *att) handleReadByGroupReq(handle, start, end uint16, uuid shortUUID) er
 		return nil
 
 	default:
-		if _debug {
+		if debug {
 			println("handleReadByGroupReq: unknown uuid", New16BitUUID(uint16(uuid)).String())
 		}
 		if err := a.sendError(handle, attOpReadByGroupReq, start, attErrorAttrNotFound); err != nil {
@@ -784,12 +784,12 @@ func (a *att) handleReadByTypeReq(handle, start, end uint16, uuid shortUUID) err
 		response[1] = 0
 
 		for _, c := range a.characteristics {
-			if _debug {
+			if debug {
 				println("handleReadByTypeReq: looking at characteristic", c.startHandle, c.uuid.String())
 			}
 
 			if c.startHandle >= start && c.valueHandle <= end {
-				if _debug {
+				if debug {
 					println("handleReadByTypeReq: replying with characteristic", c.startHandle, c.uuid.String())
 				}
 
@@ -827,7 +827,7 @@ func (a *att) handleReadByTypeReq(handle, start, end uint16, uuid shortUUID) err
 		return nil
 
 	default:
-		if _debug {
+		if debug {
 			println("handleReadByTypeReq: unknown uuid", New16BitUUID(uint16(uuid)).String())
 		}
 		if err := a.sendError(handle, attOpReadByTypeReq, start, attErrorAttrNotFound); err != nil {
@@ -848,12 +848,12 @@ func (a *att) handleFindInfoReq(handle, start, end uint16) error {
 	response[1] = 0
 
 	for _, attr := range a.attributes {
-		if _debug {
+		if debug {
 			println("handleFindInfoReq: looking at attribute")
 		}
 
 		if attr.handle >= start && attr.handle <= end {
-			if _debug {
+			if debug {
 				println("handleFindInfoReq: replying with attribute", attr.handle, attr.uuid.String(), attr.typ)
 			}
 
@@ -896,7 +896,7 @@ func (a *att) handleFindInfoReq(handle, start, end uint16) error {
 func (a *att) handleReadReq(handle, attrHandle uint16) error {
 	attr := a.findAttribute(attrHandle)
 	if attr == nil {
-		if _debug {
+		if debug {
 			println("att.handleReadReq: attribute not found", attrHandle)
 		}
 		return a.sendError(handle, attOpReadReq, attrHandle, attErrorAttrNotFound)
@@ -908,7 +908,7 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 
 	switch attr.typ {
 	case attributeTypeCharacteristicValue:
-		if _debug {
+		if debug {
 			println("att.handleReadReq: reading characteristic value", attrHandle)
 		}
 
@@ -928,7 +928,7 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 		}
 
 	case attributeTypeDescriptor:
-		if _debug {
+		if debug {
 			println("att.handleReadReq: reading descriptor", attrHandle)
 		}
 
@@ -954,7 +954,7 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 func (a *att) handleWriteReq(handle, attrHandle uint16, data []byte) error {
 	attr := a.findAttribute(attrHandle)
 	if attr == nil {
-		if _debug {
+		if debug {
 			println("att.handleWriteReq: attribute not found", attrHandle)
 		}
 		return a.sendError(handle, attOpWriteReq, attrHandle, attErrorAttrNotFound)
@@ -962,7 +962,7 @@ func (a *att) handleWriteReq(handle, attrHandle uint16, data []byte) error {
 
 	switch attr.typ {
 	case attributeTypeCharacteristicValue:
-		if _debug {
+		if debug {
 			println("att.handleWriteReq: writing characteristic value", attrHandle, hex.EncodeToString(data))
 		}
 
@@ -980,7 +980,7 @@ func (a *att) handleWriteReq(handle, attrHandle uint16, data []byte) error {
 		}
 
 	case attributeTypeDescriptor:
-		if _debug {
+		if debug {
 			println("att.handleWriteReq: writing descriptor", attrHandle, hex.EncodeToString(data))
 		}
 
