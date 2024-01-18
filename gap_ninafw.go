@@ -178,7 +178,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 					notificationRegistrations: make([]notificationRegistration, 0),
 				},
 			}
-			a.connectedDevices = append(a.connectedDevices, d)
+			a.addDevice(d)
 
 			return d, nil
 
@@ -228,7 +228,7 @@ func (d Device) Disconnect() error {
 		return err
 	}
 
-	d.adapter.connectedDevices = []Device{}
+	d.adapter.removeDevice(d)
 	return nil
 }
 
