@@ -185,6 +185,12 @@ func (h *hci) poll() error {
 			return err
 		case done:
 			return nil
+		case i+1 >= len(h.buf):
+			if debug {
+				println("hci error: buffer overflow")
+			}
+			i = 0
+			time.Sleep(5 * time.Millisecond)
 		default:
 			i++
 			time.Sleep(1 * time.Millisecond)
