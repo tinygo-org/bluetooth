@@ -105,6 +105,9 @@ func newBLEStack(uart *machine.UART) (*hci, *att) {
 	a := newATT(h)
 	h.att = a
 
+	l := newL2CAP(h)
+	h.l2cap = l
+
 	return h, a
 }
 
