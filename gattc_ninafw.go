@@ -18,8 +18,8 @@ var (
 )
 
 const (
-	maxDefaultServicesToDiscover        = 6
-	maxDefaultCharacteristicsToDiscover = 8
+	maxDefaultServicesToDiscover        = 8
+	maxDefaultCharacteristicsToDiscover = 16
 )
 
 const (
@@ -94,6 +94,11 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 		// reset raw services
 		d.adapter.att.services = []rawService{}
+
+		// did we find them all?
+		if len(foundServices) == len(uuids) {
+			break
+		}
 	}
 
 	switch {
@@ -191,6 +196,11 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 
 		// reset raw characteristics
 		s.device.adapter.att.characteristics = []rawCharacteristic{}
+
+		// did we find them all?
+		if len(foundCharacteristics) == len(uuids) {
+			break
+		}
 	}
 
 	switch {
@@ -274,7 +284,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
-	err := c.service.device.adapter.att.mtuReq(c.service.device.handle, c.service.device.mtu)
+	err := c.service.device.adapter.att.mtuReq(c.service.device.handle)
 	if err != nil {
 		return 0, err
 	}

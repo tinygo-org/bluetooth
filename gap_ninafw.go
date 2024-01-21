@@ -96,7 +96,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 			})
 
 			a.hci.clearAdvData()
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 
 		default:
 			if !a.scanning {
@@ -108,7 +108,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				lastUpdate = time.Now().UnixNano()
 			}
 
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		}
 	}
 
@@ -178,7 +178,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 					notificationRegistrations: make([]notificationRegistration, 0),
 				},
 			}
-			a.addDevice(d)
+			a.addConnection(d)
 
 			return d, nil
 
@@ -188,7 +188,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 				break
 			}
 
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		}
 	}
 
@@ -228,7 +228,7 @@ func (d Device) Disconnect() error {
 		return err
 	}
 
-	d.adapter.removeDevice(d)
+	d.adapter.removeConnection(d)
 	return nil
 }
 
@@ -405,7 +405,7 @@ func (a *Advertisement) Start() error {
 				}
 			}
 
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		}
 	}()
 

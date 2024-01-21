@@ -87,6 +87,11 @@ const (
 const (
 	hciACLLenPos = 4
 	hciEvtLenPos = 2
+
+	attCID       = 0x0004
+	bleCTL       = 0x0008
+	signalingCID = 0x0005
+	securityCID  = 0x0006
 )
 
 var (
@@ -113,6 +118,8 @@ type leConnectData struct {
 	role           uint8
 	peerBdaddrType uint8
 	peerBdaddr     [6]uint8
+	interval       uint16
+	timeout        uint16
 }
 
 type hci struct {
@@ -120,6 +127,7 @@ type hci struct {
 	softCTS           machine.Pin
 	softRTS           machine.Pin
 	att               *att
+	l2cap             *l2cap
 	buf               []byte
 	address           [6]byte
 	cmdCompleteOpcode uint16
@@ -128,6 +136,8 @@ type hci struct {
 	scanning          bool
 	advData           leAdvertisingReport
 	connectData       leConnectData
+	maxPkt            uint16
+	pendingPkt        uint16
 }
 
 func newHCI(uart *machine.UART) *hci {
@@ -263,6 +273,26 @@ func (h *hci) setLeEventMask(eventMask uint64) error {
 	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|0x01, b[:])
 }
 
+func (h *hci) readLeBufferSize() error {
+	if err := h.sendCommand(ogfLECtrl<<ogfCommandPos | ocfLEReadBufferSize); err != nil {
+		return err
+	}
+
+	pktLen := binary.LittleEndian.Uint16(h.buf[0:])
+	h.maxPkt = uint16(h.buf[2])
+
+	// pkt len must be at least 27 bytes
+	if pktLen < 27 {
+		pktLen = 27
+	}
+
+	if err := h.att.setMaxMTU(pktLen); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (h *hci) leSetScanEnable(enabled, duplicates bool) error {
 	h.scanning = enabled
 
@@ -357,6 +387,21 @@ func (h *hci) leCancelConn() error {
 	return h.sendCommand(ogfLECtrl<<ogfCommandPos | ocfLECancelConn)
 }
 
+func (h *hci) leConnUpdate(handle uint16, minInterval, maxInterval,
+	latency, supervisionTimeout uint16) error {
+
+	var b [14]byte
+	binary.LittleEndian.PutUint16(b[0:], handle)
+	binary.LittleEndian.PutUint16(b[2:], minInterval)
+	binary.LittleEndian.PutUint16(b[4:], maxInterval)
+	binary.LittleEndian.PutUint16(b[6:], latency)
+	binary.LittleEndian.PutUint16(b[8:], supervisionTimeout)
+	binary.LittleEndian.PutUint16(b[10:], 0x0004)
+	binary.LittleEndian.PutUint16(b[12:], 0x0006)
+
+	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLEConnUpdate, b[:])
+}
+
 func (h *hci) disconnect(handle uint16) error {
 	var b [3]byte
 	binary.LittleEndian.PutUint16(b[0:], handle)
@@ -437,6 +482,8 @@ func (h *hci) sendAclPkt(handle uint16, cid uint8, data []byte) error {
 		return err
 	}
 
+	h.pendingPkt++
+
 	return nil
 }
 
@@ -492,6 +539,13 @@ func (h *hci) handleACLData(buf []byte) error {
 		} else {
 			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:aclHdr.len+8])
 		}
+	case signalingCID:
+		if debug {
+			println("signaling cid", aclHdr.cid, hex.EncodeToString(buf))
+		}
+
+		return h.l2cap.handleData(aclHdr.handle&0x0fff, buf[8:aclHdr.len+8])
+
 	default:
 		if debug {
 			println("unknown acl data cid", aclHdr.cid)
@@ -513,6 +567,7 @@ func (h *hci) handleEventData(buf []byte) error {
 
 		handle := binary.LittleEndian.Uint16(buf[3:])
 		h.att.removeConnection(handle)
+		h.l2cap.removeConnection(handle)
 
 		return h.leSetAdvertiseEnable(true)
 
@@ -549,8 +604,28 @@ func (h *hci) handleEventData(buf []byte) error {
 
 	case evtNumCompPkts:
 		if debug {
-			println("evtNumCompPkts")
+			println("evtNumCompPkts", hex.EncodeToString(buf))
 		}
+		// count of handles
+		c := buf[2]
+		pkts := uint16(0)
+
+		for i := byte(0); i < c; i++ {
+			pkts += binary.LittleEndian.Uint16(buf[5+i*4:])
+		}
+
+		if pkts > 0 && h.pendingPkt > pkts {
+			h.pendingPkt -= pkts
+		} else {
+			h.pendingPkt = 0
+		}
+
+		if debug {
+			println("evtNumCompPkts", pkts, h.pendingPkt)
+		}
+
+		return nil
+
 	case evtLEMetaEvent:
 		if debug {
 			println("evtLEMetaEvent")
@@ -569,7 +644,20 @@ func (h *hci) handleEventData(buf []byte) error {
 			h.connectData.peerBdaddrType = buf[7]
 			copy(h.connectData.peerBdaddr[0:], buf[8:])
 
+			switch buf[2] {
+			case leMetaEventConnComplete:
+				h.connectData.interval = binary.LittleEndian.Uint16(buf[14:])
+				h.connectData.timeout = binary.LittleEndian.Uint16(buf[16:])
+			case leMetaEventEnhancedConnectionComplete:
+				h.connectData.interval = binary.LittleEndian.Uint16(buf[26:])
+				h.connectData.timeout = binary.LittleEndian.Uint16(buf[28:])
+			}
+
 			h.att.addConnection(h.connectData.handle)
+			if err := h.l2cap.addConnection(h.connectData.handle, h.connectData.role,
+				h.connectData.interval, h.connectData.timeout); err != nil {
+				return err
+			}
 
 			return h.leSetAdvertiseEnable(false)
 
