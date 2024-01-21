@@ -105,6 +105,9 @@ func newBLEStack(uart *machine.UART) (*hci, *att) {
 	a := newATT(h)
 	h.att = a
 
+	l := newL2CAP(h)
+	h.l2cap = l
+
 	return h, a
 }
 
@@ -171,7 +174,7 @@ func (a *Adapter) startNotifications() {
 				}
 			}
 
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		}
 	}()
 
@@ -184,7 +187,7 @@ func (a *Adapter) startNotifications() {
 					println("notification received", not.connectionHandle, not.handle, not.data)
 				}
 
-				d := a.findConnectedDevice(not.connectionHandle)
+				d := a.findConnection(not.connectionHandle)
 				if d.deviceInternal == nil {
 					if debug {
 						println("no device found for handle", not.connectionHandle)
@@ -212,15 +215,15 @@ func (a *Adapter) startNotifications() {
 	}()
 }
 
-func (a *Adapter) addDevice(d Device) {
+func (a *Adapter) addConnection(d Device) {
 	a.connectedDevices = append(a.connectedDevices, d)
 }
 
-func (a *Adapter) removeDevice(d Device) {
+func (a *Adapter) removeConnection(d Device) {
 	for i := range a.connectedDevices {
 		if d.handle == a.connectedDevices[i].handle {
-			copy(a.connectedDevices[i:], a.connectedDevices[i+1:])
-			a.connectedDevices[len(a.connectedDevices)-1] = Device{} // the zero value of T
+			a.connectedDevices[i] = a.connectedDevices[len(a.connectedDevices)-1]
+			a.connectedDevices[len(a.connectedDevices)-1] = Device{}
 			a.connectedDevices = a.connectedDevices[:len(a.connectedDevices)-1]
 
 			return
@@ -228,7 +231,7 @@ func (a *Adapter) removeDevice(d Device) {
 	}
 }
 
-func (a *Adapter) findConnectedDevice(handle uint16) Device {
+func (a *Adapter) findConnection(handle uint16) Device {
 	for _, d := range a.connectedDevices {
 		if d.handle == handle {
 			if debug {

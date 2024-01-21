@@ -12,9 +12,6 @@ import (
 )
 
 const (
-	attCID = 0x0004
-	bleCTL = 0x0008
-
 	attOpError               = 0x01
 	attOpMTUReq              = 0x02
 	attOpMTUResponse         = 0x03
@@ -261,6 +258,7 @@ type att struct {
 	lastErrorHandle uint16
 	lastErrorCode   uint8
 	mtu             uint16
+	maxMTU          uint16
 	services        []rawService
 	characteristics []rawCharacteristic
 	descriptors     []rawDescriptor
@@ -284,6 +282,7 @@ func newATT(hci *hci) *att {
 		lastHandle:      0x0001,
 		attributes:      []rawAttribute{},
 		localServices:   []rawService{},
+		maxMTU:          248,
 	}
 }
 
@@ -384,7 +383,7 @@ func (a *att) writeCmd(connectionHandle, valueHandle uint16, data []byte) error 
 		return err
 	}
 
-	return a.waitUntilResponse()
+	return nil
 }
 
 func (a *att) writeReq(connectionHandle, valueHandle uint16, data []byte) error {
@@ -406,7 +405,7 @@ func (a *att) writeReq(connectionHandle, valueHandle uint16, data []byte) error 
 	return a.waitUntilResponse()
 }
 
-func (a *att) mtuReq(connectionHandle, mtu uint16) error {
+func (a *att) mtuReq(connectionHandle uint16) error {
 	if debug {
 		println("att.mtuReq:", connectionHandle)
 	}
@@ -416,13 +415,19 @@ func (a *att) mtuReq(connectionHandle, mtu uint16) error {
 
 	var b [3]byte
 	b[0] = attOpMTUReq
-	binary.LittleEndian.PutUint16(b[1:], mtu)
+	binary.LittleEndian.PutUint16(b[1:], a.mtu)
 
 	if err := a.sendReq(connectionHandle, b[:]); err != nil {
 		return err
 	}
 
 	return a.waitUntilResponse()
+}
+
+func (a *att) setMaxMTU(mtu uint16) error {
+	a.maxMTU = mtu
+
+	return nil
 }
 
 func (a *att) sendReq(handle uint16, data []byte) error {
@@ -504,11 +509,21 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 
 	case attOpMTUReq:
 		if debug {
-			println("att.handleData: attOpMTUReq")
+			println("att.handleData: attOpMTUReq", hex.EncodeToString(buf))
 		}
-		a.mtu = binary.LittleEndian.Uint16(buf[1:])
-		response := [3]byte{attOpMTUResponse, buf[1], buf[2]}
-		if err := a.hci.sendAclPkt(handle, attCID, response[:]); err != nil {
+		mtu := binary.LittleEndian.Uint16(buf[1:])
+		if mtu > a.maxMTU {
+			mtu = a.maxMTU
+		}
+
+		// save mtu for connection
+		a.mtu = mtu
+
+		var b [3]byte
+		b[0] = attOpMTUResponse
+		binary.LittleEndian.PutUint16(b[1:], mtu)
+
+		if err := a.hci.sendAclPkt(handle, attCID, b[:]); err != nil {
 			return err
 		}
 
@@ -1032,7 +1047,7 @@ func (a *att) waitUntilResponse() error {
 				break
 			}
 
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(5 * time.Millisecond)
 		}
 	}
 
@@ -1050,17 +1065,21 @@ func (a *att) poll() error {
 	return nil
 }
 
-func (a *att) addConnection(handle uint16) {
+func (a *att) addConnection(handle uint16) error {
 	a.connections = append(a.connections, handle)
+
+	return nil
 }
 
-func (a *att) removeConnection(handle uint16) {
+func (a *att) removeConnection(handle uint16) error {
 	for i := range a.connections {
 		if a.connections[i] == handle {
 			a.connections = append(a.connections[:i], a.connections[i+1:]...)
-			return
+			break
 		}
 	}
+
+	return nil
 }
 
 func (a *att) addLocalAttribute(typ attributeType, parent uint16, uuid UUID, permissions CharacteristicPermissions, value []byte) uint16 {
