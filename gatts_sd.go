@@ -150,7 +150,7 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 		}
 	}
 
-	errCode := C.sd_ble_gatts_value_set_noescape(C.BLE_CONN_HANDLE_INVALID, c.handle, C.uint16_t(len(p)), unsafe.SliceData(p))
+	errCode := C.sd_ble_gatts_value_set_noescape(C.BLE_CONN_HANDLE_INVALID, c.handle, C.uint16_t(len(p)), (*C.uint8_t)(unsafe.Pointer(&p[0])))
 	if errCode != 0 {
 		return 0, Error(errCode)
 	}
