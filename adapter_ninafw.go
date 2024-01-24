@@ -11,6 +11,29 @@ import (
 
 const maxConnections = 1
 
+// NINAConfig encapsulates the hardware options for the NINA firmware
+type NINAConfig struct {
+	UART *machine.UART
+
+	CS     machine.Pin
+	ACK    machine.Pin
+	GPIO0  machine.Pin
+	RESETN machine.Pin
+
+	TX  machine.Pin
+	RX  machine.Pin
+	CTS machine.Pin
+	RTS machine.Pin
+
+	BaudRate        uint32
+	ResetInverted   bool
+	SoftFlowControl bool
+}
+
+// AdapterConfig is used to set the hardware options for the NINA adapter prior
+// to calling DefaultAdapter.Enable()
+var AdapterConfig NINAConfig
+
 // Adapter represents the UART connection to the NINA fw.
 type Adapter struct {
 	hci *hci
@@ -40,37 +63,37 @@ var DefaultAdapter = &Adapter{
 // Bluetooth-related calls (unless otherwise indicated).
 func (a *Adapter) Enable() error {
 	// reset the NINA in BLE mode
-	machine.NINA_CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-	machine.NINA_CS.Low()
+	AdapterConfig.CS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	AdapterConfig.CS.Low()
 
-	if machine.NINA_RESET_INVERTED {
+	if AdapterConfig.ResetInverted {
 		resetNINAInverted()
 	} else {
 		resetNINA()
 	}
 
 	// serial port for nina chip
-	uart := machine.UART_NINA
+	uart := AdapterConfig.UART
 	cfg := machine.UARTConfig{
-		TX:       machine.NINA_TX,
-		RX:       machine.NINA_RX,
-		BaudRate: machine.NINA_BAUDRATE,
+		TX:       AdapterConfig.TX,
+		RX:       AdapterConfig.RX,
+		BaudRate: AdapterConfig.BaudRate,
 	}
-	if !machine.NINA_SOFT_FLOWCONTROL {
-		cfg.CTS = machine.NINA_CTS
-		cfg.RTS = machine.NINA_RTS
+	if !AdapterConfig.SoftFlowControl {
+		cfg.CTS = AdapterConfig.CTS
+		cfg.RTS = AdapterConfig.RTS
 	}
 
 	uart.Configure(cfg)
 
 	a.hci, a.att = newBLEStack(uart)
-	if machine.NINA_SOFT_FLOWCONTROL {
-		a.hci.softRTS = machine.NINA_RTS
+	if AdapterConfig.SoftFlowControl {
+		a.hci.softRTS = AdapterConfig.RTS
 		a.hci.softRTS.Configure(machine.PinConfig{Mode: machine.PinOutput})
 		a.hci.softRTS.High()
 
-		a.hci.softCTS = machine.NINA_CTS
-		machine.NINA_CTS.Configure(machine.PinConfig{Mode: machine.PinInput})
+		a.hci.softCTS = AdapterConfig.CTS
+		AdapterConfig.CTS.Configure(machine.PinConfig{Mode: machine.PinInput})
 	}
 
 	a.hci.start()
@@ -136,20 +159,20 @@ func makeNINAAddress(mac MAC) [6]uint8 {
 }
 
 func resetNINA() {
-	machine.NINA_RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	AdapterConfig.RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	machine.NINA_RESETN.High()
+	AdapterConfig.RESETN.High()
 	time.Sleep(100 * time.Millisecond)
-	machine.NINA_RESETN.Low()
+	AdapterConfig.RESETN.Low()
 	time.Sleep(1000 * time.Millisecond)
 }
 
 func resetNINAInverted() {
-	machine.NINA_RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	AdapterConfig.RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
 
-	machine.NINA_RESETN.Low()
+	AdapterConfig.RESETN.Low()
 	time.Sleep(100 * time.Millisecond)
-	machine.NINA_RESETN.High()
+	AdapterConfig.RESETN.High()
 	time.Sleep(1000 * time.Millisecond)
 }
 
