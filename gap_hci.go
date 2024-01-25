@@ -65,8 +65,12 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				switch t {
 				case 0x02, 0x03:
 					// 16-bit Service Class UUID
+					adf.ServiceUUIDs = append(adf.ServiceUUIDs, New16BitUUID(binary.LittleEndian.Uint16(a.hci.advData.eirData[i+2:i+4])))
 				case 0x06, 0x07:
 					// 128-bit Service Class UUID
+					var uuid [16]byte
+					copy(uuid[:], a.hci.advData.eirData[i+2:i+18])
+					adf.ServiceUUIDs = append(adf.ServiceUUIDs, NewUUID(uuid))
 				case 0x08, 0x09:
 					if debug {
 						println("local name", string(a.hci.advData.eirData[i+2:i+1+l]))
