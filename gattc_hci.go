@@ -59,6 +59,11 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	services := make([]DeviceService, 0, maxDefaultServicesToDiscover)
 	foundServices := make(map[UUID]DeviceService)
 
+	cd, err := d.adapter.att.findConnectionData(d.handle)
+	if err != nil {
+		return nil, err
+	}
+
 	startHandle := uint16(0x0001)
 	endHandle := uint16(0xffff)
 	for endHandle == uint16(0xffff) {
@@ -68,14 +73,14 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		if debug {
-			println("found d.adapter.att.services", len(d.adapter.att.services))
+			println("found services", len(cd.services))
 		}
 
-		if len(d.adapter.att.services) == 0 {
+		if len(cd.services) == 0 {
 			break
 		}
 
-		for _, rawService := range d.adapter.att.services {
+		for _, rawService := range cd.services {
 			if len(uuids) == 0 || rawService.uuid.isIn(uuids) {
 				foundServices[rawService.uuid] =
 					DeviceService{
@@ -93,7 +98,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		// reset raw services
-		d.adapter.att.services = []rawService{}
+		cd.services = []rawService{}
 
 		// did we find them all?
 		if len(foundServices) == len(uuids) {
@@ -155,30 +160,35 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	characteristics := make([]DeviceCharacteristic, 0, maxDefaultCharacteristicsToDiscover)
 	foundCharacteristics := make(map[UUID]DeviceCharacteristic)
 
+	cd, err := s.device.adapter.att.findConnectionData(s.device.handle)
+	if err != nil {
+		return nil, err
+	}
+
 	startHandle := s.startHandle
 	endHandle := s.endHandle
 	for startHandle < endHandle {
 		err := s.device.adapter.att.readByTypeReq(s.device.handle, startHandle, endHandle, gattCharacteristicUUID)
 		switch {
-		case err == ErrATTOp &&
-			s.device.adapter.att.lastErrorOpcode == attOpReadByTypeReq &&
-			s.device.adapter.att.lastErrorCode == attErrorAttrNotFound:
-
-			// no characteristics found
-			break
+		case err == ErrATTOp:
+			opcode, _, errcode := s.device.adapter.att.lastError(s.device.handle)
+			if opcode == attOpReadByTypeReq && errcode == attErrorAttrNotFound {
+				// no characteristics found
+				break
+			}
 		case err != nil:
 			return nil, err
 		}
 
 		if debug {
-			println("found s.device.adapter.att.characteristics", len(s.device.adapter.att.characteristics))
+			println("found characteristics", len(cd.characteristics))
 		}
 
-		if len(s.device.adapter.att.characteristics) == 0 {
+		if len(cd.characteristics) == 0 {
 			break
 		}
 
-		for _, rawCharacteristic := range s.device.adapter.att.characteristics {
+		for _, rawCharacteristic := range cd.characteristics {
 			if len(uuids) == 0 || rawCharacteristic.uuid.isIn(uuids) {
 				dc := DeviceCharacteristic{
 					service:     &s,
@@ -195,7 +205,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		}
 
 		// reset raw characteristics
-		s.device.adapter.att.characteristics = []rawCharacteristic{}
+		cd.characteristics = []rawCharacteristic{}
 
 		// did we find them all?
 		if len(foundCharacteristics) == len(uuids) {
@@ -305,11 +315,16 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, err
 	}
 
-	if len(c.service.device.adapter.att.value) == 0 {
+	cd, err := c.service.device.adapter.att.findConnectionData(c.service.device.handle)
+	if err != nil {
+		return 0, err
+	}
+
+	if len(cd.value) == 0 {
 		return 0, errReadFailed
 	}
 
-	copy(data, c.service.device.adapter.att.value)
+	copy(data, cd.value)
 
-	return len(c.service.device.adapter.att.value), nil
+	return len(cd.value), nil
 }
