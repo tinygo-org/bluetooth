@@ -53,6 +53,16 @@ func (a *Adapter) AddService(service *Service) error {
 			service.Characteristics[i].Handle.value = service.Characteristics[i].Value
 		}
 
+		if (service.Characteristics[i].Flags.Write() ||
+			service.Characteristics[i].Flags.WriteWithoutResponse()) &&
+			service.Characteristics[i].WriteEvent != nil {
+			handlers := append(a.charWriteHandlers, charWriteHandler{
+				handle:   valueHandle,
+				callback: service.Characteristics[i].WriteEvent,
+			})
+			a.charWriteHandlers = handlers
+		}
+
 		if debug {
 			println("added characteristic", charHandle, valueHandle, service.Characteristics[i].UUID.String())
 		}
@@ -71,11 +81,17 @@ func (a *Adapter) AddService(service *Service) error {
 
 // Write replaces the characteristic value with a new value.
 func (c *Characteristic) Write(p []byte) (n int, err error) {
-	if !c.permissions.Notify() {
-		return 0, errNoNotify
+	if !(c.permissions.Write() || c.permissions.WriteWithoutResponse() ||
+		c.permissions.Notify() || c.permissions.Indicate()) {
+		return 0, errNoWrite
 	}
 
-	c.value = append([]byte{}, p...)
+	hdl := c.adapter.getCharWriteHandler(c.handle)
+	if hdl != nil {
+		hdl.callback(Connection(c.handle), 0, p)
+	}
+
+	copy(c.value, p)
 
 	if c.cccd&0x01 != 0 {
 		// send notification
