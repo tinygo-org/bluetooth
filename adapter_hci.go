@@ -22,6 +22,7 @@ type hciAdapter struct {
 
 	connectedDevices     []Device
 	notificationsStarted bool
+	charWriteHandlers    []charWriteHandler
 }
 
 func (a *hciAdapter) enable() error {
@@ -173,4 +174,24 @@ func (a *hciAdapter) findConnection(handle uint16) Device {
 	}
 
 	return Device{}
+}
+
+// charWriteHandler contains a handler->callback mapping for characteristic
+// writes.
+type charWriteHandler struct {
+	handle   uint16
+	callback func(connection Connection, offset int, value []byte)
+}
+
+// getCharWriteHandler returns a characteristic write handler if one matches the
+// handle, or nil otherwise.
+func (a *Adapter) getCharWriteHandler(handle uint16) *charWriteHandler {
+	for i := range a.charWriteHandlers {
+		h := &a.charWriteHandlers[i]
+		if h.handle == handle {
+			return h
+		}
+	}
+
+	return nil
 }
