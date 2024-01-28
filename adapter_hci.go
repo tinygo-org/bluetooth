@@ -48,6 +48,15 @@ func (a *hciAdapter) Address() (MACAddress, error) {
 	return MACAddress{MAC: makeAddress(a.hci.address)}, nil
 }
 
+func (a *Adapter) SetRandomAddress(mac MAC) error {
+	if err := a.hci.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetRandomAddress, mac[:]); err != nil {
+		return err
+	}
+	copy(a.hci.address.MAC[:], mac[:])
+	a.hci.address.SetRandom(true)
+	return nil
+}
+
 func newBLEStack(uart *machine.UART) (*hci, *att) {
 	h := newHCI(uart)
 	a := newATT(h)
