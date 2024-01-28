@@ -140,7 +140,7 @@ type hci struct {
 	pos               int
 	end               int
 	writebuf          []byte
-	address           [6]byte
+	address           MACAddress
 	cmdCompleteOpcode uint16
 	cmdCompleteStatus uint8
 	cmdResponse       []byte
@@ -318,7 +318,7 @@ func (h *hci) readBdAddr() error {
 		return err
 	}
 
-	copy(h.address[:], h.cmdResponse[:7])
+	copy(h.address.MAC[:], h.cmdResponse[:7])
 
 	return nil
 }
