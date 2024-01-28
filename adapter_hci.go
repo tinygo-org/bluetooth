@@ -45,7 +45,7 @@ func (a *hciAdapter) Address() (MACAddress, error) {
 		return MACAddress{}, err
 	}
 
-	return MACAddress{MAC: makeAddress(a.hci.address)}, nil
+	return a.hci.address, nil
 }
 
 func (a *Adapter) SetRandomAddress(mac MAC) error {
