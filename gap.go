@@ -57,6 +57,10 @@ type AdvertisementOptions struct {
 	// ManufacturerData stores Advertising Data.
 	// Keys are the Manufacturer ID to associate with the data.
 	ManufacturerData map[uint16]interface{}
+
+	// ServiceData stores Advertising Data.
+	// Keys are the Manufacturer/Service ID to associate with the data.
+	ServiceData map[uint16]interface{}
 }
 
 // Duration is the unit of time used in BLE, in 0.625µs units. This unit of time
@@ -172,6 +176,7 @@ func (p *advertisementFields) ManufacturerData() map[uint16][]byte {
 	return p.AdvertisementFields.ManufacturerData
 }
 
+// ServiceData returns the underlying ServiceData field.
 func (p *advertisementFields) ServiceData() map[uint16][]byte {
 	return p.AdvertisementFields.ServiceData
 }
@@ -283,9 +288,13 @@ func (buf *rawAdvertisementPayload) ManufacturerData() map[uint16][]byte {
 	return mData
 }
 
-// ServiceData is not implemented yet.
+// ServiceData returns the service data in the advertisment payload
 func (buf *rawAdvertisementPayload) ServiceData() map[uint16][]byte {
-	return map[uint16][]byte{}
+	sData := make(map[uint16][]byte)
+	data := buf.findField(0x16)
+	sData[uint16(data[0])+(uint16(data[1])<<8)]= data[2:]
+	
+	return sData
 }
 
 // reset restores this buffer to the original state.
@@ -320,6 +329,12 @@ func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions)
 		buf.addManufacturerData(options.ManufacturerData)
 	}
 
+	if len(options.ServiceData) > 0 {
+		if !buf.addServiceData(options.ServiceData){
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -342,6 +357,39 @@ func (buf *rawAdvertisementPayload) addManufacturerData(manufacturerData map[uin
 		manufacturerIDPart2 := byte((manufacturerID >> 8) & 0xFF)
 
 		payloadData = append(payloadData, byte(fieldLength), manufacturerDataBit, manufacturerIDPart1, manufacturerIDPart2)
+		payloadData = append(payloadData, data...)
+	}
+	buf.len = uint8(len(payloadData))
+	copy(buf.data[:], payloadData)
+	return true
+}
+
+// addServiceData adds service data ([]byte) entries to the advertisement payload.
+func (buf *rawAdvertisementPayload) addServiceData(serviceData map[uint16]interface{}) (ok bool) {
+	//check if it fits
+	var size int 
+	for _, sData := range serviceData {
+		size +=1  // ad type byte
+		size +=2 // 16-bit uuid
+		size +=len(sData.([]byte)) // actual service data
+	}
+	if int(buf.len)+size > len(buf.data) {
+		return false // service data doesn't fit
+	}
+
+	payloadData := buf.Bytes()
+	for uuid, rawData := range serviceData {
+		data := rawData.([]byte)
+		// Check if the manufacturer ID is within the range of 16 bits (0-65535).
+		if uuid > 0xFFFF {
+			// Invalid uuid.
+			return false
+		}
+
+		fieldLength := byte(len(data) + 3)
+
+		// append service data element to existing payload
+		payloadData = append(payloadData, fieldLength, byte(0x16), byte(uuid & 0xFF), byte((uuid >> 8) & 0xFF))
 		payloadData = append(payloadData, data...)
 	}
 	buf.len = uint8(len(payloadData))
