@@ -218,11 +218,11 @@ func (buf *rawAdvertisementPayload) findField(fieldType byte) []byte {
 // LocalName returns the local name (complete or shortened) in the advertisement
 // payload.
 func (buf *rawAdvertisementPayload) LocalName() string {
-	b := buf.findField(9) // Complete Local Name
+	b := buf.findField(0x09) // Complete Local Name
 	if len(b) != 0 {
 		return string(b)
 	}
-	b = buf.findField(8) // Shortened Local Name
+	b = buf.findField(0x08) // Shortened Local Name
 	if len(b) != 0 {
 		return string(b)
 	}
