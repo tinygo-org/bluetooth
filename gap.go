@@ -111,8 +111,12 @@ type AdvertisementPayload interface {
 	Bytes() []byte
 
 	// ManufacturerData returns a map with all the manufacturer data present in the
-	//advertising. IT may be empty.
+	// advertising. It may be empty.
 	ManufacturerData() map[uint16][]byte
+
+	// ServiceData returns a map with all the service data present in the
+	// advertising. It may be empty.
+	ServiceData() map[uint16][]byte
 }
 
 // AdvertisementFields contains advertisement fields in structured form.
@@ -128,6 +132,9 @@ type AdvertisementFields struct {
 
 	// ManufacturerData is the manufacturer data of the advertisement.
 	ManufacturerData map[uint16][]byte
+
+	// ServiceData is the service data of the advertisement.
+	ServiceData map[uint16][]byte
 }
 
 // advertisementFields wraps AdvertisementFields to implement the
@@ -163,6 +170,10 @@ func (p *advertisementFields) Bytes() []byte {
 // ManufacturerData returns the underlying ManufacturerData field.
 func (p *advertisementFields) ManufacturerData() map[uint16][]byte {
 	return p.AdvertisementFields.ManufacturerData
+}
+
+func (p *advertisementFields) ServiceData() map[uint16][]byte {
+	return p.AdvertisementFields.ServiceData
 }
 
 // rawAdvertisementPayload encapsulates a raw advertisement packet. Methods to
@@ -270,6 +281,11 @@ func (buf *rawAdvertisementPayload) ManufacturerData() map[uint16][]byte {
 		data = data[fieldLength+1:]
 	}
 	return mData
+}
+
+// ServiceData is not implemented yet.
+func (buf *rawAdvertisementPayload) ServiceData() map[uint16][]byte {
+	return map[uint16][]byte{}
 }
 
 // reset restores this buffer to the original state.

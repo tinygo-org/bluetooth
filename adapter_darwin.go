@@ -148,6 +148,17 @@ func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) Sc
 		manufacturerData[manufacturerID] = advFields.ManufacturerData[2:]
 	}
 
+	serviceData := make(map[uint16][]byte)
+	for _, svcData := range advFields.ServiceData {
+		cbgoUUID := svcData.UUID
+		uuid, err := ParseUUID(cbgoUUID.String())
+		if err != nil || uuid.String() != cbgoUUID.String() {
+			continue
+		}
+		svcID := uuid.Get16Bit()
+		serviceData[svcID] = svcData.Data[:]
+	}
+
 	// Peripheral UUID is randomized on macOS, which means to
 	// different centrals it will appear to have a different UUID.
 	return ScanResult{
@@ -160,6 +171,7 @@ func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) Sc
 				LocalName:        advFields.LocalName,
 				ServiceUUIDs:     serviceUUIDs,
 				ManufacturerData: manufacturerData,
+				ServiceData:      serviceData,
 			},
 		},
 	}

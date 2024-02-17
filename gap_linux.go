@@ -277,6 +277,13 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	localName, _ := props["Name"].Value().(string)
 	rssi, _ := props["RSSI"].Value().(int16)
 
+	serviceData := make(map[uint16][]byte)
+	if sdata, ok := props["ServiceData"].Value().(map[uint16]dbus.Variant); ok {
+		for k, v := range sdata {
+			serviceData[k] = v.Value().([]byte)
+		}
+	}
+
 	return ScanResult{
 		RSSI:    rssi,
 		Address: a,
@@ -285,6 +292,7 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 				LocalName:        localName,
 				ServiceUUIDs:     serviceUUIDs,
 				ManufacturerData: manufacturerData,
+				ServiceData:      serviceData,
 			},
 		},
 	}
