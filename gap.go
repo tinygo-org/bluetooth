@@ -292,6 +292,9 @@ func (buf *rawAdvertisementPayload) ManufacturerData() map[uint16][]byte {
 func (buf *rawAdvertisementPayload) ServiceData() map[uint16][]byte {
 	sData := make(map[uint16][]byte)
 	data := buf.findField(0x16)
+	if data == nil {
+		return sData
+	}
 	sData[uint16(data[0])+(uint16(data[1])<<8)]= data[2:]
 	
 	return sData
