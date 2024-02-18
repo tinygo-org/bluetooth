@@ -63,6 +63,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 			"ServiceUUIDs":     {Value: serviceUUIDs},
 			"ManufacturerData": {Value: options.ManufacturerData},
 			"LocalName":        {Value: options.LocalName},
+			"ServiceData":		{Value: options.ServiceData},
 			// The documentation states:
 			// > Timeout of the advertisement in seconds. This defines the
 			// > lifetime of the advertisement.
@@ -89,13 +90,13 @@ func (a *Advertisement) Start() error {
 		if err, ok := err.(dbus.Error); ok && err.Name == "org.bluez.Error.AlreadyExists" {
 			return errAdvertisementAlreadyStarted
 		}
-		return fmt.Errorf("bluetooth: could not start advertisement: %w", err)
+		return fmt.Errorf("bluetooth: could not start advertisement (register): %w", err)
 	}
 
 	// Make us discoverable.
 	err = a.adapter.adapter.SetProperty("org.bluez.Adapter1.Discoverable", dbus.MakeVariant(true))
 	if err != nil {
-		return fmt.Errorf("bluetooth: could not start advertisement: %w", err)
+		return fmt.Errorf("bluetooth: could not start advertisement (make discoverable): %w", err)
 	}
 	return nil
 }
