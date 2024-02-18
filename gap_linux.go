@@ -53,6 +53,10 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	for _, uuid := range options.ServiceUUIDs {
 		serviceUUIDs = append(serviceUUIDs, uuid.String())
 	}
+	var serviceData = make(map[string][]byte)
+	for uuid, data := range options.ServiceData {
+		serviceData[New16BitUUID(uuid).String()] = data.([]byte)
+	}
 
 	// Build an org.bluez.LEAdvertisement1 object, to be exported over DBus.
 	id := atomic.AddUint64(&advertisementID, 1)
@@ -63,7 +67,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 			"ServiceUUIDs":     {Value: serviceUUIDs},
 			"ManufacturerData": {Value: options.ManufacturerData},
 			"LocalName":        {Value: options.LocalName},
-			"ServiceData":		{Value: options.ServiceData},
+			"ServiceData":		{Value: serviceData},
 			// The documentation states:
 			// > Timeout of the advertisement in seconds. This defines the
 			// > lifetime of the advertisement.
@@ -279,9 +283,13 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	rssi, _ := props["RSSI"].Value().(int16)
 
 	serviceData := make(map[uint16][]byte)
-	if sdata, ok := props["ServiceData"].Value().(map[uint16]dbus.Variant); ok {
+	if sdata, ok := props["ServiceData"].Value().(map[string]dbus.Variant); ok {
 		for k, v := range sdata {
-			serviceData[k] = v.Value().([]byte)
+			// looks like bluez delivers the long-128bit-uuid even for 16-bit uuid ad-element and it needs to be converted
+			uuid, err := ParseUUID(k)
+			if err == nil && uuid.Is16Bit(){
+				serviceData[uuid.Get16Bit()] = v.Value().([]byte)
+			}
 		}
 	}
 
