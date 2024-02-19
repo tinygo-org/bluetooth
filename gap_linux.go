@@ -53,7 +53,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	for _, uuid := range options.ServiceUUIDs {
 		serviceUUIDs = append(serviceUUIDs, uuid.String())
 	}
-	var serviceData = make(map[string][]byte)
+	var serviceData = make(map[string]interface{})
 	for uuid, data := range options.ServiceData {
 		serviceData[New16BitUUID(uuid).String()] = data.([]byte)
 	}
