@@ -13,6 +13,9 @@ func main() {
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName: "Go Bluetooth",
+		ManufacturerData: []bluetooth.ManufacturerDataElement{
+			{CompanyID: 0xffff, Data: []byte{0x01, 0x02}},
+		},
 	}))
 	must("start adv", adv.Start())
 
