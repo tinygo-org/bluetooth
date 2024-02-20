@@ -56,7 +56,21 @@ type AdvertisementOptions struct {
 
 	// ManufacturerData stores Advertising Data.
 	// Keys are the Manufacturer ID to associate with the data.
-	ManufacturerData map[uint16]interface{}
+	ManufacturerData []ManufacturerDataElement
+}
+
+// Manufacturer data that's part of an advertisement packet.
+type ManufacturerDataElement struct {
+	// The company ID, which must be one of the assigned company IDs.
+	// The full list is in here:
+	// https://www.bluetooth.com/specifications/assigned-numbers/
+	// The list can also be viewed here:
+	// https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/company_identifiers/company_identifiers.yaml
+	// The value 0xffff can also be used for testing.
+	CompanyID uint16
+
+	// The value, which can be any value but can't be very large.
+	Data []byte
 }
 
 // Duration is the unit of time used in BLE, in 0.625µs units. This unit of time
@@ -112,7 +126,7 @@ type AdvertisementPayload interface {
 
 	// ManufacturerData returns a map with all the manufacturer data present in the
 	//advertising. IT may be empty.
-	ManufacturerData() map[uint16][]byte
+	ManufacturerData() []ManufacturerDataElement
 }
 
 // AdvertisementFields contains advertisement fields in structured form.
@@ -127,7 +141,7 @@ type AdvertisementFields struct {
 	ServiceUUIDs []UUID
 
 	// ManufacturerData is the manufacturer data of the advertisement.
-	ManufacturerData map[uint16][]byte
+	ManufacturerData []ManufacturerDataElement
 }
 
 // advertisementFields wraps AdvertisementFields to implement the
@@ -161,7 +175,7 @@ func (p *advertisementFields) Bytes() []byte {
 }
 
 // ManufacturerData returns the underlying ManufacturerData field.
-func (p *advertisementFields) ManufacturerData() map[uint16][]byte {
+func (p *advertisementFields) ManufacturerData() []ManufacturerDataElement {
 	return p.AdvertisementFields.ManufacturerData
 }
 
@@ -254,22 +268,24 @@ func (buf *rawAdvertisementPayload) HasServiceUUID(uuid UUID) bool {
 }
 
 // ManufacturerData returns the manufacturer data in the advertisement payload.
-func (buf *rawAdvertisementPayload) ManufacturerData() map[uint16][]byte {
-	mData := make(map[uint16][]byte)
-	data := buf.Bytes()
-	for len(data) >= 2 {
-		fieldLength := data[0]
-		if int(fieldLength)+1 > len(data) {
-			// Invalid field length.
-			return nil
+func (buf *rawAdvertisementPayload) ManufacturerData() []ManufacturerDataElement {
+	var manufacturerData []ManufacturerDataElement
+	for index := 0; index < int(buf.len)+4; index += int(buf.data[index]) + 1 {
+		fieldLength := int(buf.data[index+0])
+		if fieldLength < 3 {
+			continue
 		}
-		// If this is the manufacturer data
-		if byte(0xFF) == data[1] {
-			mData[uint16(data[2])+(uint16(data[3])<<8)] = data[4 : fieldLength+1]
+		fieldType := buf.data[index+1]
+		if fieldType != 0xff {
+			continue
 		}
-		data = data[fieldLength+1:]
+		key := uint16(buf.data[index+2]) | uint16(buf.data[index+3])<<8
+		manufacturerData = append(manufacturerData, ManufacturerDataElement{
+			CompanyID: key,
+			Data:      buf.data[index+4 : index+fieldLength+1],
+		})
 	}
-	return mData
+	return manufacturerData
 }
 
 // reset restores this buffer to the original state.
@@ -300,36 +316,31 @@ func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions)
 		}
 	}
 
-	if len(options.ManufacturerData) > 0 {
-		buf.addManufacturerData(options.ManufacturerData)
+	for _, element := range options.ManufacturerData {
+		if !buf.addManufacturerData(element.CompanyID, element.Data) {
+			return false
+		}
 	}
 
 	return true
 }
 
 // addManufacturerData adds manufacturer data ([]byte) entries to the advertisement payload.
-func (buf *rawAdvertisementPayload) addManufacturerData(manufacturerData map[uint16]interface{}) (ok bool) {
-	payloadData := buf.Bytes()
-	for manufacturerID, rawData := range manufacturerData {
-		data := rawData.([]byte)
-		// Check if the manufacturer ID is within the range of 16 bits (0-65535).
-		if manufacturerID > 0xFFFF {
-			// Invalid manufacturer ID.
-			return false
-		}
-
-		fieldLength := len(data) + 3
-
-		// Build manufacturer ID parts
-		manufacturerDataBit := byte(0xFF)
-		manufacturerIDPart1 := byte(manufacturerID & 0xFF)
-		manufacturerIDPart2 := byte((manufacturerID >> 8) & 0xFF)
-
-		payloadData = append(payloadData, byte(fieldLength), manufacturerDataBit, manufacturerIDPart1, manufacturerIDPart2)
-		payloadData = append(payloadData, data...)
+func (buf *rawAdvertisementPayload) addManufacturerData(key uint16, value []byte) (ok bool) {
+	// Check whether the field can fit this manufacturer data.
+	fieldLength := len(value) + 4
+	if int(buf.len)+fieldLength > len(buf.data) {
+		return false
 	}
-	buf.len = uint8(len(payloadData))
-	copy(buf.data[:], payloadData)
+
+	// Add the data.
+	buf.data[buf.len+0] = uint8(fieldLength - 1)
+	buf.data[buf.len+1] = 0xff
+	buf.data[buf.len+2] = uint8(key)
+	buf.data[buf.len+3] = uint8(key >> 8)
+	copy(buf.data[buf.len+4:], value)
+	buf.len += uint8(fieldLength)
+
 	return true
 }
 
