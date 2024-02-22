@@ -58,14 +58,22 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		serviceData[New16BitUUID(uuid).String()] = data.([]byte)
 	}
 
+	// Convert map[uint16][]byte to map[uint16]any because that's what BlueZ needs.
+	manufacturerData := map[uint16]any{}
+	for _, element := range options.ManufacturerData {
+		manufacturerData[element.CompanyID] = element.Data
+	}
+
 	// Build an org.bluez.LEAdvertisement1 object, to be exported over DBus.
+	// See:
+	// https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/org.bluez.LEAdvertisement.rst
 	id := atomic.AddUint64(&advertisementID, 1)
 	a.path = dbus.ObjectPath(fmt.Sprintf("/org/tinygo/bluetooth/advertisement%d", id))
 	propsSpec := map[string]map[string]*prop.Prop{
 		"org.bluez.LEAdvertisement1": {
 			"Type":             {Value: "broadcast"},
 			"ServiceUUIDs":     {Value: serviceUUIDs},
-			"ManufacturerData": {Value: options.ManufacturerData},
+			"ManufacturerData": {Value: manufacturerData},
 			"LocalName":        {Value: options.LocalName},
 			"ServiceData":		{Value: serviceData},
 			// The documentation states:
@@ -271,10 +279,13 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	a := Address{MACAddress{MAC: addr}}
 	a.SetRandom(props["AddressType"].Value().(string) == "random")
 
-	manufacturerData := make(map[uint16][]byte)
+	var manufacturerData []ManufacturerDataElement
 	if mdata, ok := props["ManufacturerData"].Value().(map[uint16]dbus.Variant); ok {
 		for k, v := range mdata {
-			manufacturerData[k] = v.Value().([]byte)
+			manufacturerData = append(manufacturerData, ManufacturerDataElement{
+				CompanyID: k,
+				Data:      v.Value().([]byte),
+			})
 		}
 	}
 

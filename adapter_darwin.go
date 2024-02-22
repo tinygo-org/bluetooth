@@ -141,11 +141,19 @@ func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) Sc
 		serviceUUIDs = append(serviceUUIDs, parsedUUID)
 	}
 
-	manufacturerData := make(map[uint16][]byte)
+	var manufacturerData []ManufacturerDataElement
 	if len(advFields.ManufacturerData) > 2 {
+		// Note: CoreBluetooth seems to assume there can be only one
+		// manufacturer data fields in an advertisement packet, while the
+		// specification allows multiple such fields. See the Bluetooth Core
+		// Specification Supplement, table 1.1:
+		// https://www.bluetooth.com/specifications/css-11/
 		manufacturerID := uint16(advFields.ManufacturerData[0])
 		manufacturerID += uint16(advFields.ManufacturerData[1]) << 8
-		manufacturerData[manufacturerID] = advFields.ManufacturerData[2:]
+		manufacturerData = append(manufacturerData, ManufacturerDataElement{
+			CompanyID: manufacturerID,
+			Data:      advFields.ManufacturerData[2:],
+		})
 	}
 
 	serviceData := make(map[uint16][]byte)

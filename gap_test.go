@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"reflect"
 	"testing"
 	"time"
 )
@@ -57,6 +58,28 @@ func TestCreateAdvertisementPayload(t *testing.T) {
 		},
 		{
 			raw: "\x02\x01\x06" + // flags
+				"\a\xff\x34\x12asdf", // manufacturer data
+			parsed: AdvertisementOptions{
+				ManufacturerData: []ManufacturerDataElement{
+					{0x1234, []byte("asdf")},
+				},
+			},
+		},
+		{
+			raw: "\x02\x01\x06" + // flags
+				"\x04\xff\x34\x12\x05" + // manufacturer data 1
+				"\x05\xff\xff\xff\x03\x07" + // manufacturer data 2
+				"\x03\xff\x11\x00", // manufacturer data 3
+			parsed: AdvertisementOptions{
+				ManufacturerData: []ManufacturerDataElement{
+					{0x1234, []byte{5}},
+					{0xffff, []byte{3, 7}},
+					{0x0011, []byte{}},
+				},
+			},
+		},
+		{
+			raw: "\x02\x01\x06" + // flags
 				"\x0B\x09\x44\x49\x59\x2D\x73\x65\x6E\x73\x6F\x72" + // local name
 				"\x0A\x16\xD2\xFC\x40\x02\xC4\x09\x03\xBF\x13", // service UUID
 			parsed: AdvertisementOptions{
@@ -76,6 +99,10 @@ func TestCreateAdvertisementPayload(t *testing.T) {
 		raw.addFromOptions(tc.parsed)
 		if raw != expectedRaw {
 			t.Errorf("error when serializing options: %#v\nexpected: %#v\nactual:   %#v\n", tc.parsed, tc.raw, string(raw.data[:raw.len]))
+		}
+		mdata := raw.ManufacturerData()
+		if !reflect.DeepEqual(mdata, tc.parsed.ManufacturerData) {
+			t.Errorf("ManufacturerData was not parsed as expected:\nexpected: %#v\nactual:   %#v", tc.parsed.ManufacturerData, mdata)
 		}
 	}
 }
