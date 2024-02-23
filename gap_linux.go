@@ -54,8 +54,8 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		serviceUUIDs = append(serviceUUIDs, uuid.String())
 	}
 	var serviceData = make(map[string]interface{})
-	for uuid, data := range options.ServiceData {
-		serviceData[New16BitUUID(uuid).String()] = data.([]byte)
+	for _, element := range options.ServiceData {
+		serviceData[element.UUID.String()] = element.Data
 	}
 
 	// Convert map[uint16][]byte to map[uint16]any because that's what BlueZ needs.
@@ -293,14 +293,17 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	localName, _ := props["Name"].Value().(string)
 	rssi, _ := props["RSSI"].Value().(int16)
 
-	serviceData := make(map[uint16][]byte)
+	var serviceData []ServiceDataElement
 	if sdata, ok := props["ServiceData"].Value().(map[string]dbus.Variant); ok {
 		for k, v := range sdata {
-			// looks like bluez delivers the long-128bit-uuid even for 16-bit uuid ad-element and it needs to be converted
 			uuid, err := ParseUUID(k)
-			if err == nil && uuid.Is16Bit(){
-				serviceData[uuid.Get16Bit()] = v.Value().([]byte)
+			if err != nil {
+				continue
 			}
+			serviceData = append(serviceData, ServiceDataElement{
+				UUID: uuid,
+				Data: v.Value().([]byte),
+			})
 		}
 	}
 

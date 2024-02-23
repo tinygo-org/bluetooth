@@ -55,11 +55,10 @@ type AdvertisementOptions struct {
 	Interval Duration
 
 	// ManufacturerData stores Advertising Data.
-	// Keys are the Manufacturer ID to associate with the data.
 	ManufacturerData []ManufacturerDataElement
+
 	// ServiceData stores Advertising Data.
-	// Keys are the Manufacturer/Service ID to associate with the data.
-	ServiceData map[uint16]interface{}
+	ServiceData []ServiceDataElement
 }
 
 // Manufacturer data that's part of an advertisement packet.
@@ -73,6 +72,17 @@ type ManufacturerDataElement struct {
 	CompanyID uint16
 
 	// The value, which can be any value but can't be very large.
+	Data []byte
+}
+
+// ServiceDataElement strores a uuid/byte-array pair used as ServiceData advertisment elements
+type ServiceDataElement struct {
+	// service uuid or company uuid
+	// The list can also be viewed here:
+	// https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/company_identifiers/company_identifiers.yaml
+	// https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/uuids/service_uuids.yaml
+	UUID UUID
+	// the data byte array
 	Data []byte
 }
 
@@ -127,13 +137,13 @@ type AdvertisementPayload interface {
 	// if this data is not available.
 	Bytes() []byte
 
-	// ManufacturerData returns a map with all the manufacturer data present in the
+	// ManufacturerData returns a slice with all the manufacturer data present in the
 	// advertising. It may be empty.
 	ManufacturerData() []ManufacturerDataElement
 
-	// ServiceData returns a map with all the service data present in the
+	// ServiceData returns a slice with all the service data present in the
 	// advertising. It may be empty.
-	ServiceData() map[uint16][]byte
+	ServiceData() []ServiceDataElement
 }
 
 // AdvertisementFields contains advertisement fields in structured form.
@@ -151,7 +161,7 @@ type AdvertisementFields struct {
 	ManufacturerData []ManufacturerDataElement
 
 	// ServiceData is the service data of the advertisement.
-	ServiceData map[uint16][]byte
+	ServiceData []ServiceDataElement
 }
 
 // advertisementFields wraps AdvertisementFields to implement the
@@ -190,7 +200,7 @@ func (p *advertisementFields) ManufacturerData() []ManufacturerDataElement {
 }
 
 // ServiceData returns the underlying ServiceData field.
-func (p *advertisementFields) ServiceData() map[uint16][]byte {
+func (p *advertisementFields) ServiceData() []ServiceDataElement {
 	return p.AdvertisementFields.ServiceData
 }
 
@@ -304,15 +314,37 @@ func (buf *rawAdvertisementPayload) ManufacturerData() []ManufacturerDataElement
 }
 
 // ServiceData returns the service data in the advertisment payload
-func (buf *rawAdvertisementPayload) ServiceData() map[uint16][]byte {
-	sData := make(map[uint16][]byte)
-	data := buf.findField(0x16)
-	if data == nil {
-		return sData
+func (buf *rawAdvertisementPayload) ServiceData() []ServiceDataElement {
+	var serviceData []ServiceDataElement
+	for index := 0; index < int(buf.len)+4; index += int(buf.data[index]) + 1 {
+		fieldLength := int(buf.data[index+0])
+		if fieldLength < 3 { // field has only length and type and no data
+			continue 
+		}
+		fieldType := buf.data[index+1]
+		switch fieldType {
+		case 0x16: // 16-bit uuid
+			serviceData = append(serviceData, ServiceDataElement{
+				UUID: New16BitUUID(uint16(buf.data[index+2])+(uint16(buf.data[index+3])<<8)),
+				Data: buf.data[index+4 : index+fieldLength+1],
+			})
+		case 0x20: // 32-bit uuid
+			serviceData = append(serviceData, ServiceDataElement{
+				UUID: New32BitUUID(uint32(buf.data[index+2])+(uint32(buf.data[index+3])<<8)+(uint32(buf.data[index+4])<<16)+(uint32(buf.data[index+5])<<24)),
+				Data: buf.data[index+6 : index+fieldLength+1],
+			})
+		case 0x21: // 128-bit uuid
+			var uuidArray [16]byte
+			copy(uuidArray[:], buf.data[index+2:index + 18])
+			serviceData = append(serviceData, ServiceDataElement{
+				UUID: NewUUID(uuidArray),
+				Data: buf.data[index+18 : index+fieldLength+1],
+			})
+		default: 
+			continue
+		}
 	}
-	sData[uint16(data[0])+(uint16(data[1])<<8)]= data[2:]
-	
-	return sData
+	return serviceData
 }
 
 // reset restores this buffer to the original state.
@@ -349,8 +381,8 @@ func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions)
 		}
 	}
 
-	if len(options.ServiceData) > 0 {
-		if !buf.addServiceData(options.ServiceData){
+	for _, element := range options.ServiceData {
+		if !buf.addServiceData(element.UUID, element.Data) {
 			return false
 		}
 	}
@@ -378,35 +410,54 @@ func (buf *rawAdvertisementPayload) addManufacturerData(key uint16, value []byte
 }
 
 // addServiceData adds service data ([]byte) entries to the advertisement payload.
-func (buf *rawAdvertisementPayload) addServiceData(serviceData map[uint16]interface{}) (ok bool) {
-	//check if it fits
-	var size int 
-	for _, sData := range serviceData {
-		size +=1  // ad type byte
-		size +=2 // 16-bit uuid
-		size +=len(sData.([]byte)) // actual service data
-	}
-	if int(buf.len)+size > len(buf.data) {
-		return false // service data doesn't fit
-	}
-
-	payloadData := buf.Bytes()
-	for uuid, rawData := range serviceData {
-		data := rawData.([]byte)
-		// Check if the manufacturer ID is within the range of 16 bits (0-65535).
-		if uuid > 0xFFFF {
-			// Invalid uuid.
-			return false
+func (buf *rawAdvertisementPayload) addServiceData(uuid UUID, data []byte) (ok bool) {
+	switch {
+	case uuid.Is16Bit(): 
+		// check if it fits
+		fieldLength := 1 + 1 + 2 + len(data) // 1 byte length, 1 byte ad type, 2 bytes uuid, actual service data
+		if int(buf.len)+fieldLength > len(buf.data) {
+			return false 
 		}
+		// Add the data.
+		buf.data[buf.len+0] = byte(fieldLength - 1)
+		buf.data[buf.len+1] = 0x16
+		buf.data[buf.len+2] = byte(uuid.Get16Bit())
+		buf.data[buf.len+3] = byte(uuid.Get16Bit()>>8)
+		copy(buf.data[buf.len+4:], data)
+		buf.len += uint8(fieldLength)
 
-		fieldLength := byte(len(data) + 3)
-
-		// append service data element to existing payload
-		payloadData = append(payloadData, fieldLength, byte(0x16), byte(uuid & 0xFF), byte((uuid >> 8) & 0xFF))
-		payloadData = append(payloadData, data...)
+	
+	case uuid.Is32Bit(): 
+		// check if it fits
+		fieldLength := 1 + 1 + 4 + len(data) // 1 byte length, 1 byte ad type, 4 bytes uuid, actual service data
+		if int(buf.len)+fieldLength > len(buf.data) {
+			return false 
+		}
+		// Add the data.
+		buf.data[buf.len+0] = byte(fieldLength - 1)
+		buf.data[buf.len+1] = 0x20
+		buf.data[buf.len+2] = byte(uuid.Get32Bit())
+		buf.data[buf.len+3] = byte(uuid.Get32Bit()>>8)
+		buf.data[buf.len+4] = byte(uuid.Get32Bit()>>16)
+		buf.data[buf.len+5] = byte(uuid.Get32Bit()>>24)
+		copy(buf.data[buf.len+6:], data)
+		buf.len += uint8(fieldLength)
+	
+	default:  // must be 128-bit uuid
+		// check if it fits
+		fieldLength := 1 + 1 + 16 + len(data) // 1 byte length, 1 byte ad type, 16 bytes uuid, actual service data
+		if int(buf.len)+fieldLength > len(buf.data) {
+			return false 
+		}
+		// Add the data.
+		buf.data[buf.len+0] = byte(fieldLength - 1)
+		buf.data[buf.len+1] = 0x21
+		uuid_bytes := uuid.Bytes()
+		copy(buf.data[buf.len+2:], uuid_bytes[:])
+		copy(buf.data[buf.len+2+16:], data)
+		buf.len += uint8(fieldLength)
+	
 	}
-	buf.len = uint8(len(payloadData))
-	copy(buf.data[:], payloadData)
 	return true
 }
 
