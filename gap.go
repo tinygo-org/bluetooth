@@ -319,28 +319,28 @@ func (buf *rawAdvertisementPayload) ServiceData() []ServiceDataElement {
 	for index := 0; index < int(buf.len)+4; index += int(buf.data[index]) + 1 {
 		fieldLength := int(buf.data[index+0])
 		if fieldLength < 3 { // field has only length and type and no data
-			continue 
+			continue
 		}
 		fieldType := buf.data[index+1]
 		switch fieldType {
 		case 0x16: // 16-bit uuid
 			serviceData = append(serviceData, ServiceDataElement{
-				UUID: New16BitUUID(uint16(buf.data[index+2])+(uint16(buf.data[index+3])<<8)),
+				UUID: New16BitUUID(uint16(buf.data[index+2]) + (uint16(buf.data[index+3]) << 8)),
 				Data: buf.data[index+4 : index+fieldLength+1],
 			})
 		case 0x20: // 32-bit uuid
 			serviceData = append(serviceData, ServiceDataElement{
-				UUID: New32BitUUID(uint32(buf.data[index+2])+(uint32(buf.data[index+3])<<8)+(uint32(buf.data[index+4])<<16)+(uint32(buf.data[index+5])<<24)),
+				UUID: New32BitUUID(uint32(buf.data[index+2]) + (uint32(buf.data[index+3]) << 8) + (uint32(buf.data[index+4]) << 16) + (uint32(buf.data[index+5]) << 24)),
 				Data: buf.data[index+6 : index+fieldLength+1],
 			})
 		case 0x21: // 128-bit uuid
 			var uuidArray [16]byte
-			copy(uuidArray[:], buf.data[index+2:index + 18])
+			copy(uuidArray[:], buf.data[index+2:index+18])
 			serviceData = append(serviceData, ServiceDataElement{
 				UUID: NewUUID(uuidArray),
 				Data: buf.data[index+18 : index+fieldLength+1],
 			})
-		default: 
+		default:
 			continue
 		}
 	}
@@ -412,42 +412,41 @@ func (buf *rawAdvertisementPayload) addManufacturerData(key uint16, value []byte
 // addServiceData adds service data ([]byte) entries to the advertisement payload.
 func (buf *rawAdvertisementPayload) addServiceData(uuid UUID, data []byte) (ok bool) {
 	switch {
-	case uuid.Is16Bit(): 
+	case uuid.Is16Bit():
 		// check if it fits
 		fieldLength := 1 + 1 + 2 + len(data) // 1 byte length, 1 byte ad type, 2 bytes uuid, actual service data
 		if int(buf.len)+fieldLength > len(buf.data) {
-			return false 
+			return false
 		}
 		// Add the data.
 		buf.data[buf.len+0] = byte(fieldLength - 1)
 		buf.data[buf.len+1] = 0x16
 		buf.data[buf.len+2] = byte(uuid.Get16Bit())
-		buf.data[buf.len+3] = byte(uuid.Get16Bit()>>8)
+		buf.data[buf.len+3] = byte(uuid.Get16Bit() >> 8)
 		copy(buf.data[buf.len+4:], data)
 		buf.len += uint8(fieldLength)
 
-	
-	case uuid.Is32Bit(): 
+	case uuid.Is32Bit():
 		// check if it fits
 		fieldLength := 1 + 1 + 4 + len(data) // 1 byte length, 1 byte ad type, 4 bytes uuid, actual service data
 		if int(buf.len)+fieldLength > len(buf.data) {
-			return false 
+			return false
 		}
 		// Add the data.
 		buf.data[buf.len+0] = byte(fieldLength - 1)
 		buf.data[buf.len+1] = 0x20
 		buf.data[buf.len+2] = byte(uuid.Get32Bit())
-		buf.data[buf.len+3] = byte(uuid.Get32Bit()>>8)
-		buf.data[buf.len+4] = byte(uuid.Get32Bit()>>16)
-		buf.data[buf.len+5] = byte(uuid.Get32Bit()>>24)
+		buf.data[buf.len+3] = byte(uuid.Get32Bit() >> 8)
+		buf.data[buf.len+4] = byte(uuid.Get32Bit() >> 16)
+		buf.data[buf.len+5] = byte(uuid.Get32Bit() >> 24)
 		copy(buf.data[buf.len+6:], data)
 		buf.len += uint8(fieldLength)
-	
-	default:  // must be 128-bit uuid
+
+	default: // must be 128-bit uuid
 		// check if it fits
 		fieldLength := 1 + 1 + 16 + len(data) // 1 byte length, 1 byte ad type, 16 bytes uuid, actual service data
 		if int(buf.len)+fieldLength > len(buf.data) {
-			return false 
+			return false
 		}
 		// Add the data.
 		buf.data[buf.len+0] = byte(fieldLength - 1)
@@ -456,7 +455,7 @@ func (buf *rawAdvertisementPayload) addServiceData(uuid UUID, data []byte) (ok b
 		copy(buf.data[buf.len+2:], uuid_bytes[:])
 		copy(buf.data[buf.len+2+16:], data)
 		buf.len += uint8(fieldLength)
-	
+
 	}
 	return true
 }

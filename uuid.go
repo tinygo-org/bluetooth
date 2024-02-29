@@ -81,6 +81,7 @@ func (uuid UUID) Get16Bit() uint16 {
 	// with a number.
 	return uint16(uuid[3])
 }
+
 // Get32Bit returns the 32-bit version of this UUID. This is only valid if it
 // actually is a 32-bit UUID, see Is32Bit.
 func (uuid UUID) Get32Bit() uint32 {
