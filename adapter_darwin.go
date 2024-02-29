@@ -160,7 +160,7 @@ func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) Sc
 	for _, svcData := range advFields.ServiceData {
 		cbgoUUID := svcData.UUID
 		uuid, err := ParseUUID(cbgoUUID.String())
-		if err != nil || uuid.String() != cbgoUUID.String() {
+		if err != nil {
 			continue
 		}
 		serviceData = append(serviceData, ServiceDataElement{
