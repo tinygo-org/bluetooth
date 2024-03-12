@@ -68,18 +68,25 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 	// Wait for when advertisement has stopped by a call to StopScan().
 	// Advertisement doesn't seem to stop right away, there is an
 	// intermediate Stopping state.
-	stoppingChan := make(chan struct{})
+	stoppingChan := make(chan error)
 	// TypedEventHandler<BluetoothLEAdvertisementWatcher, BluetoothLEAdvertisementWatcherStoppedEventArgs>
 	eventStoppedGuid := winrt.ParameterizedInstanceGUID(
 		foundation.GUIDTypedEventHandler,
 		advertisement.SignatureBluetoothLEAdvertisementWatcher,
 		advertisement.SignatureBluetoothLEAdvertisementWatcherStoppedEventArgs,
 	)
-	stoppedHandler := foundation.NewTypedEventHandler(ole.NewGUID(eventStoppedGuid), func(_ *foundation.TypedEventHandler, _, _ unsafe.Pointer) {
-		// Note: the args parameter has an Error property that should
-		// probably be checked, but I'm not sure when stopping the
-		// advertisement watcher could ever result in an error (except
-		// for bugs).
+	stoppedHandler := foundation.NewTypedEventHandler(ole.NewGUID(eventStoppedGuid), func(_ *foundation.TypedEventHandler, _, arg unsafe.Pointer) {
+		args := (*advertisement.BluetoothLEAdvertisementWatcherStoppedEventArgs)(arg)
+		errCode, err := args.GetError()
+		if err != nil {
+			// Got an error while getting the error value, that shouldn't
+			// happen.
+			stoppingChan <- fmt.Errorf("failed to get stopping error value: %w", err)
+		} else if errCode != bluetooth.BluetoothErrorSuccess {
+			// Could not stop the scan? I'm not sure when this would actually
+			// happen.
+			stoppingChan <- fmt.Errorf("failed to stop scanning (error code %d)", errCode)
+		}
 		close(stoppingChan)
 	})
 	defer stoppedHandler.Release()
@@ -96,8 +103,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 	}
 
 	// Wait until advertisement has stopped, and finish.
-	<-stoppingChan
-	return nil
+	return <-stoppingChan
 }
 
 func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedEventArgs) ScanResult {
