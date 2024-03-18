@@ -53,6 +53,10 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	for _, uuid := range options.ServiceUUIDs {
 		serviceUUIDs = append(serviceUUIDs, uuid.String())
 	}
+	var serviceData = make(map[string]interface{})
+	for _, element := range options.ServiceData {
+		serviceData[element.UUID.String()] = element.Data
+	}
 
 	// Convert map[uint16][]byte to map[uint16]any because that's what BlueZ needs.
 	manufacturerData := map[uint16]any{}
@@ -71,6 +75,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 			"ServiceUUIDs":     {Value: serviceUUIDs},
 			"ManufacturerData": {Value: manufacturerData},
 			"LocalName":        {Value: options.LocalName},
+			"ServiceData":      {Value: serviceData},
 			// The documentation states:
 			// > Timeout of the advertisement in seconds. This defines the
 			// > lifetime of the advertisement.
@@ -288,6 +293,20 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	localName, _ := props["Name"].Value().(string)
 	rssi, _ := props["RSSI"].Value().(int16)
 
+	var serviceData []ServiceDataElement
+	if sdata, ok := props["ServiceData"].Value().(map[string]dbus.Variant); ok {
+		for k, v := range sdata {
+			uuid, err := ParseUUID(k)
+			if err != nil {
+				continue
+			}
+			serviceData = append(serviceData, ServiceDataElement{
+				UUID: uuid,
+				Data: v.Value().([]byte),
+			})
+		}
+	}
+
 	return ScanResult{
 		RSSI:    rssi,
 		Address: a,
@@ -296,6 +315,7 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 				LocalName:        localName,
 				ServiceUUIDs:     serviceUUIDs,
 				ManufacturerData: manufacturerData,
+				ServiceData:      serviceData,
 			},
 		},
 	}

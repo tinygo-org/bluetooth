@@ -78,6 +78,42 @@ func TestCreateAdvertisementPayload(t *testing.T) {
 				},
 			},
 		},
+		{
+			raw: "\x02\x01\x06" + // flags
+				"\x05\x16\xD2\xFC\x40\x02" + // service data 16-Bit UUID
+				"\x06\x20\xD2\xFC\x40\x02\xC4", // service data 32-Bit UUID
+			parsed: AdvertisementOptions{
+				ServiceData: []ServiceDataElement{
+					{UUID: New16BitUUID(0xFCD2), Data: []byte{0x40, 0x02}},
+					{UUID: New32BitUUID(0x0240FCD2), Data: []byte{0xC4}},
+				},
+			},
+		},
+		{
+			raw: "\x02\x01\x06" + // flags
+				"\x05\x16\xD2\xFC\x40\x02" + // service data 16-Bit UUID
+				"\x05\x16\xD3\xFC\x40\x02", // service data 16-Bit UUID
+			parsed: AdvertisementOptions{
+				ServiceData: []ServiceDataElement{
+					{UUID: New16BitUUID(0xFCD2), Data: []byte{0x40, 0x02}},
+					{UUID: New16BitUUID(0xFCD3), Data: []byte{0x40, 0x02}},
+				},
+			},
+		},
+		{
+			raw: "\x02\x01\x06" + // flags
+				"\x04\x16\xD2\xFC\x40" + // service data 16-Bit UUID
+				"\x12\x21\xB8\x6C\x75\x05\xE9\x25\xBD\x93\xA8\x42\x32\xC3\x00\x01\xAF\xAD\x09", // service data 128-Bit UUID
+			parsed: AdvertisementOptions{
+				ServiceData: []ServiceDataElement{
+					{UUID: New16BitUUID(0xFCD2), Data: []byte{0x40}},
+					{
+						UUID: NewUUID([16]byte{0xad, 0xaf, 0x01, 0x00, 0xc3, 0x32, 0x42, 0xa8, 0x93, 0xbd, 0x25, 0xe9, 0x05, 0x75, 0x6c, 0xb8}),
+						Data: []byte{0x09},
+					},
+				},
+			},
+		},
 	}
 	for _, tc := range tests {
 		var expectedRaw rawAdvertisementPayload

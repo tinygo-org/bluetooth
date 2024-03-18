@@ -38,6 +38,20 @@ func New16BitUUID(shortUUID uint16) UUID {
 	return uuid
 }
 
+// New32BitUUID returns a new 128-bit UUID based on a 32-bit UUID.
+//
+// Note: only use registered UUIDs. See
+// https://www.bluetooth.com/specifications/gatt/services/ for a list.
+func New32BitUUID(shortUUID uint32) UUID {
+	// https://stackoverflow.com/questions/36212020/how-can-i-convert-a-bluetooth-16-bit-service-uuid-into-a-128-bit-uuid
+	var uuid UUID
+	uuid[0] = 0x5F9B34FB
+	uuid[1] = 0x80000080
+	uuid[2] = 0x00001000
+	uuid[3] = shortUUID
+	return uuid
+}
+
 // Replace16BitComponent returns a new UUID where bits 16..32 have been replaced
 // with the bits given in the argument. These bits are the same bits that vary
 // in the 16-bit compressed UUID form.
@@ -66,6 +80,14 @@ func (uuid UUID) Get16Bit() uint16 {
 	// Note: using a Get* function as a getter because method names can't start
 	// with a number.
 	return uint16(uuid[3])
+}
+
+// Get32Bit returns the 32-bit version of this UUID. This is only valid if it
+// actually is a 32-bit UUID, see Is32Bit.
+func (uuid UUID) Get32Bit() uint32 {
+	// Note: using a Get* function as a getter because method names can't start
+	// with a number.
+	return uuid[3]
 }
 
 // Bytes returns a 16-byte array containing the raw UUID.
