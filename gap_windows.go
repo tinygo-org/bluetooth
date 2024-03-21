@@ -150,7 +150,7 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 }
 
 func bufferToSlice(buffer *streams.IBuffer) []byte {
-	dataReader, _ := streams.FromBuffer(buffer)
+	dataReader, _ := streams.DataReaderFromBuffer(buffer)
 	defer dataReader.Release()
 	bufferSize, _ := buffer.GetLength()
 	if bufferSize == 0 {
@@ -186,7 +186,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	// IAsyncOperation<BluetoothLEDevice>
-	bleDeviceOp, err := bluetooth.FromBluetoothAddressAsync(winAddr)
+	bleDeviceOp, err := bluetooth.BluetoothLEDeviceFromBluetoothAddressAsync(winAddr)
 	if err != nil {
 		return Device{}, err
 	}
@@ -219,7 +219,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	// Windows does not support explicitly connecting to a device.
 	// Instead it has the concept of a GATT session that is owned
 	// by the calling program.
-	gattSessionOp, err := genericattributeprofile.FromDeviceIdAsync(dID) // IAsyncOperation<GattSession>
+	gattSessionOp, err := genericattributeprofile.GattSessionFromDeviceIdAsync(dID) // IAsyncOperation<GattSession>
 	if err != nil {
 		return Device{}, err
 	}
