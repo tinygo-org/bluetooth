@@ -341,7 +341,7 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, err
 	}
 
-	datareader, err := streams.FromBuffer(buffer)
+	datareader, err := streams.DataReaderFromBuffer(buffer)
 	if err != nil {
 		return 0, err
 	}
@@ -381,7 +381,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 			return
 		}
 
-		reader, err := streams.FromBuffer(buf)
+		reader, err := streams.DataReaderFromBuffer(buf)
 		if err != nil {
 			return
 		}
