@@ -8,7 +8,7 @@ Go Bluetooth is a cross-platform package for using [Bluetooth Low Energy](https:
 
 It works on typical operating systems such as [Linux](#linux), [macOS](#macos), and [Windows](#windows). 
 
-It can also be used running "bare metal" on microcontrollers produced by [Nordic Semiconductor](https://www.nordicsemi.com/) by using [TinyGo](https://tinygo.org/).
+It can also be used running "bare metal" on microcontrollers produced by [Nordic Semiconductor](https://www.nordicsemi.com/) or using the Bluetooth Host Controller Interface (HCI) by using [TinyGo](https://tinygo.org/).
 
 The Go Bluetooth package can be used to create both Bluetooth Low Energy Centrals as well as to create Bluetooth Low Energy Peripherals.
 

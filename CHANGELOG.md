@@ -1,3 +1,68 @@
+0.9.0
+---
+
+* **build**
+  - add arduino-nano33 and pyportal to smoke tests
+  - add nina-fw smoketest as peripheral
+  - add some ninafw examples to smoketest
+* **core**
+  - add ServiceData advertising element (#243)
+  - add RequestConnectionParams to request new connection parameters
+  - change ManufacturerData from a map to a slice
+  - don't use a pointer receiver for many method calls
+  - make Device a value instead of a pointer
+  - use 'debug' variable protected by build tags for debug logging
+  - use Device instead of Address in SetConnectHandler
+* **docs**
+  - a small mention of the NINA BLE support
+  - complete README info about nina-fw support
+* **linux**
+  - fix characteristic value
+  - rewrite everything to use DBus directly
+* **macos**
+  - add Write command to the gattc implementation
+* **examples**
+  - tinyscan to replace clue-scanner, also works on pyportal and pybadge+airlift
+  - update MCU central examples to use ldflags to pass the desired device to connect to
+  - discover: add MTU
+* **hci**
+  - add check for poll buffer overflow
+  - allow for both ninafw and pure hci uart adapter implementations
+  - implement Characteristic WriteHandler
+  - multiple connections
+  - return service UUIDs with scan results
+  - add l2cap signaling support
+  - implement evtNumCompPkts to count in-flight packets
+  - correct implementation for WriteWithoutReponse
+  - speed up time waiting for hardware - corrections to MTU exchange
+  - add support for software RTS/CTS flow control for boards where hardware support is not available
+  - BLE central implementation on nina-fw co-processors
+  - fix connection timeout
+  - implement BLE peripheral support
+  - implement GetMTU()
+  - remove some pointer receivers from method calls
+  - should support muliple connections as a central
+  - correctly return from read requests instead of returning spurious error
+  - move some steps previously being done during Configure() into Start() where they more correctly belonged.
+  - use advertising display name as the correct default value for the generic access characteristic.
+  - speed up the polling for new notifications for Centrals
+  - use NINA settings from board file in main TinyGo repo
+* **nordic semi**
+  - replace unsafe.SliceData call with expression that is still supported in older Go versions
+  - update to prepare for changes in the TinyGo CGo implementation
+  - add address of connecting device
+  - add support for connection timeout on connect
+  - don't send a notify/indicate without a CCCD
+  - fix connect timeout
+  - fix writing to a characteristic
+  - print connection parameters when debug is enabled
+  - return an error on a connection timeout
+* **windows**
+  - Release AsyncOperationCompletedHandler (#208)
+  - check for error when scanning
+  - bump to latest winrt
+
+
 0.8.0
 ---
 
