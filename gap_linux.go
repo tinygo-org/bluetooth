@@ -353,6 +353,10 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		// were connected between the two calls the signal wouldn't be picked up.
 		signal := make(chan *dbus.Signal)
 		a.bus.Signal(signal)
+
+		// Wait until the device has connected.
+		connectChan := make(chan struct{})
+		go device.watchForPropertyChanges(signal, connectChan)
 		
 		// Start connecting (async).
 		err := device.device.Call("org.bluez.Device1.Connect", 0).Err
@@ -360,9 +364,6 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			return Device{}, fmt.Errorf("bluetooth: failed to connect: %w", err)
 		}
 
-		// Wait until the device has connected.
-		connectChan := make(chan struct{})
-		go device.watchForPropertyChanges(signal, connectChan)
 		<-connectChan
 	}
 
