@@ -144,13 +144,17 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		println("Connect")
 	}
 
-	random := uint8(0)
+	peerRandom := uint8(0)
 	if address.isRandom {
-		random = 1
+		peerRandom = 1
+	}
+	localRandom := uint8(0)
+	if a.hci.address.isRandom {
+		localRandom = 1
 	}
 	if err := a.hci.leCreateConn(0x0060, 0x0030, 0x00,
-		random, makeNINAAddress(address.MAC),
-		0x00, 0x0006, 0x000c, 0x0000, 0x00c8, 0x0004, 0x0006); err != nil {
+		peerRandom, makeNINAAddress(address.MAC),
+		localRandom, 0x0006, 0x000c, 0x0000, 0x00c8, 0x0004, 0x0006); err != nil {
 		return Device{}, err
 	}
 
