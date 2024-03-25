@@ -157,9 +157,9 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	a.bus.Signal(signal)
 	defer a.bus.RemoveSignal(signal)
 
-	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
-	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
-	defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
+	// propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
+	// a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
+	// defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
 
 	newObjectMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.ObjectManager")}
 	a.bus.AddMatchSignal(newObjectMatchOptions...)
@@ -340,12 +340,6 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		adapter: a,
 	}
 
-	// Already start watching for property changes. We do this before reading
-	// the Connected property below to avoid a race condition: if the device
-	// were connected between the two calls the signal wouldn't be picked up.
-	signal := make(chan *dbus.Signal)
-	a.bus.Signal(signal)
-
 	// Read whether this device is already connected.
 	connected, err := device.device.GetProperty("org.bluez.Device1.Connected")
 	if err != nil {
@@ -354,6 +348,12 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 	// Connect to the device, if not already connected.
 	if !connected.Value().(bool) {
+		// Already start watching for property changes. We do this before reading
+		// the Connected property below to avoid a race condition: if the device
+		// were connected between the two calls the signal wouldn't be picked up.
+		signal := make(chan *dbus.Signal)
+		a.bus.Signal(signal)
+		
 		// Start connecting (async).
 		err := device.device.Call("org.bluez.Device1.Connect", 0).Err
 		if err != nil {
