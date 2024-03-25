@@ -373,11 +373,10 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 // It checks for changes in the "Connected" property of the "org.bluez.Device1" interface and calls the appropriate
 // connectHandler function from the adapter. If the "Connected" property is true, it closes the connectChan channel.
 // The function continues to listen for signals until the signal channel is closed.
-// 
+//
 // Parameters:
 //   - signal: A channel of dbus signals to listen for property change signals.
 //   - connectChan: A channel used to notify when the device is connected.
-//
 func (d Device) watchForPropertyChanges(signal chan *dbus.Signal, connectChan chan struct{}) {
 	// signal := make(chan *dbus.Signal)
 	// d.adapter.bus.Signal(signal)
@@ -393,12 +392,11 @@ func (d Device) watchForPropertyChanges(signal chan *dbus.Signal, connectChan ch
 				continue
 			}
 			changes := sig.Body[1].(map[string]dbus.Variant)
-			fmt.Println(changes)
 			if connected, ok := changes["Connected"].Value().(bool); ok {
 				go d.adapter.connectHandler(d, connected)
 				if connected {
 					close(connectChan)
-				}else {
+				} else {
 					return
 				}
 			}
