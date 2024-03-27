@@ -323,7 +323,8 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	Address Address // the MAC address of the device
+	Address   Address // the MAC address of the device
+	Connected bool    // whether the device is currently connected
 
 	device  dbus.BusObject // bluez device interface
 	adapter *Adapter       // the adapter that was used to form this device connection
@@ -335,9 +336,10 @@ type Device struct {
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
 	device := Device{
-		Address: address,
-		device:  a.bus.Object("org.bluez", devicePath),
-		adapter: a,
+		Address:   address,
+		device:    a.bus.Object("org.bluez", devicePath),
+		adapter:   a,
+		Connected: false,
 	}
 
 	// Read whether this device is already connected.
@@ -357,7 +359,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		// Wait until the device has connected.
 		connectChan := make(chan struct{})
 		go device.watchForPropertyChanges(signal, connectChan)
-		
+
 		// Start connecting (async).
 		err := device.device.Call("org.bluez.Device1.Connect", 0).Err
 		if err != nil {
@@ -396,8 +398,10 @@ func (d Device) watchForPropertyChanges(signal chan *dbus.Signal, connectChan ch
 			if connected, ok := changes["Connected"].Value().(bool); ok {
 				go d.adapter.connectHandler(d, connected)
 				if connected {
+					d.Connected = true
 					close(connectChan)
 				} else {
+					d.Connected = false
 					return
 				}
 			}
