@@ -54,6 +54,10 @@ func (a *Adapter) Enable() (err error) {
 		return fmt.Errorf("could not activate BlueZ adapter: %w", err)
 	}
 	addr.Store(&a.address)
+	
+	// Add a match for properties changed signals
+	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
+	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
 
 	return nil
 }

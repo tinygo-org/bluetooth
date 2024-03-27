@@ -157,9 +157,9 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	a.bus.Signal(signal)
 	defer a.bus.RemoveSignal(signal)
 
-	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
-	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
-	defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
+	// propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
+	// a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
+	// defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
 
 	newObjectMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.ObjectManager")}
 	a.bus.AddMatchSignal(newObjectMatchOptions...)
@@ -323,7 +323,8 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	Address Address // the MAC address of the device
+	Address   Address // the MAC address of the device
+	Connected bool    // whether the device is currently connected
 
 	device  dbus.BusObject // bluez device interface
 	adapter *Adapter       // the adapter that was used to form this device connection
@@ -335,20 +336,11 @@ type Device struct {
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	devicePath := dbus.ObjectPath(string(a.adapter.Path()) + "/dev_" + strings.Replace(address.MAC.String(), ":", "_", -1))
 	device := Device{
-		Address: address,
-		device:  a.bus.Object("org.bluez", devicePath),
-		adapter: a,
+		Address:   address,
+		device:    a.bus.Object("org.bluez", devicePath),
+		adapter:   a,
+		Connected: false,
 	}
-
-	// Already start watching for property changes. We do this before reading
-	// the Connected property below to avoid a race condition: if the device
-	// were connected between the two calls the signal wouldn't be picked up.
-	signal := make(chan *dbus.Signal)
-	a.bus.Signal(signal)
-	defer a.bus.RemoveSignal(signal)
-	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
-	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
-	defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
 
 	// Read whether this device is already connected.
 	connected, err := device.device.GetProperty("org.bluez.Device1.Connected")
@@ -358,36 +350,64 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 	// Connect to the device, if not already connected.
 	if !connected.Value().(bool) {
+		// Already start watching for property changes. We do this before reading
+		// the Connected property below to avoid a race condition: if the device
+		// were connected between the two calls the signal wouldn't be picked up.
+		signal := make(chan *dbus.Signal)
+		a.bus.Signal(signal)
+
+		// Wait until the device has connected.
+		connectChan := make(chan struct{})
+		go device.watchForPropertyChanges(signal, connectChan)
+
 		// Start connecting (async).
 		err := device.device.Call("org.bluez.Device1.Connect", 0).Err
 		if err != nil {
 			return Device{}, fmt.Errorf("bluetooth: failed to connect: %w", err)
 		}
 
-		// Wait until the device has connected.
-		connectChan := make(chan struct{})
-		go func() {
-			for sig := range signal {
-				switch sig.Name {
-				case "org.freedesktop.DBus.Properties.PropertiesChanged":
-					interfaceName := sig.Body[0].(string)
-					if interfaceName != "org.bluez.Device1" {
-						continue
-					}
-					if sig.Path != device.device.Path() {
-						continue
-					}
-					changes := sig.Body[1].(map[string]dbus.Variant)
-					if connected, ok := changes["Connected"].Value().(bool); ok && connected {
-						close(connectChan)
-					}
-				}
-			}
-		}()
 		<-connectChan
 	}
 
 	return device, nil
+}
+
+// watchForPropertyChanges listens for property change signals on the given channel and handles them accordingly.
+// It checks for changes in the "Connected" property of the "org.bluez.Device1" interface and calls the appropriate
+// connectHandler function from the adapter. If the "Connected" property is true, it closes the connectChan channel.
+// The function continues to listen for signals until the signal channel is closed.
+//
+// Parameters:
+//   - signal: A channel of dbus signals to listen for property change signals.
+//   - connectChan: A channel used to notify when the device is connected.
+func (d Device) watchForPropertyChanges(signal chan *dbus.Signal, connectChan chan struct{}) {
+	// signal := make(chan *dbus.Signal)
+	// d.adapter.bus.Signal(signal)
+	defer d.adapter.bus.RemoveSignal(signal)
+	for sig := range signal {
+		switch sig.Name {
+		case "org.freedesktop.DBus.Properties.PropertiesChanged":
+			interfaceName := sig.Body[0].(string)
+			if interfaceName != "org.bluez.Device1" {
+				continue
+			}
+			if sig.Path != d.device.Path() {
+				continue
+			}
+			changes := sig.Body[1].(map[string]dbus.Variant)
+			if connected, ok := changes["Connected"].Value().(bool); ok {
+				go d.adapter.connectHandler(d, connected)
+				if connected {
+					d.Connected = true
+					close(connectChan)
+				} else {
+					d.Connected = false
+					return
+				}
+			}
+		}
+	}
+	fmt.Println("Signal Killed")
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
