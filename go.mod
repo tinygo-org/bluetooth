@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/godbus/dbus/v5 v5.1.0
-	github.com/saltosystems/winrt-go v0.0.0-20240509090452-45c2d7a6235a
+	github.com/saltosystems/winrt-go v0.0.0-20240509164145-4f7860a3bd2b
 	github.com/tinygo-org/cbgo v0.0.4
 	golang.org/x/crypto v0.12.0
 	tinygo.org/x/drivers v0.26.1-0.20230922160320-ed51435c2ef6
