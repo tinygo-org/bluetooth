@@ -1,4 +1,4 @@
-//go:build ninafw
+//go:build ninafw || hci
 
 package bluetooth
 

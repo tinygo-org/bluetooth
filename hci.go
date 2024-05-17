@@ -1,4 +1,4 @@
-//go:build ninafw
+//go:build ninafw || hci
 
 package bluetooth
 
@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
-	"machine"
 	"time"
 )
 
@@ -122,10 +121,16 @@ type leConnectData struct {
 	timeout        uint16
 }
 
+type hciTransport interface {
+	startRead()
+	endRead()
+	Buffered() int
+	ReadByte() (byte, error)
+	Write(buf []byte) (int, error)
+}
+
 type hci struct {
-	uart              *machine.UART
-	softCTS           machine.Pin
-	softRTS           machine.Pin
+	transport         hciTransport
 	att               *att
 	l2cap             *l2cap
 	buf               []byte
@@ -140,24 +145,19 @@ type hci struct {
 	pendingPkt        uint16
 }
 
-func newHCI(uart *machine.UART) *hci {
+func newHCI(t hciTransport) *hci {
 	return &hci{
-		uart:    uart,
-		softCTS: machine.NoPin,
-		softRTS: machine.NoPin,
-		buf:     make([]byte, 256),
+		transport: t,
+		buf:       make([]byte, 256),
 	}
 }
 
 func (h *hci) start() error {
-	if h.softRTS != machine.NoPin {
-		h.softRTS.Low()
+	h.transport.startRead()
+	defer h.transport.endRead()
 
-		defer h.softRTS.High()
-	}
-
-	for h.uart.Buffered() > 0 {
-		h.uart.ReadByte()
+	for h.transport.Buffered() > 0 {
+		h.transport.ReadByte()
 	}
 
 	return nil
@@ -172,15 +172,12 @@ func (h *hci) reset() error {
 }
 
 func (h *hci) poll() error {
-	if h.softRTS != machine.NoPin {
-		h.softRTS.Low()
-
-		defer h.softRTS.High()
-	}
+	h.transport.startRead()
+	defer h.transport.endRead()
 
 	i := 0
-	for h.uart.Buffered() > 0 {
-		data, _ := h.uart.ReadByte()
+	for h.transport.Buffered() > 0 {
+		data, _ := h.transport.ReadByte()
 		h.buf[i] = data
 
 		done, err := h.processPacket(i)
@@ -487,25 +484,8 @@ func (h *hci) sendAclPkt(handle uint16, cid uint8, data []byte) error {
 	return nil
 }
 
-const writeAttempts = 200
-
 func (h *hci) write(buf []byte) (int, error) {
-	if h.softCTS != machine.NoPin {
-		retries := writeAttempts
-		for h.softCTS.Get() {
-			retries--
-			if retries == 0 {
-				return 0, ErrHCITimeout
-			}
-		}
-	}
-
-	n, err := h.uart.Write(buf)
-	if err != nil {
-		return 0, err
-	}
-
-	return n, nil
+	return h.transport.Write(buf)
 }
 
 type aclDataHeader struct {

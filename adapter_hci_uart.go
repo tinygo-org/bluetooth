@@ -8,9 +8,11 @@ import (
 
 const maxConnections = 1
 
-// Adapter represents the UART connection to the HCI controller.
+// Adapter represents a "plain" UART connection to the HCI controller.
 type Adapter struct {
 	hciAdapter
+
+	uart *machine.UART
 
 	// used for software flow control
 	cts, rts machine.Pin
@@ -20,11 +22,13 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
-	isDefault: true,
-	connectHandler: func(device Device, connected bool) {
-		return
+	hciAdapter: hciAdapter{
+		isDefault: true,
+		connectHandler: func(device Device, connected bool) {
+			return
+		},
+		connectedDevices: make([]Device, 0, maxConnections),
 	},
-	connectedDevices: make([]Device, 0, maxConnections),
 }
 
 // SetUART sets the UART to use for the HCI connection.
@@ -49,16 +53,66 @@ func (a *Adapter) SetSoftwareFlowControl(cts, rts machine.Pin) error {
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
 func (a *Adapter) Enable() error {
-	a.hci, a.att = newBLEStack(a.uart)
-
+	transport := &hciUART{uart: a.uart}
 	if a.cts != 0 && a.rts != 0 {
-		a.hci.softRTS = a.rts
-		a.hci.softRTS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		a.hci.softRTS.High()
+		transport.rts = a.rts
+		a.rts.Configure(machine.PinConfig{Mode: machine.PinOutput})
+		a.rts.High()
 
-		a.hci.softCTS = a.cts
+		transport.cts = a.cts
 		a.cts.Configure(machine.PinConfig{Mode: machine.PinInput})
 	}
 
+	a.hci, a.att = newBLEStack(transport)
 	a.enable()
+
+	return nil
+}
+
+type hciUART struct {
+	uart *machine.UART
+
+	// used for software flow control
+	cts, rts machine.Pin
+}
+
+func (h *hciUART) startRead() {
+	if h.rts != machine.NoPin {
+		h.rts.Low()
+	}
+}
+
+func (h *hciUART) endRead() {
+	if h.rts != machine.NoPin {
+		h.rts.High()
+	}
+}
+
+func (h *hciUART) Buffered() int {
+	return h.uart.Buffered()
+}
+
+func (h *hciUART) ReadByte() (byte, error) {
+	return h.uart.ReadByte()
+}
+
+const writeAttempts = 200
+
+func (h *hciUART) Write(buf []byte) (int, error) {
+	if h.cts != machine.NoPin {
+		retries := writeAttempts
+		for h.cts.Get() {
+			retries--
+			if retries == 0 {
+				return 0, ErrHCITimeout
+			}
+		}
+	}
+
+	n, err := h.uart.Write(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
 }

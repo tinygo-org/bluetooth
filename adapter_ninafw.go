@@ -9,7 +9,7 @@ import (
 
 const maxConnections = 1
 
-// Adapter represents the HCI connection to the NINA fw.
+// Adapter represents the HCI connection to the NINA fw using the hardware UART.
 type Adapter struct {
 	hciAdapter
 }
@@ -54,16 +54,15 @@ func (a *Adapter) Enable() error {
 
 	uart.Configure(cfg)
 
-	a.hci, a.att = newBLEStack(uart)
+	transport := &hciUART{uart: uart}
 	if machine.NINA_SOFT_FLOWCONTROL {
-		a.hci.softRTS = machine.NINA_RTS
-		a.hci.softRTS.Configure(machine.PinConfig{Mode: machine.PinOutput})
-		a.hci.softRTS.High()
+		machine.NINA_RTS.Configure(machine.PinConfig{Mode: machine.PinOutput})
+		machine.NINA_RTS.High()
 
-		a.hci.softCTS = machine.NINA_CTS
 		machine.NINA_CTS.Configure(machine.PinConfig{Mode: machine.PinInput})
 	}
 
+	a.hci, a.att = newBLEStack(transport)
 	return a.enable()
 }
 
@@ -83,4 +82,49 @@ func resetNINAInverted() {
 	time.Sleep(100 * time.Millisecond)
 	machine.NINA_RESETN.High()
 	time.Sleep(1000 * time.Millisecond)
+}
+
+type hciUART struct {
+	uart *machine.UART
+}
+
+func (h *hciUART) startRead() {
+	if machine.NINA_SOFT_FLOWCONTROL {
+		machine.NINA_RTS.Low()
+	}
+}
+
+func (h *hciUART) endRead() {
+	if machine.NINA_SOFT_FLOWCONTROL {
+		machine.NINA_RTS.High()
+	}
+}
+
+func (h *hciUART) Buffered() int {
+	return h.uart.Buffered()
+}
+
+func (h *hciUART) ReadByte() (byte, error) {
+	return h.uart.ReadByte()
+}
+
+const writeAttempts = 200
+
+func (h *hciUART) Write(buf []byte) (int, error) {
+	if machine.NINA_SOFT_FLOWCONTROL {
+		retries := writeAttempts
+		for machine.NINA_CTS.Get() {
+			retries--
+			if retries == 0 {
+				return 0, ErrHCITimeout
+			}
+		}
+	}
+
+	n, err := h.uart.Write(buf)
+	if err != nil {
+		return 0, err
+	}
+
+	return n, nil
 }

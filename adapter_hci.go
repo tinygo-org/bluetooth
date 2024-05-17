@@ -3,17 +3,16 @@
 package bluetooth
 
 import (
-	"machine"
 	"runtime"
 
 	"time"
 )
 
-// hciAdapter represents the implementation for the UART connection to the HCI controller.
+// hciAdapter represents the implementation for the connection to the HCI controller.
 type hciAdapter struct {
-	uart *machine.UART
-	hci  *hci
-	att  *att
+	hciport hciTransport
+	hci     *hci
+	att     *att
 
 	isDefault bool
 	scanning  bool
@@ -49,8 +48,8 @@ func (a *hciAdapter) Address() (MACAddress, error) {
 	return MACAddress{MAC: makeAddress(a.hci.address)}, nil
 }
 
-func newBLEStack(uart *machine.UART) (*hci, *att) {
-	h := newHCI(uart)
+func newBLEStack(port hciTransport) (*hci, *att) {
+	h := newHCI(port)
 	a := newATT(h)
 	h.att = a
 
