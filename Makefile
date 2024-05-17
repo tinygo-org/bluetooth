@@ -42,6 +42,8 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/advertisement
 	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-express -tags="hci hci_uart" ./examples/advertisement
+	@md5sum test.hex
 
 smoketest-linux:
 	# Test on Linux.
