@@ -96,6 +96,10 @@ func (h *hciUART) ReadByte() (byte, error) {
 	return h.uart.ReadByte()
 }
 
+func (h *hciUART) Read(buf []byte) (int, error) {
+	return h.uart.Read(buf)
+}
+
 const writeAttempts = 200
 
 func (h *hciUART) Write(buf []byte) (int, error) {

@@ -1,4 +1,4 @@
-//go:build hci || ninafw
+//go:build hci || ninafw || cyw43439
 
 package bluetooth
 

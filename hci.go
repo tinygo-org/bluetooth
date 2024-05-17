@@ -1,4 +1,4 @@
-//go:build ninafw || hci
+//go:build ninafw || hci || cyw43439
 
 package bluetooth
 
@@ -66,10 +66,11 @@ const (
 	leMetaEventEnhancedConnectionComplete     = 0x0A
 	leMetaEventDirectAdvertisingReport        = 0x0B
 
-	hciCommandPkt  = 0x01
-	hciACLDataPkt  = 0x02
-	hciEventPkt    = 0x04
-	hciSecurityPkt = 0x06
+	hciCommandPkt         = 0x01
+	hciACLDataPkt         = 0x02
+	hciSynchronousDataPkt = 0x03
+	hciEventPkt           = 0x04
+	hciSecurityPkt        = 0x06
 
 	evtDisconnComplete  = 0x05
 	evtEncryptionChange = 0x08
@@ -126,6 +127,7 @@ type hciTransport interface {
 	endRead()
 	Buffered() int
 	ReadByte() (byte, error)
+	Read(buf []byte) (int, error)
 	Write(buf []byte) (int, error)
 }
 
@@ -156,8 +158,19 @@ func (h *hci) start() error {
 	h.transport.startRead()
 	defer h.transport.endRead()
 
-	for h.transport.Buffered() > 0 {
-		h.transport.ReadByte()
+	var data [32]byte
+	for {
+		if i := h.transport.Buffered(); i > 0 {
+			if i > len(data) {
+				i = len(data)
+			}
+			if _, err := h.transport.Read(data[:i]); err != nil {
+				return err
+			}
+
+			continue
+		}
+		return nil
 	}
 
 	return nil
@@ -177,14 +190,19 @@ func (h *hci) poll() error {
 
 	i := 0
 	for h.transport.Buffered() > 0 {
-		data, _ := h.transport.ReadByte()
-		h.buf[i] = data
+		sz := h.transport.Buffered()
+		c := sz + 4 - (sz % 4)
+		_, err := h.transport.Read(h.buf[i : i+c])
+		if err != nil {
+			return err
+		}
+		i += sz
 
 		done, err := h.processPacket(i)
 		switch {
 		case err == ErrHCIUnknown || err == ErrHCIInvalidPacket || err == ErrHCIUnknownEvent:
 			if debug {
-				println("hci error:", err.Error())
+				println("hci error:", err.Error(), hex.EncodeToString(h.buf[:i]))
 			}
 			i = 0
 			time.Sleep(5 * time.Millisecond)
@@ -199,7 +217,6 @@ func (h *hci) poll() error {
 			i = 0
 			time.Sleep(5 * time.Millisecond)
 		default:
-			i++
 			time.Sleep(1 * time.Millisecond)
 		}
 	}
@@ -238,9 +255,19 @@ func (h *hci) processPacket(i int) (bool, error) {
 			}
 		}
 
+	case hciSynchronousDataPkt:
+		// not supported by BLE, so ignore
+		if i > 3 {
+			pktlen := int(h.buf[3])
+			if debug {
+				println("hci synchronous data:", i, pktlen, hex.EncodeToString(h.buf[:1+3+pktlen]))
+			}
+			return true, nil
+		}
+
 	default:
 		if debug {
-			println("unknown packet data:", h.buf[0])
+			println("unknown packet data:", hex.EncodeToString(h.buf[0:i]))
 		}
 		return true, ErrHCIUnknown
 	}
@@ -725,6 +752,10 @@ func (h *hci) handleEventData(buf []byte) error {
 			return ErrHCIUnknownEvent
 		}
 	case evtHardwareError:
+		if debug {
+			println("evtHardwareError", hex.EncodeToString(buf))
+		}
+
 		return ErrHCIUnknownEvent
 	}
 

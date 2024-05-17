@@ -1,4 +1,4 @@
-//go:build hci || ninafw
+//go:build hci || ninafw || cyw43439
 
 package bluetooth
 
@@ -25,9 +25,18 @@ type hciAdapter struct {
 }
 
 func (a *hciAdapter) enable() error {
-	a.hci.start()
+	if err := a.hci.start(); err != nil {
+		if debug {
+			println("error starting HCI:", err.Error())
+		}
+		return err
+	}
 
 	if err := a.hci.reset(); err != nil {
+		if debug {
+			println("error resetting HCI:", err.Error())
+		}
+
 		return err
 	}
 
