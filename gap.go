@@ -77,9 +77,8 @@ type ManufacturerDataElement struct {
 
 // ServiceDataElement strores a uuid/byte-array pair used as ServiceData advertisment elements
 type ServiceDataElement struct {
-	// service uuid or company uuid
+	// Service UUID.
 	// The list can also be viewed here:
-	// https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/company_identifiers/company_identifiers.yaml
 	// https://bitbucket.org/bluetooth-SIG/public/src/main/assigned_numbers/uuids/service_uuids.yaml
 	UUID UUID
 	// the data byte array
