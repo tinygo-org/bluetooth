@@ -92,17 +92,17 @@ func must(action string, err error) {
 
 ## Current support
 
-|                                  | Linux              | macOS              | Windows            | Nordic Semi        | ESP32 (NINA-FW)        |
-| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ |
-| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         | HCI         	|
-| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: |
-| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
-| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: |
+|                                  | Linux              | macOS              | Windows            | Nordic Semi        | ESP32 (NINA-FW)    | CYW43439 (RP2040-W) |
+| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ | ------------------- |
+| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         | HCI         	    | HCI                 |
+| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
 
 ## Linux
 
@@ -285,6 +285,23 @@ For example, this command can be used to compile and flash an Arduino Nano RP204
 	tinygo flash -target nano-rp2040 ./examples/heartrate
 
 If you want more information about the `nina-fw` firmware, or want to add support for other ESP32-equipped boards, please see https://github.com/arduino/nina-fw
+
+## CYW43439 (RP2040-W)
+
+Go Bluetooth has bare metal support for boards that include a separate CYW43439 Bluetooth Low Energy radio co-processor.
+
+Currently supported boards include:
+
+* [Raspberry Pi Pico RP2040-W](https://www.raspberrypi.com/documentation/microcontrollers/raspberry-pi-pico.html#raspberry-pi-pico-w)
+* [Pimoroni Badger2040-W](https://shop.pimoroni.com/products/badger-2040-w)
+
+After you have installed TinyGo and the Go Bluetooth package, you should be able to compile/run code for your device.
+
+For example, this command can be used to compile and flash a Pico RP2040-W board with the example we provide that turns it into a BLE peripheral to act like a heart rate monitor:
+
+	tinygo flash -target pico-w ./examples/heartrate
+
+If you want more information about the `cyw43439` support, please see https://github.com/soypat/cyw43439
 
 ## API stability
 
