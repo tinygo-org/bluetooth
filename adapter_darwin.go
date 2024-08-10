@@ -19,6 +19,7 @@ type Adapter struct {
 	peripheralFoundHandler func(*Adapter, ScanResult)
 	scanChan               chan error
 	poweredChan            chan error
+	defaultAdvertisement   *Advertisement
 
 	// connectMap is a mapping of peripheralId -> chan cbgo.Peripheral,
 	// used to allow multiple callers to call Connect concurrently.
@@ -71,6 +72,10 @@ func (a *Adapter) Enable() error {
 	a.pm.SetDelegate(a.pmd)
 
 	return nil
+}
+
+func (a *Adapter) Address() (MACAddress, error) {
+	return MACAddress{}, nil
 }
 
 // CentralManager delegate functions

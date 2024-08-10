@@ -249,3 +249,57 @@ func (pd *peripheralDelegate) DidWriteValueForCharacteristic(_ cbgo.Peripheral, 
 		}
 	}
 }
+
+// Advertisement encapsulates a single advertisement instance.
+type Advertisement struct {
+	adapter    *Adapter
+	properties cbgo.AdvData
+}
+
+// DefaultAdvertisement returns the default advertisement instance but does not
+// configure it.
+func (a *Adapter) DefaultAdvertisement() *Advertisement {
+	if a.defaultAdvertisement == nil {
+		a.defaultAdvertisement = &Advertisement{
+			adapter: a,
+		}
+	}
+	return a.defaultAdvertisement
+}
+
+// Configure this advertisement.
+//
+// On MacOS, it is not possible to set the advertisement interval,
+// the manufacturer data nor the service data.
+func (a *Advertisement) Configure(options AdvertisementOptions) error {
+	var serviceUUIDs []cbgo.UUID
+	for _, uuid := range options.ServiceUUIDs {
+		bytes := uuid.Bytes()
+		cbgoUUID := cbgo.UUID(bytes[:])
+		serviceUUIDs = append(serviceUUIDs, cbgoUUID)
+	}
+
+	a.properties.LocalName = options.LocalName
+	a.properties.ServiceUUIDs = serviceUUIDs
+
+	return nil
+}
+
+// Start advertisement. May only be called after it has been configured.
+// Note that this function fails silently.
+func (a *Advertisement) Start() error {
+	err := a.adapter.pm.StartAdvertising(a.properties)
+
+	if err != nil {
+		return errors.New("CoreBluetooth reports not advertising after start request")
+	}
+
+	return nil
+}
+
+// Stop advertisement. May only be called after it has been started.
+func (a *Advertisement) Stop() error {
+	a.adapter.pm.StopAdvertising()
+
+	return nil
+}
