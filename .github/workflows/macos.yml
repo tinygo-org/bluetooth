@@ -12,21 +12,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  macos-12:
-    name: macos-12
-    runs-on: macos-12
-    steps:
-      - name: Install Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: '1.20'
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Run unit tests
-        run: go test
-      - name: "Run macOS smoke tests"
-        run: make smoketest-macos
-
   macos-13:
     name: macos-13
     runs-on: macos-13
