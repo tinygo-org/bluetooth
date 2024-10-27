@@ -1,15 +1,15 @@
-//go:build pybadge
+//go:build badger2040_w
 
 package main
 
 import (
-	"tinygo.org/x/tinyfont"
+	"tinygo.org/x/tinyfont/proggy"
 	"tinygo.org/x/tinyterm"
 	"tinygo.org/x/tinyterm/displays"
 )
 
 var (
-	font = &tinyfont.Picopixel
+	font = &proggy.TinySZ8pt7b
 )
 
 func initTerminal() {
@@ -18,8 +18,8 @@ func initTerminal() {
 	terminal = tinyterm.NewTerminal(display)
 	terminal.Configure(&tinyterm.Config{
 		Font:              font,
-		FontHeight:        8,
-		FontOffset:        4,
+		FontHeight:        10,
+		FontOffset:        6,
 		UseSoftwareScroll: true,
 	})
 }

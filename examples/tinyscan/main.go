@@ -52,4 +52,6 @@ func must(action string, err error) {
 func terminalOutput(s string) {
 	println(s)
 	fmt.Fprintf(terminal, "\n%s", s)
+
+	terminal.Display()
 }
