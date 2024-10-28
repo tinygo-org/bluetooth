@@ -6,12 +6,12 @@ require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/saltosystems/winrt-go v0.0.0-20240509164145-4f7860a3bd2b
-	github.com/soypat/cyw43439 v0.0.0-20240609122733-da9153086796
+	github.com/soypat/cyw43439 v0.0.0-20240627234239-a62ee4027d66
 	github.com/tinygo-org/cbgo v0.0.4
 	golang.org/x/crypto v0.12.0
-	tinygo.org/x/drivers v0.26.1-0.20230922160320-ed51435c2ef6
+	tinygo.org/x/drivers v0.28.1-0.20241028090715-76a4276b5dea
 	tinygo.org/x/tinyfont v0.4.0
-	tinygo.org/x/tinyterm v0.3.0
+	tinygo.org/x/tinyterm v0.3.1-0.20241028084705-e36d93d72cca
 )
 
 require (
