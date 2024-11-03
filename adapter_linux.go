@@ -26,15 +26,21 @@ type Adapter struct {
 	connectHandler func(device Device, connected bool)
 }
 
+// NewAdapter creates a new Adapter with the given ID.
+//
+// Make sure to call Enable() before using it to initialize the adapter.
+func NewAdapter(id string) *Adapter {
+	return &Adapter{
+		id:             id,
+		connectHandler: func(device Device, connected bool) {},
+	}
+}
+
 // DefaultAdapter is the default adapter on the system. On Linux, it is the
 // first adapter available.
 //
 // Make sure to call Enable() before using it to initialize the adapter.
-var DefaultAdapter = &Adapter{
-	id: defaultAdapter,
-	connectHandler: func(device Device, connected bool) {
-	},
-}
+var DefaultAdapter = NewAdapter(defaultAdapter)
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
