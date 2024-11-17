@@ -136,6 +136,9 @@ type hci struct {
 	att               *att
 	l2cap             *l2cap
 	buf               []byte
+	pos               int
+	end               int
+	writebuf          []byte
 	address           [6]byte
 	cmdCompleteOpcode uint16
 	cmdCompleteStatus uint8
@@ -151,6 +154,7 @@ func newHCI(t hciTransport) *hci {
 	return &hci{
 		transport: t,
 		buf:       make([]byte, 256),
+		writebuf:  make([]byte, 256),
 	}
 }
 
@@ -188,33 +192,56 @@ func (h *hci) poll() error {
 	h.transport.startRead()
 	defer h.transport.endRead()
 
-	i := 0
-	for h.transport.Buffered() > 0 {
-		sz := h.transport.Buffered()
-		c := sz + 4 - (sz % 4)
-		_, err := h.transport.Read(h.buf[i : i+c])
-		if err != nil {
-			return err
-		}
-		i += sz
-
-		done, err := h.processPacket(i)
-		switch {
-		case err == ErrHCIUnknown || err == ErrHCIInvalidPacket || err == ErrHCIUnknownEvent:
-			if debug {
-				println("hci error:", err.Error(), hex.EncodeToString(h.buf[:i]))
+	for h.transport.Buffered() > 0 || h.end > h.pos {
+		// perform read only if more data is available
+		available := h.transport.Buffered()
+		if available > 0 {
+			aligned := available + (4-(available%4))%4
+			n, err := h.transport.Read(h.buf[h.end : h.end+aligned])
+			if err != nil {
+				return err
 			}
-			i = 0
+			h.end += n
+		}
+
+		// do processing
+		h.pos += 1
+		done, err := h.processPacket()
+		switch {
+		case err == ErrHCIInvalidPacket || err == ErrHCIUnknown || err == ErrHCIUnknownEvent:
+			if debug {
+				println("hci poll unknown packet:", err.Error(), hex.EncodeToString(h.buf[:h.pos]))
+			}
+
+			h.pos = 0
+			h.end = 0
+
 			time.Sleep(5 * time.Millisecond)
 		case err != nil:
+			// some other error, so return
+			h.pos = 0
+			h.end = 0
+
 			return err
 		case done:
-			return nil
-		case i+1 >= len(h.buf):
-			if debug {
-				println("hci error: buffer overflow")
+			switch {
+			case h.end > h.pos:
+				// move remaining data to start of buffer
+				copy(h.buf[:], h.buf[h.pos:h.end])
+				h.end -= h.pos
+			default:
+				h.end = 0
 			}
-			i = 0
+
+			h.pos = 0
+			return nil
+		case h.pos > h.end:
+			if debug {
+				println("hci poll buffer overflow", hex.EncodeToString(h.buf[:h.end]))
+			}
+			h.pos = 0
+			h.end = 0
+
 			time.Sleep(5 * time.Millisecond)
 		default:
 			time.Sleep(1 * time.Millisecond)
@@ -224,50 +251,60 @@ func (h *hci) poll() error {
 	return nil
 }
 
-func (h *hci) processPacket(i int) (bool, error) {
+func (h *hci) processPacket() (bool, error) {
 	switch h.buf[0] {
 	case hciACLDataPkt:
-		if i > hciACLLenPos {
+		if h.pos > hciACLLenPos {
 			pktlen := int(binary.LittleEndian.Uint16(h.buf[3:5]))
 			switch {
-			case pktlen > len(h.buf):
-				return true, ErrHCIInvalidPacket
-			case i >= (hciACLLenPos + pktlen):
+			case h.end < hciACLLenPos+pktlen:
+				// need to read more data
+				return false, nil
+			case h.pos >= hciACLLenPos+pktlen:
 				if debug {
-					println("hci acl data:", i, hex.EncodeToString(h.buf[:1+hciACLLenPos+pktlen]))
+					println("hci acl data:", h.pos, hex.EncodeToString(h.buf[:hciACLLenPos+pktlen+1]))
 				}
-				return true, h.handleACLData(h.buf[1 : 1+hciACLLenPos+pktlen])
+
+				h.pos = hciACLLenPos + pktlen + 1
+				return true, h.handleACLData(h.buf[1:h.pos])
 			}
 		}
 
 	case hciEventPkt:
-		if i > hciEvtLenPos {
+		if h.pos > hciEvtLenPos {
 			pktlen := int(h.buf[hciEvtLenPos])
 
 			switch {
-			case pktlen > len(h.buf):
-				return true, ErrHCIInvalidPacket
-			case i >= (hciEvtLenPos + pktlen):
+			case h.end < hciEvtLenPos+pktlen:
+				// need to read more data
+				return false, nil
+			case h.pos >= hciEvtLenPos+pktlen:
 				if debug {
-					println("hci event data:", i, hex.EncodeToString(h.buf[:1+hciEvtLenPos+pktlen]))
+					println("hci event data:", h.pos, hex.EncodeToString(h.buf[:hciEvtLenPos+pktlen+1]))
 				}
-				return true, h.handleEventData(h.buf[1 : 1+hciEvtLenPos+pktlen])
+
+				h.pos = hciEvtLenPos + pktlen + 1
+				return true, h.handleEventData(h.buf[1:h.pos])
 			}
 		}
 
 	case hciSynchronousDataPkt:
 		// not supported by BLE, so ignore
-		if i > 3 {
+		if h.pos > 3 {
 			pktlen := int(h.buf[3])
 			if debug {
-				println("hci synchronous data:", i, pktlen, hex.EncodeToString(h.buf[:1+3+pktlen]))
+				println("hci synchronous data:", h.pos, pktlen, hex.EncodeToString(h.buf[:1+3+pktlen]))
 			}
+
+			// move to next packet
+			h.pos = 1 + 3 + pktlen
+
 			return true, nil
 		}
 
 	default:
 		if debug {
-			println("unknown packet data:", hex.EncodeToString(h.buf[0:i]))
+			println("unknown packet data:", h.pos, h.end, hex.EncodeToString(h.buf[:h.pos]))
 		}
 		return true, ErrHCIUnknown
 	}
@@ -443,12 +480,12 @@ func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
 		println("hci send command", opcode, hex.EncodeToString(params))
 	}
 
-	h.buf[0] = hciCommandPkt
-	binary.LittleEndian.PutUint16(h.buf[1:], opcode)
-	h.buf[3] = byte(len(params))
-	copy(h.buf[4:], params)
+	h.writebuf[0] = hciCommandPkt
+	binary.LittleEndian.PutUint16(h.writebuf[1:], opcode)
+	h.writebuf[3] = byte(len(params))
+	copy(h.writebuf[4:], params)
 
-	if _, err := h.write(h.buf[:4+len(params)]); err != nil {
+	if _, err := h.write(h.writebuf[:4+len(params)]); err != nil {
 		return err
 	}
 
@@ -474,12 +511,12 @@ func (h *hci) sendWithoutResponse(opcode uint16, params []byte) error {
 		println("hci send without response command", opcode, hex.EncodeToString(params))
 	}
 
-	h.buf[0] = hciCommandPkt
-	binary.LittleEndian.PutUint16(h.buf[1:], opcode)
-	h.buf[3] = byte(len(params))
-	copy(h.buf[4:], params)
+	h.writebuf[0] = hciCommandPkt
+	binary.LittleEndian.PutUint16(h.writebuf[1:], opcode)
+	h.writebuf[3] = byte(len(params))
+	copy(h.writebuf[4:], params)
 
-	if _, err := h.write(h.buf[:4+len(params)]); err != nil {
+	if _, err := h.write(h.writebuf[:4+len(params)]); err != nil {
 		return err
 	}
 
@@ -490,19 +527,19 @@ func (h *hci) sendWithoutResponse(opcode uint16, params []byte) error {
 }
 
 func (h *hci) sendAclPkt(handle uint16, cid uint8, data []byte) error {
-	h.buf[0] = hciACLDataPkt
-	binary.LittleEndian.PutUint16(h.buf[1:], handle)
-	binary.LittleEndian.PutUint16(h.buf[3:], uint16(len(data)+4))
-	binary.LittleEndian.PutUint16(h.buf[5:], uint16(len(data)))
-	binary.LittleEndian.PutUint16(h.buf[7:], uint16(cid))
+	h.writebuf[0] = hciACLDataPkt
+	binary.LittleEndian.PutUint16(h.writebuf[1:], handle)
+	binary.LittleEndian.PutUint16(h.writebuf[3:], uint16(len(data)+4))
+	binary.LittleEndian.PutUint16(h.writebuf[5:], uint16(len(data)))
+	binary.LittleEndian.PutUint16(h.writebuf[7:], uint16(cid))
 
-	copy(h.buf[9:], data)
+	copy(h.writebuf[9:], data)
 
 	if debug {
-		println("hci send acl data", handle, cid, hex.EncodeToString(h.buf[:9+len(data)]))
+		println("hci send acl data", handle, cid, hex.EncodeToString(h.writebuf[:9+len(data)]))
 	}
 
-	if _, err := h.write(h.buf[:9+len(data)]); err != nil {
+	if _, err := h.write(h.writebuf[:9+len(data)]); err != nil {
 		return err
 	}
 
