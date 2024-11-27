@@ -15,6 +15,22 @@ var (
 	ErrConnect = errors.New("bluetooth: could not connect")
 )
 
+const (
+	ADTypeLimitedDiscoverable    = 0x01
+	ADTypeGeneralDiscoverable    = 0x02
+	ADTypeFlagsBREDRNotSupported = 0x04
+
+	ADFlags                          = 0x01
+	ADIncompleteAdvertisedService16  = 0x02
+	ADCompleteAdvertisedService16    = 0x03
+	ADIncompleteAdvertisedService128 = 0x06
+	ADCompleteAdvertisedService128   = 0x07
+	ADShortLocalName                 = 0x08
+	ADCompleteLocalName              = 0x09
+	ADServiceData                    = 0x16
+	ADManufacturerData               = 0xFF
+)
+
 // Scan starts a BLE scan.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	if a.scanning {
@@ -63,22 +79,22 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				}
 
 				switch t {
-				case 0x02, 0x03:
-					// 16-bit Service Class UUID
+				case ADIncompleteAdvertisedService16, ADCompleteAdvertisedService16:
 					adf.ServiceUUIDs = append(adf.ServiceUUIDs, New16BitUUID(binary.LittleEndian.Uint16(a.hci.advData.eirData[i+2:i+4])))
-				case 0x06, 0x07:
-					// 128-bit Service Class UUID
+				case ADIncompleteAdvertisedService128, ADCompleteAdvertisedService128:
 					var uuid [16]byte
 					copy(uuid[:], a.hci.advData.eirData[i+2:i+18])
 					adf.ServiceUUIDs = append(adf.ServiceUUIDs, NewUUID(uuid))
-				case 0x08, 0x09:
+				case ADShortLocalName, ADCompleteLocalName:
 					if debug {
 						println("local name", string(a.hci.advData.eirData[i+2:i+1+l]))
 					}
 
 					adf.LocalName = string(a.hci.advData.eirData[i+2 : i+1+l])
-				case 0xFF:
-					// Manufacturer Specific Data
+				case ADServiceData:
+					// TODO: handle service data
+				case ADManufacturerData:
+					// TODO: handle manufacturer data
 				}
 
 				i += l + 1
@@ -283,9 +299,11 @@ var defaultAdvertisement Advertisement
 type Advertisement struct {
 	adapter *Adapter
 
-	localName    []byte
-	serviceUUIDs []UUID
-	interval     uint16
+	localName        []byte
+	serviceUUIDs     []UUID
+	interval         uint16
+	manufacturerData []ManufacturerDataElement
+	serviceData      []ServiceDataElement
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -309,6 +327,8 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 
 	a.serviceUUIDs = append([]UUID{}, options.ServiceUUIDs...)
 	a.interval = uint16(options.Interval)
+	a.manufacturerData = append([]ManufacturerDataElement{}, options.ManufacturerData...)
+	a.serviceData = append([]ServiceDataElement{}, options.ServiceData...)
 
 	a.adapter.AddService(
 		&Service{
@@ -352,13 +372,13 @@ func (a *Advertisement) Start() error {
 	var advertisingData [31]byte
 	advertisingDataLen := uint8(0)
 
-	advertisingData[0] = 0x02
-	advertisingData[1] = 0x01
-	advertisingData[2] = 0x06
+	advertisingData[0] = 0x02 // length
+	advertisingData[1] = ADFlags
+	advertisingData[2] = ADTypeGeneralDiscoverable + ADTypeFlagsBREDRNotSupported
 	advertisingDataLen += 3
 
 	// TODO: handle multiple service UUIDs
-	if len(a.serviceUUIDs) > 0 {
+	if len(a.serviceUUIDs) == 1 {
 		uuid := a.serviceUUIDs[0]
 		var sz uint8
 
@@ -373,12 +393,26 @@ func (a *Advertisement) Start() error {
 			copy(advertisingData[5:], data[:])
 		}
 
-		advertisingData[3] = sz + 1
-		advertisingData[4] = sz
+		advertisingData[3] = 0x03 // length
+		advertisingData[4] = ADCompleteAdvertisedService16
 		advertisingDataLen += sz + 2
 	}
 
-	// TODO: handle manufacturer data
+	if len(a.manufacturerData) > 0 {
+		for _, md := range a.manufacturerData {
+			if advertisingDataLen+4+uint8(len(md.Data)) > 31 {
+				return errors.New("ManufacturerData too long")
+			}
+
+			advertisingData[advertisingDataLen] = 3 + uint8(len(md.Data)) // length
+			advertisingData[advertisingDataLen+1] = ADManufacturerData
+
+			binary.LittleEndian.PutUint16(advertisingData[advertisingDataLen+2:], md.CompanyID)
+
+			copy(advertisingData[advertisingDataLen+4:], md.Data)
+			advertisingDataLen += 4 + uint8(len(md.Data))
+		}
+	}
 
 	if err := a.adapter.hci.leSetAdvertisingData(advertisingData[:advertisingDataLen]); err != nil {
 		return err
@@ -389,15 +423,36 @@ func (a *Advertisement) Start() error {
 
 	switch {
 	case len(a.localName) > 29:
-		scanResponseData[1] = 0x08
-		scanResponseData[0] = 1 + 29
+		scanResponseData[0] = 1 + 29 // length
+		scanResponseData[1] = ADCompleteLocalName
 		copy(scanResponseData[2:], a.localName[:29])
 		scanResponseDataLen = 31
 	case len(a.localName) > 0:
-		scanResponseData[1] = 0x09
-		scanResponseData[0] = uint8(1 + len(a.localName))
+		scanResponseData[0] = uint8(1 + len(a.localName)) // length
+		scanResponseData[1] = ADShortLocalName
 		copy(scanResponseData[2:], a.localName)
 		scanResponseDataLen = uint8(2 + len(a.localName))
+	}
+
+	if len(a.serviceData) > 0 {
+		for _, sde := range a.serviceData {
+			if scanResponseDataLen+4+uint8(len(sde.Data)) > 31 {
+				return errors.New("ServiceData too long")
+			}
+
+			switch {
+			case sde.UUID.Is16Bit():
+				binary.LittleEndian.PutUint16(scanResponseData[scanResponseDataLen+2:], sde.UUID.Get16Bit())
+			case sde.UUID.Is32Bit():
+				return errors.New("32-bit ServiceData UUIDs not yet supported")
+			}
+
+			scanResponseData[scanResponseDataLen] = 3 + uint8(len(sde.Data)) // length
+			scanResponseData[scanResponseDataLen+1] = ADServiceData
+
+			copy(scanResponseData[scanResponseDataLen+4:], sde.Data)
+			scanResponseDataLen += 4 + uint8(len(sde.Data))
+		}
 	}
 
 	if err := a.adapter.hci.leSetScanResponseData(scanResponseData[:scanResponseDataLen]); err != nil {
