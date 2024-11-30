@@ -1170,6 +1170,12 @@ func (a *att) addLocalCharacteristic(startHandle uint16, properties Characterist
 		})
 }
 
+func (a *att) clearLocalData() {
+	a.attributes = []rawAttribute{}
+	a.localServices = []rawService{}
+	a.localCharacteristics = []rawCharacteristic{}
+}
+
 func (a *att) findAttribute(hdl uint16) *rawAttribute {
 	for i := range a.attributes {
 		if a.attributes[i].handle == hdl {

@@ -9,6 +9,7 @@ var (
 	errScanning                  = errors.New("bluetooth: a scan is already in progress")
 	errNotScanning               = errors.New("bluetooth: there is no scan in progress")
 	errAdvertisementPacketTooBig = errors.New("bluetooth: advertisement packet overflows")
+	errNotYetImplmented          = errors.New("bluetooth: not implemented")
 )
 
 // MACAddress contains a Bluetooth address which is a MAC address.
@@ -39,9 +40,27 @@ func (mac *MACAddress) Set(val string) {
 	mac.MAC = m
 }
 
+type AdvertisingType int
+
+const (
+	// AdvertisingTypeInd - connectable undirected.
+	AdvertisingTypeInd AdvertisingType = iota
+
+	// AdvertisingTypeDirectInd - connectable directed.
+	AdvertisingTypeDirectInd
+
+	// AdvertisingTypeScanInd - scannable undirected.
+	AdvertisingTypeScanInd
+
+	// AdvertisingTypeNonConnInd - non-connectable undirected.
+	AdvertisingTypeNonConnInd
+)
+
 // AdvertisementOptions configures an advertisement instance. More options may
 // be added over time.
 type AdvertisementOptions struct {
+	AdvertisementType AdvertisingType
+
 	// The (complete) local name that will be advertised. Optional, omitted if
 	// this is a zero-length string.
 	LocalName string

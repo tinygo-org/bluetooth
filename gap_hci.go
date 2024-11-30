@@ -299,11 +299,13 @@ var defaultAdvertisement Advertisement
 type Advertisement struct {
 	adapter *Adapter
 
-	localName        []byte
-	serviceUUIDs     []UUID
-	interval         uint16
-	manufacturerData []ManufacturerDataElement
-	serviceData      []ServiceDataElement
+	advertisementType AdvertisingType
+	localName         []byte
+	serviceUUIDs      []UUID
+	interval          uint16
+	manufacturerData  []ManufacturerDataElement
+	serviceData       []ServiceDataElement
+	stop              chan struct{}
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -311,6 +313,7 @@ type Advertisement struct {
 func (a *Adapter) DefaultAdvertisement() *Advertisement {
 	if defaultAdvertisement.adapter == nil {
 		defaultAdvertisement.adapter = a
+		defaultAdvertisement.stop = make(chan struct{})
 	}
 
 	return &defaultAdvertisement
@@ -318,6 +321,8 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 
 // Configure this advertisement.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
+	a.advertisementType = options.AdvertisementType
+
 	switch {
 	case options.LocalName != "":
 		a.localName = []byte(options.LocalName)
@@ -362,7 +367,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 // Start advertisement. May only be called after it has been configured.
 func (a *Advertisement) Start() error {
 	// uint8_t type = (_connectable) ? 0x00 : (_localName ? 0x02 : 0x03);
-	typ := uint8(0x00)
+	typ := uint8(a.advertisementType)
 
 	if err := a.adapter.hci.leSetAdvertisingParameters(a.interval, a.interval,
 		typ, 0x00, 0x00, [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0x07, 0); err != nil {
@@ -418,6 +423,55 @@ func (a *Advertisement) Start() error {
 		return err
 	}
 
+	if err := a.setServiceData(a.serviceData); err != nil {
+		return err
+	}
+
+	if err := a.adapter.hci.leSetAdvertiseEnable(true); err != nil {
+		return err
+	}
+
+	// go routine to poll for HCI events while advertising
+	go func() {
+		for {
+			select {
+			case <-a.stop:
+				return
+			default:
+			}
+
+			if err := a.adapter.att.poll(); err != nil {
+				// TODO: handle error
+				if debug {
+					println("error polling while advertising:", err.Error())
+				}
+			}
+
+			time.Sleep(5 * time.Millisecond)
+		}
+	}()
+
+	return nil
+}
+
+// Stop advertisement. May only be called after it has been started.
+func (a *Advertisement) Stop() error {
+	err := a.adapter.hci.leSetAdvertiseEnable(false)
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(5 * time.Millisecond)
+	// stop the go routine that polls for HCI events
+	a.adapter.att.clearLocalData()
+	a.stop <- struct{}{}
+	return nil
+}
+
+// SetServiceData sets the service data for the advertisement.
+func (a *Advertisement) setServiceData(sd []ServiceDataElement) error {
+	a.serviceData = sd
+
 	var scanResponseData [31]byte
 	scanResponseDataLen := uint8(0)
 
@@ -459,28 +513,5 @@ func (a *Advertisement) Start() error {
 		return err
 	}
 
-	if err := a.adapter.hci.leSetAdvertiseEnable(true); err != nil {
-		return err
-	}
-
-	// go routine to poll for HCI events while advertising
-	go func() {
-		for {
-			if err := a.adapter.att.poll(); err != nil {
-				// TODO: handle error
-				if debug {
-					println("error polling while advertising:", err.Error())
-				}
-			}
-
-			time.Sleep(5 * time.Millisecond)
-		}
-	}()
-
 	return nil
-}
-
-// Stop advertisement. May only be called after it has been started.
-func (a *Advertisement) Stop() error {
-	return a.adapter.hci.leSetAdvertiseEnable(false)
 }

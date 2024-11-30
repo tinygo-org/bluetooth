@@ -75,7 +75,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 			"ServiceUUIDs":     {Value: serviceUUIDs},
 			"ManufacturerData": {Value: manufacturerData},
 			"LocalName":        {Value: options.LocalName},
-			"ServiceData":      {Value: serviceData},
+			"ServiceData":      {Value: serviceData, Writable: true},
 			// The documentation states:
 			// > Timeout of the advertisement in seconds. This defines the
 			// > lifetime of the advertisement.
