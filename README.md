@@ -2,7 +2,7 @@
 
 [![Go Bluetooth](./images/gobluetooth.png)](https://tinygo.org/bluetooth)
 
-[![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/tinygo.org/x/bluetooth)](https://pkg.go.dev/tinygo.org/x/bluetooth) [![Linux](https://github.com/tinygo-org/bluetooth/actions/workflows/linux.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/bluetooth/actions/workflows/linux.yml) [![macOS](https://github.com/tinygo-org/bluetooth/actions/workflows/macos.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/bluetooth/actions/workflows/macos.yml)
+[![PkgGoDev](https://pkg.go.dev/badge/pkg.go.dev/tinygo.org/x/bluetooth)](https://pkg.go.dev/tinygo.org/x/bluetooth) [![Linux](https://github.com/tinygo-org/bluetooth/actions/workflows/linux.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/bluetooth/actions/workflows/linux.yml) [![macOS](https://github.com/tinygo-org/bluetooth/actions/workflows/macos.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/bluetooth/actions/workflows/macos.yml) [![Windows](https://github.com/tinygo-org/bluetooth/actions/workflows/windows.yml/badge.svg?branch=dev)](https://github.com/tinygo-org/bluetooth/actions/workflows/windows.yml)
 
 Go Bluetooth is a cross-platform package for using [Bluetooth Low Energy](https://en.wikipedia.org/wiki/Bluetooth_Low_Energy) hardware from the Go programming language. 
 
@@ -99,10 +99,10 @@ func must(action string, err error) {
 | Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
 | Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
 | Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Advertisement                    | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Local services                   | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Local characteristics            | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Send notifications               | :heavy_check_mark: | :x:                | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Advertisement                    | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Local services                   | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Local characteristics            | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+| Send notifications               | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
 
 ## Linux
 
@@ -160,8 +160,6 @@ There is a known issue with iTerm2 and the Bluetooth package. If you are getting
 ## Windows
 
 Go Bluetooth support for Windows uses the [WinRT Bluetooth](https://docs.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothadapter?view=winrt-19041) interfaces by way of the https://github.com/saltosystems/winrt-go package.
-
-The Windows support only can only act as a BLE Central at this time, with some additional development work needed for full functionality.
 
 ### Installation
 
