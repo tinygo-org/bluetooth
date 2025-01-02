@@ -12,8 +12,8 @@ import (
 	"github.com/godbus/dbus/v5/prop"
 )
 
-var errAdvertisementNotStarted = errors.New("bluetooth: stop advertisement that was not started")
-var errAdvertisementAlreadyStarted = errors.New("bluetooth: start advertisement that was already started")
+var errAdvertisementNotStarted = errors.New("bluetooth: advertisement is not started")
+var errAdvertisementAlreadyStarted = errors.New("bluetooth: advertisement is already started")
 
 // Unique ID per advertisement (to generate a unique object path).
 var advertisementID uint64
@@ -28,6 +28,7 @@ type Advertisement struct {
 	adapter    *Adapter
 	properties *prop.Properties
 	path       dbus.ObjectPath
+	started    bool
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -45,8 +46,8 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 //
 // On Linux with BlueZ, it is not possible to set the advertisement interval.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
-	if a.properties != nil {
-		panic("todo: configure advertisement a second time")
+	if a.started {
+		return errAdvertisementAlreadyStarted
 	}
 
 	var serviceUUIDs []string
@@ -110,6 +111,7 @@ func (a *Advertisement) Start() error {
 	if err != nil {
 		return fmt.Errorf("bluetooth: could not start advertisement: %w", err)
 	}
+	a.started = true
 	return nil
 }
 
@@ -122,6 +124,7 @@ func (a *Advertisement) Stop() error {
 		}
 		return fmt.Errorf("bluetooth: could not stop advertisement: %w", err)
 	}
+	a.started = false
 	return nil
 }
 
