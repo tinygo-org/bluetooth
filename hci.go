@@ -113,6 +113,7 @@ type leAdvertisingReport struct {
 
 type leConnectData struct {
 	connected      bool
+	disconnected   bool
 	status         uint8
 	handle         uint16
 	role           uint8
@@ -613,6 +614,9 @@ func (h *hci) handleEventData(buf []byte) error {
 		h.att.removeConnection(handle)
 		h.l2cap.removeConnection(handle)
 
+		h.connectData.disconnected = true
+		h.connectData.handle = handle
+
 		return h.leSetAdvertiseEnable(true)
 
 	case evtEncryptionChange:
@@ -818,6 +822,7 @@ func (h *hci) clearAdvData() error {
 
 func (h *hci) clearConnectData() error {
 	h.connectData.connected = false
+	h.connectData.disconnected = false
 	h.connectData.status = 0
 	h.connectData.handle = 0
 	h.connectData.role = 0

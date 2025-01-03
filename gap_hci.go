@@ -262,11 +262,6 @@ func (d Device) Disconnect() error {
 	}
 
 	d.adapter.removeConnection(d)
-
-	if d.adapter.connectHandler != nil {
-		d.adapter.connectHandler(d, false)
-	}
-
 	return nil
 }
 
@@ -434,6 +429,46 @@ func (a *Advertisement) Start() error {
 				if debug {
 					println("error polling while advertising:", err.Error())
 				}
+			}
+
+			switch {
+			case a.adapter.hci.connectData.connected:
+				random := a.adapter.hci.connectData.peerBdaddrType == 0x01
+
+				d := Device{
+					Address: Address{
+						MACAddress{
+							MAC:      makeAddress(a.adapter.hci.connectData.peerBdaddr),
+							isRandom: random},
+					},
+					deviceInternal: &deviceInternal{
+						adapter:                   a.adapter,
+						handle:                    a.adapter.hci.connectData.handle,
+						mtu:                       defaultMTU,
+						notificationRegistrations: make([]notificationRegistration, 0),
+					},
+				}
+				a.adapter.addConnection(d)
+
+				if a.adapter.connectHandler != nil {
+					a.adapter.connectHandler(d, true)
+				}
+
+				a.adapter.hci.clearConnectData()
+			case a.adapter.hci.connectData.disconnected:
+				d := Device{
+					deviceInternal: &deviceInternal{
+						adapter: a.adapter,
+						handle:  a.adapter.hci.connectData.handle,
+					},
+				}
+				a.adapter.removeConnection(d)
+
+				if a.adapter.connectHandler != nil {
+					a.adapter.connectHandler(d, false)
+				}
+
+				a.adapter.hci.clearConnectData()
 			}
 
 			time.Sleep(5 * time.Millisecond)
