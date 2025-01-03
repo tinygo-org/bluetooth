@@ -262,7 +262,7 @@ func (h *hci) processPacket() (bool, error) {
 				return false, nil
 			case h.pos >= hciACLLenPos+pktlen:
 				if debug {
-					println("hci acl data:", h.pos, hex.EncodeToString(h.buf[:hciACLLenPos+pktlen+1]))
+					println("hci acl data recv:", h.pos, hex.EncodeToString(h.buf[:hciACLLenPos+pktlen+1]))
 				}
 
 				h.pos = hciACLLenPos + pktlen + 1
@@ -280,7 +280,7 @@ func (h *hci) processPacket() (bool, error) {
 				return false, nil
 			case h.pos >= hciEvtLenPos+pktlen:
 				if debug {
-					println("hci event data:", h.pos, hex.EncodeToString(h.buf[:hciEvtLenPos+pktlen+1]))
+					println("hci event data recv:", h.pos, hex.EncodeToString(h.buf[:hciEvtLenPos+pktlen+1]))
 				}
 
 				h.pos = hciEvtLenPos + pktlen + 1
@@ -293,7 +293,7 @@ func (h *hci) processPacket() (bool, error) {
 		if h.pos > 3 {
 			pktlen := int(h.buf[3])
 			if debug {
-				println("hci synchronous data:", h.pos, pktlen, hex.EncodeToString(h.buf[:1+3+pktlen]))
+				println("hci synchronous data recv:", h.pos, pktlen, hex.EncodeToString(h.buf[:1+3+pktlen]))
 			}
 
 			// move to next packet
@@ -304,7 +304,7 @@ func (h *hci) processPacket() (bool, error) {
 
 	default:
 		if debug {
-			println("unknown packet data:", h.pos, h.end, hex.EncodeToString(h.buf[:h.pos]))
+			println("unknown packet data recv:", h.pos, h.end, hex.EncodeToString(h.buf[:h.pos]))
 		}
 		return true, ErrHCIUnknown
 	}
@@ -678,7 +678,11 @@ func (h *hci) handleEventData(buf []byte) error {
 		switch buf[2] {
 		case leMetaEventConnComplete, leMetaEventEnhancedConnectionComplete:
 			if debug {
-				println("leMetaEventConnComplete")
+				if buf[2] == leMetaEventConnComplete {
+					println("leMetaEventConnComplete", hex.EncodeToString(buf))
+				} else {
+					println("leMetaEventEnhancedConnectionComplete", hex.EncodeToString(buf))
+				}
 			}
 
 			h.connectData.connected = true
@@ -691,10 +695,10 @@ func (h *hci) handleEventData(buf []byte) error {
 			switch buf[2] {
 			case leMetaEventConnComplete:
 				h.connectData.interval = binary.LittleEndian.Uint16(buf[14:])
-				h.connectData.timeout = binary.LittleEndian.Uint16(buf[16:])
+				h.connectData.timeout = binary.LittleEndian.Uint16(buf[18:])
 			case leMetaEventEnhancedConnectionComplete:
 				h.connectData.interval = binary.LittleEndian.Uint16(buf[26:])
-				h.connectData.timeout = binary.LittleEndian.Uint16(buf[28:])
+				h.connectData.timeout = binary.LittleEndian.Uint16(buf[30:])
 			}
 
 			h.att.addConnection(h.connectData.handle)

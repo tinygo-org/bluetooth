@@ -72,6 +72,7 @@ var (
 	ErrATTUnknown           = errors.New("bluetooth: ATT unknown error")
 	ErrATTOp                = errors.New("bluetooth: ATT OP error")
 	ErrATTUnknownConnection = errors.New("bluetooth: ATT unknown connection")
+	ErrATTAttributeNotFound = errors.New("bluetooth: ATT attribute not found")
 )
 
 const defaultTimeoutSeconds = 10
@@ -528,7 +529,12 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 			println("att.handleData: attOpERROR", handle, cd.lastErrorOpcode, cd.lastErrorCode)
 		}
 
-		return ErrATTOp
+		switch cd.lastErrorCode {
+		case attErrorAttrNotFound:
+			return ErrATTAttributeNotFound
+		default:
+			return ErrATTOp
+		}
 
 	case attOpMTUReq:
 		if debug {

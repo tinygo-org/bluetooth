@@ -68,6 +68,10 @@ func (l *l2cap) addConnection(handle uint16, role uint8, interval, timeout uint1
 		return nil
 	}
 
+	if timeout == 0 {
+		timeout = 0x00c8
+	}
+
 	var b [12]byte
 	b[0] = connectionParamUpdateRequest
 	b[1] = 0x01
@@ -108,7 +112,7 @@ func (l *l2cap) handleData(handle uint16, buf []byte) error {
 
 func (l *l2cap) handleParameterUpdateRequest(connectionHandle uint16, identifier uint8, data []byte) error {
 	if debug {
-		println("l2cap.handleParameterUpdateRequest:", connectionHandle, "data:", hex.EncodeToString(data))
+		println("l2cap.handleParameterUpdateRequest:", connectionHandle, "identifier:", identifier, "data:", hex.EncodeToString(data))
 	}
 
 	req := l2capConnectionParamReqPkt{}
@@ -128,11 +132,6 @@ func (l *l2cap) handleParameterUpdateRequest(connectionHandle uint16, identifier
 
 	if err := l.sendReq(connectionHandle, b[:]); err != nil {
 		return err
-	}
-
-	// valid so update connection parameters
-	if resp.value == 0 {
-		return l.hci.leConnUpdate(connectionHandle, req.minInterval, req.maxInterval, req.latency, req.timeout)
 	}
 
 	return nil

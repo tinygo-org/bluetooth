@@ -69,6 +69,9 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	for endHandle == uint16(0xffff) {
 		err := d.adapter.att.readByGroupReq(d.handle, startHandle, endHandle, gattServiceUUID)
 		if err != nil {
+			if err == ErrATTAttributeNotFound {
+				break
+			}
 			return nil, err
 		}
 

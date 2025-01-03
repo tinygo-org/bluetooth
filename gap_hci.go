@@ -148,9 +148,18 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	if address.isRandom {
 		random = 1
 	}
-	if err := a.hci.leCreateConn(0x0060, 0x0030, 0x00,
-		random, makeNINAAddress(address.MAC),
-		0x00, 0x0006, 0x000c, 0x0000, 0x00c8, 0x0004, 0x0006); err != nil {
+	if err := a.hci.leCreateConn(0x0060, // interval
+		0x0030,                       // window
+		0x00,                         // initiatorFilter
+		random,                       // peerBdaddrType
+		makeNINAAddress(address.MAC), // peerBdaddr
+		0x00,                         // ownBdaddrType
+		0x0006,                       // minInterval
+		0x000c,                       // maxInterval
+		0x0000,                       // latency
+		0x00c8,                       // supervisionTimeout
+		0x0004,                       // minCeLength
+		0x0006); err != nil {         // maxCeLength
 		return Device{}, err
 	}
 
