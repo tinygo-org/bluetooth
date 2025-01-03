@@ -390,12 +390,20 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		<-connectChan
 	}
 
+	if a.connectHandler != nil {
+		a.connectHandler(device, true)
+	}
+
 	return device, nil
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
 // wait until the connection is fully gone.
 func (d Device) Disconnect() error {
+	if d.adapter.connectHandler != nil {
+		d.adapter.connectHandler(d, false)
+	}
+
 	// we don't call our cancel function here, instead we wait for the
 	// property change in `watchForConnect` and cancel things then
 	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err

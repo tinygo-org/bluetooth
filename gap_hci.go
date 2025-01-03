@@ -209,6 +209,10 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			}
 			a.addConnection(d)
 
+			if a.connectHandler != nil {
+				a.connectHandler(d, true)
+			}
+
 			return d, nil
 
 		} else {
@@ -258,6 +262,11 @@ func (d Device) Disconnect() error {
 	}
 
 	d.adapter.removeConnection(d)
+
+	if d.adapter.connectHandler != nil {
+		d.adapter.connectHandler(d, false)
+	}
+
 	return nil
 }
 

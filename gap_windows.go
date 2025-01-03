@@ -342,7 +342,12 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		return Device{}, err
 	}
 
-	return Device{address, bleDevice, newSession}, nil
+	device := Device{address, bleDevice, newSession}
+	if a.connectHandler != nil {
+		a.connectHandler(device, true)
+	}
+
+	return device, nil
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
@@ -356,6 +361,10 @@ func (d Device) Disconnect() error {
 	}
 	if err := d.device.Close(); err != nil {
 		return err
+	}
+
+	if DefaultAdapter.connectHandler != nil {
+		DefaultAdapter.connectHandler(d, false)
 	}
 
 	return nil
