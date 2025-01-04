@@ -299,13 +299,14 @@ var defaultAdvertisement Advertisement
 type Advertisement struct {
 	adapter *Adapter
 
-	advertisementType AdvertisingType
-	localName         []byte
-	serviceUUIDs      []UUID
-	interval          uint16
-	manufacturerData  []ManufacturerDataElement
-	serviceData       []ServiceDataElement
-	stop              chan struct{}
+	advertisementType  AdvertisingType
+	localName          []byte
+	serviceUUIDs       []UUID
+	interval           uint16
+	manufacturerData   []ManufacturerDataElement
+	serviceData        []ServiceDataElement
+	stop               chan struct{}
+	genericServiceInit bool
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -335,31 +336,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	a.manufacturerData = append([]ManufacturerDataElement{}, options.ManufacturerData...)
 	a.serviceData = append([]ServiceDataElement{}, options.ServiceData...)
 
-	a.adapter.AddService(
-		&Service{
-			UUID: ServiceUUIDGenericAccess,
-			Characteristics: []CharacteristicConfig{
-				{
-					UUID:  CharacteristicUUIDDeviceName,
-					Flags: CharacteristicReadPermission,
-					Value: a.localName,
-				},
-				{
-					UUID:  CharacteristicUUIDAppearance,
-					Flags: CharacteristicReadPermission,
-				},
-			},
-		})
-	a.adapter.AddService(
-		&Service{
-			UUID: ServiceUUIDGenericAttribute,
-			Characteristics: []CharacteristicConfig{
-				{
-					UUID:  CharacteristicUUIDServiceChanged,
-					Flags: CharacteristicIndicatePermission,
-				},
-			},
-		})
+	a.configureGenericServices(string(a.localName), 0x0540) // Generic Sensor. TODO: make this configurable
 
 	return nil
 }
@@ -514,4 +491,41 @@ func (a *Advertisement) setServiceData(sd []ServiceDataElement) error {
 	}
 
 	return nil
+}
+
+// configureGenericServices adds the Generic Access and Generic Attribute services that are
+// required by the Bluetooth specification.
+// Note that once these services are added, they cannot be removed or changed.
+func (a *Advertisement) configureGenericServices(name string, appearance uint16) {
+	if a.genericServiceInit {
+		return
+	}
+
+	a.adapter.AddService(
+		&Service{
+			UUID: ServiceUUIDGenericAccess,
+			Characteristics: []CharacteristicConfig{
+				{
+					UUID:  CharacteristicUUIDDeviceName,
+					Flags: CharacteristicReadPermission,
+					Value: a.localName,
+				},
+				{
+					UUID:  CharacteristicUUIDAppearance,
+					Flags: CharacteristicReadPermission,
+					Value: []byte{byte(appearance & 0xff), byte(appearance >> 8)},
+				},
+			},
+		})
+	a.adapter.AddService(
+		&Service{
+			UUID: ServiceUUIDGenericAttribute,
+			Characteristics: []CharacteristicConfig{
+				{
+					UUID:  CharacteristicUUIDServiceChanged,
+					Flags: CharacteristicIndicatePermission,
+				},
+			},
+		})
+	a.genericServiceInit = true
 }
