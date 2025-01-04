@@ -333,6 +333,9 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 
 	a.serviceUUIDs = append([]UUID{}, options.ServiceUUIDs...)
 	a.interval = uint16(options.Interval)
+	if a.interval == 0 {
+		a.interval = 0x0800 // default interval is 1.28 seconds
+	}
 	a.manufacturerData = append([]ManufacturerDataElement{}, options.ManufacturerData...)
 	a.serviceData = append([]ServiceDataElement{}, options.ServiceData...)
 
