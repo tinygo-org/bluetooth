@@ -1,3 +1,5 @@
+// this example implements a BLE heart rate sensor.
+// see https://www.bluetooth.com/specifications/specs/heart-rate-profile-1-0/ for the full spec.
 package main
 
 import (
@@ -7,10 +9,15 @@ import (
 	"tinygo.org/x/bluetooth"
 )
 
-var adapter = bluetooth.DefaultAdapter
+var (
+	adapter = bluetooth.DefaultAdapter
 
-// TODO: use atomics to access this value.
-var heartRate uint8 = 75 // 75bpm
+	heartRateMeasurement bluetooth.Characteristic
+	bodyLocation         bluetooth.Characteristic
+	controlPoint         bluetooth.Characteristic
+
+	heartRate uint8 = 75 // 75bpm
+)
 
 func main() {
 	println("starting")
@@ -22,7 +29,6 @@ func main() {
 	}))
 	must("start adv", adv.Start())
 
-	var heartRateMeasurement bluetooth.Characteristic
 	must("add service", adapter.AddService(&bluetooth.Service{
 		UUID: bluetooth.ServiceUUIDHeartRate,
 		Characteristics: []bluetooth.CharacteristicConfig{
@@ -31,6 +37,18 @@ func main() {
 				UUID:   bluetooth.CharacteristicUUIDHeartRateMeasurement,
 				Value:  []byte{0, heartRate},
 				Flags:  bluetooth.CharacteristicNotifyPermission,
+			},
+			{
+				Handle: &bodyLocation,
+				UUID:   bluetooth.CharacteristicUUIDBodySensorLocation,
+				Value:  []byte{1}, // "Chest"
+				Flags:  bluetooth.CharacteristicReadPermission,
+			},
+			{
+				Handle: &controlPoint,
+				UUID:   bluetooth.CharacteristicUUIDHeartRateControlPoint,
+				Value:  []byte{0},
+				Flags:  bluetooth.CharacteristicWritePermission,
 			},
 		},
 	}))
