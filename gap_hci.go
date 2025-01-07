@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"slices"
+	"strconv"
 	"time"
 )
 
@@ -353,6 +354,11 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	return nil
 }
 
+// via https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-54/out/en/low-energy-controller/link-layer-specification.html
+// 4.4.3.5. Advertising reports
+// The maximum size of the advertising report is 31 bytes.
+const maxAdvLen = 31
+
 // Start advertisement. May only be called after it has been configured.
 func (a *Advertisement) Start() error {
 	// uint8_t type = (_connectable) ? 0x00 : (_localName ? 0x02 : 0x03);
@@ -368,13 +374,16 @@ func (a *Advertisement) Start() error {
 		return err
 	}
 
-	var advertisingData [31]byte
+	var advertisingData [maxAdvLen]byte
 	advertisingDataLen := uint8(0)
 
-	advertisingData[0] = 0x02 // length
-	advertisingData[1] = ADFlags
-	advertisingData[2] = ADTypeGeneralDiscoverable + ADTypeFlagsBREDRNotSupported
-	advertisingDataLen += 3
+	// flags, only if not non-connectable
+	if a.advertisementType != AdvertisingTypeNonConnInd {
+		advertisingData[0] = 0x02 // length
+		advertisingData[1] = ADFlags
+		advertisingData[2] = ADTypeGeneralDiscoverable + ADTypeFlagsBREDRNotSupported
+		advertisingDataLen += 3
+	}
 
 	// TODO: handle multiple service UUIDs
 	if len(a.serviceUUIDs) == 1 {
@@ -392,15 +401,15 @@ func (a *Advertisement) Start() error {
 			copy(advertisingData[5:], data[:])
 		}
 
-		advertisingData[3] = 0x03 // length
-		advertisingData[4] = ADCompleteAdvertisedService16
+		advertisingData[advertisingDataLen] = 0x03 // length
+		advertisingData[advertisingDataLen+1] = ADCompleteAdvertisedService16
 		advertisingDataLen += sz + 2
 	}
 
 	if len(a.manufacturerData) > 0 {
 		for _, md := range a.manufacturerData {
-			if advertisingDataLen+4+uint8(len(md.Data)) > 31 {
-				return errors.New("ManufacturerData too long")
+			if advertisingDataLen+4+uint8(len(md.Data)) > maxAdvLen {
+				return errors.New("ManufacturerData too long:" + strconv.Itoa(int(advertisingDataLen+4+uint8(len(md.Data)))))
 			}
 
 			advertisingData[advertisingDataLen] = 3 + uint8(len(md.Data)) // length
