@@ -358,8 +358,13 @@ func (a *Advertisement) Start() error {
 	// uint8_t type = (_connectable) ? 0x00 : (_localName ? 0x02 : 0x03);
 	typ := uint8(a.advertisementType)
 
+	localRandom := uint8(0)
+	if a.adapter.hci.address.isRandom {
+		localRandom = 1
+	}
+
 	if err := a.adapter.hci.leSetAdvertisingParameters(a.interval, a.interval,
-		typ, 0x00, 0x00, [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0x07, 0); err != nil {
+		typ, localRandom, 0x00, [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0x07, 0); err != nil {
 		return err
 	}
 

@@ -50,6 +50,11 @@ func (a *hciAdapter) enable() error {
 }
 
 func (a *hciAdapter) Address() (MACAddress, error) {
+	var empty MAC
+	if a.hci.address.MAC != empty {
+		return a.hci.address, nil
+	}
+
 	if err := a.hci.readBdAddr(); err != nil {
 		return MACAddress{}, err
 	}
