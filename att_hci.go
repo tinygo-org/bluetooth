@@ -66,6 +66,11 @@ const (
 	gattClientCharacteristicConfigUUID = 0x2902
 )
 
+const (
+	maximumMTU          = 248
+	maximumMTUBufferLen = maximumMTU + 8
+)
+
 var (
 	ErrATTTimeout           = errors.New("bluetooth: ATT timeout")
 	ErrATTUnknownEvent      = errors.New("bluetooth: ATT unknown event")
@@ -292,7 +297,7 @@ func newATT(hci *hci) *att {
 		lastHandle:           0x0001,
 		attributes:           []rawAttribute{},
 		localServices:        []rawService{},
-		maxMTU:               248,
+		maxMTU:               maximumMTU,
 	}
 }
 
@@ -758,7 +763,7 @@ func (a *att) handleData(handle uint16, buf []byte) error {
 }
 
 func (a *att) handleReadByGroupReq(handle, start, end uint16, uuid shortUUID) error {
-	var response [64]byte
+	var response [maximumMTUBufferLen]byte
 	response[0] = attOpReadByGroupResponse
 	response[1] = 0x0 // length per service
 	pos := 2
@@ -818,7 +823,7 @@ func (a *att) handleReadByGroupReq(handle, start, end uint16, uuid shortUUID) er
 }
 
 func (a *att) handleReadByTypeReq(handle, start, end uint16, uuid shortUUID) error {
-	var response [64]byte
+	var response [maximumMTUBufferLen]byte
 	response[0] = attOpReadByTypeResponse
 	pos := 0
 
@@ -883,7 +888,7 @@ func (a *att) handleReadByTypeReq(handle, start, end uint16, uuid shortUUID) err
 }
 
 func (a *att) handleFindInfoReq(handle, start, end uint16) error {
-	var response [64]byte
+	var response [maximumMTUBufferLen]byte
 	response[0] = attOpFindInfoResponse
 	pos := 0
 
@@ -946,7 +951,7 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 		return a.sendError(handle, attOpReadReq, attrHandle, attErrorAttrNotFound)
 	}
 
-	var response [64]byte
+	var response [maximumMTUBufferLen]byte
 	response[0] = attOpReadResponse
 	pos := 1
 
