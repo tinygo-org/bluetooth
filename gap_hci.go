@@ -342,10 +342,13 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	}
 
 	a.serviceUUIDs = append([]UUID{}, options.ServiceUUIDs...)
-	a.interval = uint16(options.Interval)
-	if a.interval == 0 {
-		a.interval = 0x0800 // default interval is 1.28 seconds
+	if options.Interval == 0 {
+		// Pick an advertisement interval recommended by Apple (section 35.5
+		// Advertising Interval):
+		// https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf
+		options.Interval = NewDuration(152500 * time.Microsecond) // 152.5ms
 	}
+	a.interval = uint16(options.Interval)
 	a.manufacturerData = append([]ManufacturerDataElement{}, options.ManufacturerData...)
 	a.serviceData = append([]ServiceDataElement{}, options.ServiceData...)
 
