@@ -419,3 +419,24 @@ func (d Device) Disconnect() error {
 func (d Device) RequestConnectionParams(params ConnectionParams) error {
 	return nil
 }
+
+// SetRandomAddress sets the random address to be used for advertising.
+func (a *Adapter) SetRandomAddress(mac MAC) error {
+	addr, err := a.adapter.GetProperty("org.bluez.Adapter1.Address")
+	if err != nil {
+		if err, ok := err.(dbus.Error); ok && err.Name == "org.freedesktop.DBus.Error.UnknownObject" {
+			return fmt.Errorf("bluetooth: adapter %s does not exist", a.adapter.Path())
+		}
+		return fmt.Errorf("could not get adapter address: %w", err)
+	}
+	a.address = mac.String()
+	if err := addr.Store(&a.address); err != nil {
+		return fmt.Errorf("could not set adapter address: %w", err)
+	}
+
+	if err := a.adapter.SetProperty("org.bluez.Adapter1.AddressType", "random"); err != nil {
+		return fmt.Errorf("could not set adapter address type: %w", err)
+	}
+
+	return nil
+}
