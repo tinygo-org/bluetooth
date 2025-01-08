@@ -84,3 +84,16 @@ func (a *Advertisement) Stop() error {
 	errCode := C.sd_ble_gap_adv_stop(a.handle)
 	return makeError(errCode)
 }
+
+// SetRandomAddress sets the random address to be used for advertising.
+func (a *Adapter) SetRandomAddress(mac MAC) error {
+	var addr C.ble_gap_addr_t
+	addr.addr = makeSDAddress(mac)
+	addr.set_bitfield_addr_type(C.BLE_GAP_ADDR_TYPE_RANDOM_STATIC)
+
+	errCode := C.sd_ble_gap_addr_set(&addr)
+	if errCode != 0 {
+		return Error(errCode)
+	}
+	return nil
+}
