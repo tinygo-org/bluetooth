@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"errors"
 	"fmt"
 	"unsafe"
 
@@ -380,4 +381,9 @@ func (d Device) RequestConnectionParams(params ConnectionParams) error {
 	// TODO: implement this using
 	// BluetoothLEDevice.RequestPreferredConnectionParameters.
 	return nil
+}
+
+// SetRandomAddress sets the random address to be used for advertising.
+func (a *Adapter) SetRandomAddress(mac MAC) error {
+	return errors.ErrUnsupported
 }
