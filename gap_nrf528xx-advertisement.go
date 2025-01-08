@@ -56,6 +56,18 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		return errAdvertisementPacketTooBig
 	}
 
+	var typ uint8
+	switch options.AdvertisementType {
+	case AdvertisingTypeInd:
+		typ = C.BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED
+	case AdvertisingTypeDirectInd:
+		typ = C.BLE_GAP_ADV_TYPE_CONNECTABLE_NONSCANNABLE_DIRECTED
+	case AdvertisingTypeScanInd:
+		typ = C.BLE_GAP_ADV_TYPE_NONCONNECTABLE_SCANNABLE_UNDIRECTED
+	case AdvertisingTypeNonConnInd:
+		typ = C.BLE_GAP_ADV_TYPE_NONCONNECTABLE_NONSCANNABLE_UNDIRECTED
+	}
+
 	data := C.ble_gap_adv_data_t{}
 	data.adv_data = C.ble_data_t{
 		p_data: (*C.uint8_t)(unsafe.Pointer(&a.payload.data[0])),
@@ -63,7 +75,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	}
 	params := C.ble_gap_adv_params_t{
 		properties: C.ble_gap_adv_properties_t{
-			_type: C.BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED,
+			_type: typ,
 		},
 		interval: C.uint32_t(options.Interval),
 	}
