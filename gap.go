@@ -376,7 +376,10 @@ func (buf *rawAdvertisementPayload) reset() {
 // before the call) from the advertisement options. It returns true if it fits,
 // false otherwise.
 func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions) (ok bool) {
-	buf.addFlags(0x06)
+	// do not add flags for non-connectable advertisements
+	if options.AdvertisementType != AdvertisingTypeNonConnInd {
+		buf.addFlags(0x06)
+	}
 	if options.LocalName != "" {
 		if !buf.addCompleteLocalName(options.LocalName) {
 			return false
