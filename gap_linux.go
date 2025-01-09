@@ -348,6 +348,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	// were connected between the two calls the signal wouldn't be picked up.
 	signal := make(chan *dbus.Signal)
 	a.bus.Signal(signal)
+	defer close(signal)
 	defer a.bus.RemoveSignal(signal)
 	propertiesChangedMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties")}
 	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
