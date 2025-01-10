@@ -73,35 +73,59 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				continue
 			}
 
-			for i := 0; i < int(a.hci.advData.eirLength); {
-				l, t := int(a.hci.advData.eirData[i]), a.hci.advData.eirData[i+1]
-				if l < 1 {
-					break
-				}
-
-				switch t {
-				case ADIncompleteAdvertisedService16, ADCompleteAdvertisedService16:
-					adf.ServiceUUIDs = append(adf.ServiceUUIDs, New16BitUUID(binary.LittleEndian.Uint16(a.hci.advData.eirData[i+2:i+4])))
-				case ADIncompleteAdvertisedService128, ADCompleteAdvertisedService128:
-					var uuid [16]byte
-					copy(uuid[:], a.hci.advData.eirData[i+2:i+18])
-					adf.ServiceUUIDs = append(adf.ServiceUUIDs, NewUUID(uuid))
-				case ADShortLocalName, ADCompleteLocalName:
-					if debug {
-						println("local name", string(a.hci.advData.eirData[i+2:i+1+l]))
-					}
-
-					adf.LocalName = string(a.hci.advData.eirData[i+2 : i+1+l])
-				case ADServiceData:
-					// TODO: handle service data
-				case ADManufacturerData:
-					// TODO: handle manufacturer data
-				}
-
-				i += l + 1
+			rp := rawAdvertisementPayload{len: a.hci.advData.eirLength}
+			copy(rp.data[:], a.hci.advData.eirData[:a.hci.advData.eirLength])
+			if rp.LocalName() != "" {
+				println("LocalName:", rp.LocalName())
+				adf.LocalName = rp.LocalName()
 			}
 
-			random := a.hci.advData.peerBdaddrType == 0x01
+			// Complete List of 16-bit Service Class UUIDs
+			if b := rp.findField(0x03); len(b) > 0 {
+				for i := 0; i < len(b)/2; i++ {
+					uuid := uint16(b[i*2]) | (uint16(b[i*2+1]) << 8)
+					adf.ServiceUUIDs = append(adf.ServiceUUIDs, New16BitUUID(uuid))
+				}
+			}
+			// Incomplete List of 16-bit Service Class UUIDs
+			if b := rp.findField(0x02); len(b) > 0 {
+				for i := 0; i < len(b)/2; i++ {
+					uuid := uint16(b[i*2]) | (uint16(b[i*2+1]) << 8)
+					adf.ServiceUUIDs = append(adf.ServiceUUIDs, New16BitUUID(uuid))
+				}
+			}
+
+			// Complete List of 128-bit Service Class UUIDs
+			if b := rp.findField(0x07); len(b) > 0 {
+				for i := 0; i < len(b)/16; i++ {
+					var uuid [16]byte
+					copy(uuid[:], b[i*16:i*16+16])
+					adf.ServiceUUIDs = append(adf.ServiceUUIDs, NewUUID(uuid))
+				}
+			}
+
+			// Incomplete List of 128-bit Service Class UUIDs
+			if b := rp.findField(0x06); len(b) > 0 {
+				for i := 0; i < len(b)/16; i++ {
+					var uuid [16]byte
+					copy(uuid[:], b[i*16:i*16+16])
+					adf.ServiceUUIDs = append(adf.ServiceUUIDs, NewUUID(uuid))
+				}
+			}
+
+			// service data
+			sd := rp.ServiceData()
+			if len(sd) > 0 {
+				adf.ServiceData = append(adf.ServiceData, sd...)
+			}
+
+			// manufacturer data
+			md := rp.ManufacturerData()
+			if len(md) > 0 {
+				adf.ManufacturerData = append(adf.ManufacturerData, md...)
+			}
+
+			random := a.hci.advData.peerBdaddrType == GAPAddressTypeRandomStatic
 
 			callback(a, ScanResult{
 				Address: Address{
@@ -163,11 +187,11 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 	peerRandom := uint8(0)
 	if address.isRandom {
-		peerRandom = 1
+		peerRandom = GAPAddressTypeRandomStatic
 	}
 	localRandom := uint8(0)
 	if a.hci.address.isRandom {
-		localRandom = 1
+		localRandom = GAPAddressTypeRandomStatic
 	}
 	if err := a.hci.leCreateConn(0x0060, // interval
 		0x0030,                       // window
@@ -334,11 +358,8 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	a.advertisementType = options.AdvertisementType
 
-	switch {
-	case options.LocalName != "":
+	if options.LocalName != "" {
 		a.localName = []byte(options.LocalName)
-	default:
-		a.localName = []byte("TinyGo")
 	}
 
 	a.serviceUUIDs = append([]UUID{}, options.ServiceUUIDs...)
@@ -369,7 +390,7 @@ func (a *Advertisement) Start() error {
 
 	localRandom := uint8(0)
 	if a.adapter.hci.address.isRandom {
-		localRandom = 1
+		localRandom = GAPAddressTypeRandomStatic
 	}
 
 	if err := a.adapter.hci.leSetAdvertisingParameters(a.interval, a.interval,
