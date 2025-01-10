@@ -12,6 +12,17 @@ var (
 	errNotYetImplmented          = errors.New("bluetooth: not implemented")
 )
 
+const (
+	// Public address
+	GAPAddressTypePublic = 0x00
+	// Random Static address
+	GAPAddressTypeRandomStatic = 0x01
+	// Private Resolvable address
+	GAPAddressTypeRandomPrivateResolvable = 0x02
+	// Private Non-Resolvable address
+	GAPAddressTypeRandomPrivateNonResolvable = 0x03
+)
+
 // MACAddress contains a Bluetooth address which is a MAC address.
 type MACAddress struct {
 	// MAC address of the Bluetooth device.
@@ -313,7 +324,7 @@ func (buf *rawAdvertisementPayload) HasServiceUUID(uuid UUID) bool {
 // ManufacturerData returns the manufacturer data in the advertisement payload.
 func (buf *rawAdvertisementPayload) ManufacturerData() []ManufacturerDataElement {
 	var manufacturerData []ManufacturerDataElement
-	for index := 0; index < int(buf.len)+4; index += int(buf.data[index]) + 1 {
+	for index := 0; index < int(buf.len); index += int(buf.data[index]) + 1 {
 		fieldLength := int(buf.data[index+0])
 		if fieldLength < 3 {
 			continue
@@ -334,7 +345,7 @@ func (buf *rawAdvertisementPayload) ManufacturerData() []ManufacturerDataElement
 // ServiceData returns the service data in the advertisment payload
 func (buf *rawAdvertisementPayload) ServiceData() []ServiceDataElement {
 	var serviceData []ServiceDataElement
-	for index := 0; index < int(buf.len)+4; index += int(buf.data[index]) + 1 {
+	for index := 0; index < int(buf.len); index += int(buf.data[index]) + 1 {
 		fieldLength := int(buf.data[index+0])
 		if fieldLength < 3 { // field has only length and type and no data
 			continue
