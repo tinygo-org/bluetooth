@@ -478,7 +478,7 @@ func (h *hci) sendCommand(opcode uint16) error {
 
 func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
 	if debug {
-		println("hci send command", opcode, hex.EncodeToString(params))
+		println("hci send command", opcodeDescription(opcode), hex.EncodeToString(params))
 	}
 
 	h.writebuf[0] = hciCommandPkt
@@ -634,7 +634,7 @@ func (h *hci) handleEventData(buf []byte) error {
 		}
 
 		if debug {
-			println("evtCmdComplete", h.cmdCompleteOpcode, h.cmdCompleteStatus)
+			println("evtCmdComplete", opcodeDescription(h.cmdCompleteOpcode), h.cmdCompleteStatus)
 		}
 
 		return nil
@@ -643,7 +643,7 @@ func (h *hci) handleEventData(buf []byte) error {
 		h.cmdCompleteStatus = buf[2]
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[4:])
 		if debug {
-			println("evtCmdStatus", h.cmdCompleteOpcode, h.cmdCompleteOpcode, h.cmdCompleteStatus)
+			println("evtCmdStatus", opcodeDescription(h.cmdCompleteOpcode), h.cmdCompleteStatus)
 		}
 
 		h.cmdResponse = buf[:0]
@@ -830,4 +830,62 @@ func (h *hci) clearConnectData() error {
 	h.connectData.peerBdaddr = [6]uint8{}
 
 	return nil
+}
+
+func opcodeDescription(opcode uint16) string {
+	ogf := opcode >> 10
+	switch ogf {
+	case ogfLinkCtl:
+		switch opcode & 0x03ff {
+		case ocfDisconnect:
+			return "Disconnect"
+		}
+	case ogfHostCtl:
+		switch opcode & 0x03ff {
+		case ocfSetEventMask:
+			return "SetEventMask"
+		case ocfReset:
+			return "Reset"
+		}
+	case ogfInfoParam:
+		switch opcode & 0x03ff {
+		case ocfReadLocalVersion:
+			return "ReadLocalVersion"
+		case ocfReadBDAddr:
+			return "ReadBDAddr"
+		}
+	case ogfStatusParam:
+		switch opcode & 0x03ff {
+		case ocfReadRSSI:
+			return "ReadRSSI"
+		}
+	case ogfLECtrl:
+		switch opcode & 0x03ff {
+		case ocfLEReadBufferSize:
+			return "LEReadBufferSize"
+		case ocfLESetRandomAddress:
+			return "LESetRandomAddress"
+		case ocfLESetAdvertisingParameters:
+			return "LESetAdvertisingParameters"
+		case ocfLESetAdvertisingData:
+			return "LESetAdvertisingData"
+		case ocfLESetScanResponseData:
+			return "LESetScanResponseData"
+		case ocfLESetAdvertiseEnable:
+			return "LESetAdvertiseEnable"
+		case ocfLESetScanParameters:
+			return "LESetScanParameters"
+		case ocfLESetScanEnable:
+			return "LESetScanEnable"
+		case ocfLECreateConn:
+			return "LECreateConn"
+		case ocfLECancelConn:
+			return "LECancelConn"
+		case ocfLEConnUpdate:
+			return "LEConnUpdate"
+		case ocfLEParamRequestReply:
+			return "LEParamRequestReply"
+		}
+	}
+	return "unknown opcode"
 }
