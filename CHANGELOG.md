@@ -1,3 +1,57 @@
+0.11.0
+---
+* **core**
+  - gap: do not add ADFlags to advertising data for AdvertisingTypeNonConnInd, to leave room for FindMy data
+  - gap: make generic services function for HCI separate function
+  - update to latest version of Bluetooth numbers database for latest services/characteristics
+* **linux**
+  - gap: add implementation for SetRandomAddress() function
+  - gap: correct HCI implementation so it can Configure/Start/Stop advertising correctly. Needed to update ServiceData after Advertisment is already started.
+  - gap: update implementation for GAP to allow for calling adv.Configure() followed by adv.Start() followed by adv.Stop() multiple times. This is required in order to update advertising ServiceData.
+  - fix: close signal on Connect for Linux platform to address issues raised in #262
+  - reconnect connect/disconnect handlers centrals
+  - Allow users to choose between different adapters
+  - Issue #311 Clean resources properly when disable notifications
+* **hci**
+  - add advertiser support for ManufacturerData and ServiceData
+  - contains several corrections needed for HCI on both ninafw and cyw43439
+  - implement set random MAC address
+  - store local address as MACAddress
+  - use current MAC address when Advertiser, allowing support for random advertiser addresses
+  - when advertising, do not send ADFlags if we are using AdvertisingTypeNonConnInd
+  - implement connect handler for Advertiser for HCI
+  - fix bluetooth initialization on cyw43439
+  - actually parse of ServiceData and ManufacturerData when scanning, and use existing GAP implementation to do it
+  - correct parsing of ServiceData and ManufacturerData and add some helpful constants
+  - correct race condition from connection params in HCI implementation. Basically it was responding by calling a function that retriggered asking to change the parameters yet again. Yet we are not actually doing anything about this request at present.
+  - ensure HCI send/receive buffers for ATT are large enough for maximum MTU length
+  - ensure that HCI advertising interval is set to a default value, otherwise different adverting types do not work correctly
+  - reconnect connect/disconnect handlers for centrals
+  - fix: set HCI default Advertising Interval to a more sensible default
+  - enable setting MACAddr for cyw43439
+* **nordic semi**
+  - nrf51: add SetRandomAddress() function when Advertisment
+  - nrf528xx: add SetRandomAddress() function when Advertiser
+  - nrf528xx: correctly use the passed Advertising options type as the type passed into the SoftDevice struct for API call
+update the EnableNotifications Method, add the parameter to specifing… (#293)
+* **windows**
+  - gap/windows: add stubbed function for SetRandomAddress()
+  - reconnect connect/disconnect handlers for centrals
+* **examples**
+  - add example showing how to create a peripheral using the Battery Service
+  - add example showing how to create a peripheral using the Device Information Service
+  - add example to broadcast advertising servicedata
+  - improve heartrate examples by adding all of the required characteristics for it to fulfill the complete heart rate profile in the spec.
+  - refactor tinyscan to use tinyterm/displays package and also add badger2040-w
+* **build**
+  - remove macOS 11 build since it has been removed, and run macOS 14 instead (#285)
+  - remove macOS 12 runner
+* **docs**
+  - update README to include Windows CI badge and correctly updated info about current capabilities
+  - update README with some links and clarifications
+  - license: update year to 2025
+
+
 0.10.0
 ---
 
