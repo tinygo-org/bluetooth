@@ -478,12 +478,12 @@ func (a *att) sendNotification(handle uint16, data []byte) error {
 	b[0] = attOpHandleNotify
 	binary.LittleEndian.PutUint16(b[1:], handle)
 
-	for connection := range a.connections {
+	for _, connection := range a.connections {
 		if debug {
 			println("att.sendNotifications: sending to", connection)
 		}
 
-		if err := a.hci.sendAclPkt(uint16(connection), attCID, append(b[:], data...)); err != nil {
+		if err := a.hci.sendAclPkt(connection, attCID, append(b[:], data...)); err != nil {
 			return err
 		}
 	}
