@@ -14,6 +14,7 @@ import (
 
 var errAdvertisementNotStarted = errors.New("bluetooth: advertisement is not started")
 var errAdvertisementAlreadyStarted = errors.New("bluetooth: advertisement is already started")
+var errAdaptorNotPowered = errors.New("bluetooth: adaptor is not powered")
 
 // Unique ID per advertisement (to generate a unique object path).
 var advertisementID uint64
@@ -231,20 +232,34 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				callback(a, makeScanResult(rawprops))
 			case "org.freedesktop.DBus.Properties.PropertiesChanged":
 				interfaceName := sig.Body[0].(string)
-				if interfaceName != "org.bluez.Device1" {
+				switch interfaceName {
+				case "org.bluez.Adapter1":
+					// check power state
+					changes := sig.Body[1].(map[string]dbus.Variant)
+					for k, v := range changes {
+						if k == "Powered" && !v.Value().(bool) {
+							// adapter is powered off, stop the scan
+							close(cancelChan)
+							return errAdaptorNotPowered
+						}
+					}
+
+				case "org.bluez.Device1":
+					changes := sig.Body[1].(map[string]dbus.Variant)
+					device, ok := devices[sig.Path]
+					if !ok {
+						// This shouldn't happen, but protect against it just in
+						// case.
+						continue
+					}
+					for k, v := range changes {
+						device[k] = v
+					}
+					callback(a, makeScanResult(device))
+
+				default:
 					continue
 				}
-				changes := sig.Body[1].(map[string]dbus.Variant)
-				device, ok := devices[sig.Path]
-				if !ok {
-					// This shouldn't happen, but protect against it just in
-					// case.
-					continue
-				}
-				for k, v := range changes {
-					device[k] = v
-				}
-				callback(a, makeScanResult(device))
 			}
 		case <-cancelChan:
 			continue
