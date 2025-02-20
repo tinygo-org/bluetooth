@@ -5,7 +5,10 @@ package bluetooth
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 )
+
+var errInvalidPayloadLength = errors.New("bluetooth: invalid payload length")
 
 const (
 	connectionParamUpdateRequest  = 0x12
@@ -20,6 +23,10 @@ type l2capConnectionParamReqPkt struct {
 }
 
 func (l *l2capConnectionParamReqPkt) Write(buf []byte) (int, error) {
+	if len(buf) < 8 {
+		return 0, errInvalidPayloadLength
+	}
+
 	l.minInterval = binary.LittleEndian.Uint16(buf[0:])
 	l.maxInterval = binary.LittleEndian.Uint16(buf[2:])
 	l.latency = binary.LittleEndian.Uint16(buf[4:])
@@ -29,6 +36,10 @@ func (l *l2capConnectionParamReqPkt) Write(buf []byte) (int, error) {
 }
 
 func (l *l2capConnectionParamReqPkt) Read(p []byte) (int, error) {
+	if len(p) < 8 {
+		return 0, errInvalidPayloadLength
+	}
+
 	binary.LittleEndian.PutUint16(p[0:], l.minInterval)
 	binary.LittleEndian.PutUint16(p[2:], l.maxInterval)
 	binary.LittleEndian.PutUint16(p[4:], l.latency)
