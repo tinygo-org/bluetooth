@@ -45,31 +45,35 @@ func ParseMAC(s string) (mac MAC, err error) {
 // String returns a human-readable version of this MAC address, such as
 // 11:22:33:AA:BB:CC.
 func (mac MAC) String() string {
-	// TODO: make this more efficient.
-	s := ""
+	buf, _ := mac.MarshalText()
+	return string(buf)
+}
+
+const hexDigit = "0123456789ABCDEF"
+
+// AppendText appends the textual representation of itself to the end of b
+// (allocating a larger slice if necessary) and returns the updated slice.
+func (mac MAC) AppendText(buf []byte) ([]byte, error) {
 	for i := 5; i >= 0; i-- {
-		c := mac[i]
-		// Insert a hyphen at the correct locations.
 		if i != 5 {
-			s += ":"
+			buf = append(buf, ':')
 		}
-
-		// First nibble.
-		nibble := c >> 4
-		if nibble <= 9 {
-			s += string(nibble + '0')
-		} else {
-			s += string(nibble + 'A' - 10)
-		}
-
-		// Second nibble.
-		nibble = c & 0x0f
-		if nibble <= 9 {
-			s += string(nibble + '0')
-		} else {
-			s += string(nibble + 'A' - 10)
-		}
+		buf = append(buf, hexDigit[mac[i]>>4])
+		buf = append(buf, hexDigit[mac[i]&0xF])
 	}
+	return buf, nil
+}
 
-	return s
+func (mac MAC) MarshalText() (text []byte, err error) {
+	return mac.AppendText(make([]byte, 0, 17))
+}
+
+func (mac MAC) MarshalBinary() (data []byte, err error) {
+	return mac.AppendBinary(make([]byte, 0, 6))
+}
+
+// AppendBinary appends the binary representation of itself to the end of b
+// (allocating a larger slice if necessary) and returns the updated slice.
+func (mac MAC) AppendBinary(b []byte) ([]byte, error) {
+	return append(b, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]), nil
 }
