@@ -15,8 +15,8 @@ github.com/saltosystems/winrt-go v0.0.0-20240509164145-4f7860a3bd2b/go.mod h1:CI
 github.com/sirupsen/logrus v1.5.0/go.mod h1:+F7Ogzej0PZc/94MaYx/nvG9jOFMD2osvC3s+Squfpo=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
-github.com/soypat/cyw43439 v0.0.0-20241116210509-ae1ce0e084c5 h1:arwJFX1x5zq+wUp5ADGgudhMQEXKNMQOmTh+yYgkwzw=
-github.com/soypat/cyw43439 v0.0.0-20241116210509-ae1ce0e084c5/go.mod h1:1Otjk6PRhfzfcVHeWMEeku/VntFqWghUwuSQyivb2vE=
+github.com/soypat/cyw43439 v0.0.0-20250221124649-d06a11e466eb h1:M4ZPCf5GqJzvvKOKM6wJTKzPJ7xgZf7WqpvS3UYXguk=
+github.com/soypat/cyw43439 v0.0.0-20250221124649-d06a11e466eb/go.mod h1:1Otjk6PRhfzfcVHeWMEeku/VntFqWghUwuSQyivb2vE=
 github.com/soypat/seqs v0.0.0-20240527012110-1201bab640ef h1:phH95I9wANjTYw6bSYLZDQfNvao+HqYDom8owbNa0P4=
 github.com/soypat/seqs v0.0.0-20240527012110-1201bab640ef/go.mod h1:oCVCNGCHMKoBj97Zp9znLbQ1nHxpkmOY9X+UAGzOxc8=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
