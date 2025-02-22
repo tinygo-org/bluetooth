@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"errors"
+	"unsafe"
 )
 
 // MAC represents a MAC address, in little endian format.
@@ -52,7 +53,7 @@ func ParseMAC(s string) (mac MAC, err error) {
 // 11:22:33:AA:BB:CC.
 func (mac MAC) String() string {
 	buf, _ := mac.MarshalText()
-	return string(buf)
+	return unsafe.String(unsafe.SliceData(buf), 17)
 }
 
 const hexDigit = "0123456789ABCDEF"
