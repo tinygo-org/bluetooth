@@ -1,15 +1,16 @@
 package bluetooth
 
-import "errors"
+import (
+	"errors"
+)
 
 // MAC represents a MAC address, in little endian format.
 type MAC [6]byte
 
-var errInvalidMAC = errors.New("bluetooth: failed to parse MAC address")
-
-// ParseMAC parses the given MAC address, which must be in 11:22:33:AA:BB:CC
-// format. If it cannot be parsed, an error is returned.
-func ParseMAC(s string) (mac MAC, err error) {
+// UnmarshalText unmarshals the text into itself.
+// The given MAC address byte array must be of the format 11:22:33:AA:BB:CC.
+// If it cannot be unmarshaled, an error is returned.
+func (mac *MAC) UnmarshalText(s []byte) error {
 	macIndex := 11
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -22,12 +23,10 @@ func ParseMAC(s string) (mac MAC, err error) {
 		} else if c >= 'A' && c <= 'F' {
 			nibble = c - 'A' + 0xA
 		} else {
-			err = errInvalidMAC
-			return
+			return ErrInvalidMAC
 		}
 		if macIndex < 0 {
-			err = errInvalidMAC
-			return
+			return ErrInvalidMAC
 		}
 		if macIndex%2 == 0 {
 			mac[macIndex/2] |= nibble
@@ -37,8 +36,15 @@ func ParseMAC(s string) (mac MAC, err error) {
 		macIndex--
 	}
 	if macIndex != -1 {
-		err = errInvalidMAC
+		return ErrInvalidMAC
 	}
+	return nil
+}
+
+// ParseMAC parses the given MAC address, which must be in 11:22:33:AA:BB:CC
+// format. If it cannot be parsed, an error is returned.
+func ParseMAC(s string) (mac MAC, err error) {
+	err = (&mac).UnmarshalText([]byte(s))
 	return
 }
 
@@ -64,12 +70,30 @@ func (mac MAC) AppendText(buf []byte) ([]byte, error) {
 	return buf, nil
 }
 
+// MarshalText marshals itself into a string of format 11:22:33:AA:BB:CC.
+// It is a simple wrapper of the AppentText method.
 func (mac MAC) MarshalText() (text []byte, err error) {
 	return mac.AppendText(make([]byte, 0, 17))
 }
 
+var ErrInvalidMAC = errors.New("bluetooth: failed to parse MAC address")
+
+// MarshalBinary marshals itself into a binary format.
+// This is a simple wrapper of the AppendBinary method
 func (mac MAC) MarshalBinary() (data []byte, err error) {
 	return mac.AppendBinary(make([]byte, 0, 6))
+}
+
+var ErrInvalidBinaryMac = errors.New("bluetooth: failed to unmarshal the binary MAC address")
+
+// UnmarshalBinary unmarshals the mac byte slice into itself.
+// It will return the ErrInvalidBinaryMac error if the given slice is not exactually 6 in length.
+func (mac *MAC) UnmarshalBinary(data []byte) error {
+	if len(data) != 6 {
+		return ErrInvalidBinaryMac
+	}
+	copy(mac[:], data)
+	return nil
 }
 
 // AppendBinary appends the binary representation of itself to the end of b
