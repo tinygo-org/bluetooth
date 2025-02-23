@@ -10,9 +10,9 @@ import (
 
 // Adapter is a connection to BLE devices.
 type Adapter struct {
-	id  string
-	cmd *centralManagerDelegate
-	pmd *peripheralManagerDelegate
+	macAddress string
+	cmd        *centralManagerDelegate
+	pmd        *peripheralManagerDelegate
 
 	cm cbgo.CentralManager
 	pm cbgo.PeripheralManager
@@ -28,12 +28,13 @@ type Adapter struct {
 	connectHandler func(device Device, connected bool)
 }
 
-// NewAdapter creates a new Adapter with the given ID.
-//
+// NewAdapter creates a new Adapter with the given macAddress.
+// this is to support a system with multiple bluetooth adapters.
+// macAddress can be found by running `system_profiler SPBluetoothDataType`
 // Make sure to call Enable() before using it to initialize the adapter.
-func NewAdapter(id string) *Adapter {
+func NewAdapter(macAddress string) *Adapter {
 	return &Adapter{
-		id:         id,
+		macAddress: macAddress,
 		cm:         cbgo.NewCentralManager(nil),
 		pm:         cbgo.NewPeripheralManager(nil),
 		connectMap: sync.Map{},
