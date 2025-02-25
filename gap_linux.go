@@ -388,6 +388,14 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	a.bus.AddMatchSignal(propertiesChangedMatchOptions...)
 	defer a.bus.RemoveMatchSignal(propertiesChangedMatchOptions...)
 
+	powered, err := a.adapter.GetProperty("org.bluez.Adapter1.Powered")
+	if err != nil {
+		return Device{}, err
+	}
+	if !powered.Value().(bool) {
+		return Device{}, errAdaptorNotPowered
+	}
+
 	// Read whether this device is already connected.
 	connected, err := device.device.GetProperty("org.bluez.Device1.Connected")
 	if err != nil {
