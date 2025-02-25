@@ -156,7 +156,6 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 
 	// Check if the adapter is powered on.
 	powered, err := a.adapter.GetProperty("org.bluez.Adapter1.Powered")
-	fmt.Printf("Powered: %v\n", powered)
 	if err != nil {
 		return err
 	}
