@@ -240,6 +240,8 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 						if k == "Powered" && !v.Value().(bool) {
 							// adapter is powered off, stop the scan
 							close(cancelChan)
+							close(a.scanCancelChan)
+							a.scanCancelChan = nil
 							return errAdaptorNotPowered
 						}
 					}
