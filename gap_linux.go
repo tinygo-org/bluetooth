@@ -390,20 +390,34 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 				switch sig.Name {
 				case "org.freedesktop.DBus.Properties.PropertiesChanged":
 					interfaceName := sig.Body[0].(string)
-					if interfaceName != "org.bluez.Device1" {
-						continue
-					}
-					if sig.Path != device.device.Path() {
-						continue
-					}
-					changes := sig.Body[1].(map[string]dbus.Variant)
-					if connected, ok := changes["Connected"].Value().(bool); ok && connected {
-						close(connectChan)
+					switch interfaceName {
+					case "org.bluez.Adapter1":
+						// check power state
+						changes := sig.Body[1].(map[string]dbus.Variant)
+						for k, v := range changes {
+							if k == "Powered" && !v.Value().(bool) {
+								// adapter is powered off, stop the scan
+								err = errAdaptorNotPowered
+								close(connectChan)
+							}
+						}
+					case "org.bluez.Device1":
+						if sig.Path != device.device.Path() {
+							continue
+						}
+						changes := sig.Body[1].(map[string]dbus.Variant)
+						if connected, ok := changes["Connected"].Value().(bool); ok && connected {
+							close(connectChan)
+						}
 					}
 				}
 			}
 		}()
 		<-connectChan
+
+		if err != nil {
+			return Device{}, err
+		}
 	}
 
 	if a.connectHandler != nil {
