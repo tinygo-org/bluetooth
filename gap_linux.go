@@ -142,21 +142,6 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		return errScanning
 	}
 
-	// Channel that will be closed when the scan is stopped.
-	// Detecting whether the scan is stopped can be done by doing a non-blocking
-	// read from it. If it succeeds, the scan is stopped.
-	cancelChan := make(chan struct{})
-	a.scanCancelChan = cancelChan
-
-	// This appears to be necessary to receive any BLE discovery results at all.
-	defer a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0)
-	err := a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0, map[string]interface{}{
-		"Transport": "le",
-	}).Err
-	if err != nil {
-		return err
-	}
-
 	signal := make(chan *dbus.Signal)
 	a.bus.Signal(signal)
 	defer a.bus.RemoveSignal(signal)
@@ -168,6 +153,30 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	newObjectMatchOptions := []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.ObjectManager")}
 	a.bus.AddMatchSignal(newObjectMatchOptions...)
 	defer a.bus.RemoveMatchSignal(newObjectMatchOptions...)
+
+	// Check if the adapter is powered on.
+	powered, err := a.adapter.GetProperty("org.bluez.Adapter1.Powered")
+	if err != nil {
+		return err
+	}
+	if !powered.Value().(bool) {
+		return errAdaptorNotPowered
+	}
+
+	// Channel that will be closed when the scan is stopped.
+	// Detecting whether the scan is stopped can be done by doing a non-blocking
+	// read from it. If it succeeds, the scan is stopped.
+	cancelChan := make(chan struct{})
+	a.scanCancelChan = cancelChan
+
+	// This appears to be necessary to receive any BLE discovery results at all.
+	defer a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0)
+	err = a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0, map[string]interface{}{
+		"Transport": "le",
+	}).Err
+	if err != nil {
+		return err
+	}
 
 	// Go through all connected devices and present the connected devices as
 	// scan results. Also save the properties so that the full list of
@@ -200,10 +209,9 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	}
 
 	// Instruct BlueZ to start discovering.
-	err = a.adapter.Call("org.bluez.Adapter1.StartDiscovery", 0).Err
-	if err != nil {
-		return err
-	}
+	// NOTE: We must call Go here, not Call, because it can block if adapter is
+	// powered off, or was recently powered off.
+	startDiscovery := a.adapter.Go("org.bluez.Adapter1.StartDiscovery", 0, nil)
 
 	for {
 		// Check whether the scan is stopped. This is necessary to avoid a race
@@ -217,6 +225,12 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		}
 
 		select {
+		case <-startDiscovery.Done:
+			if startDiscovery.Err != nil {
+				close(cancelChan)
+				a.scanCancelChan = nil
+				return startDiscovery.Err
+			}
 		case sig := <-signal:
 			// This channel receives anything that we watch for, so we'll have
 			// to check for signals that are relevant to us.
@@ -236,14 +250,16 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				case "org.bluez.Adapter1":
 					// check power state
 					changes := sig.Body[1].(map[string]dbus.Variant)
-					for k, v := range changes {
-						if k == "Powered" && !v.Value().(bool) {
-							// adapter is powered off, stop the scan
-							close(cancelChan)
-							close(a.scanCancelChan)
-							a.scanCancelChan = nil
-							return errAdaptorNotPowered
-						}
+					if powered, ok := changes["Powered"]; ok && !powered.Value().(bool) {
+						// adapter is powered off, stop the scan
+						close(cancelChan)
+						a.scanCancelChan = nil
+						return errAdaptorNotPowered
+					} else if discovering, ok := changes["Discovering"]; ok && !discovering.Value().(bool) {
+						// adapter stopped discovering unexpectedly (e.g. due to external event)
+						close(cancelChan)
+						a.scanCancelChan = nil
+						return errScanStopped
 					}
 
 				case "org.bluez.Device1":
