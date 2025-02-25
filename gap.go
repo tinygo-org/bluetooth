@@ -8,6 +8,7 @@ import (
 var (
 	errScanning                  = errors.New("bluetooth: a scan is already in progress")
 	errNotScanning               = errors.New("bluetooth: there is no scan in progress")
+	errScanStopped               = errors.New("bluetooth: scan was stopped unexpectedly")
 	errAdvertisementPacketTooBig = errors.New("bluetooth: advertisement packet overflows")
 	errNotYetImplmented          = errors.New("bluetooth: not implemented")
 )
