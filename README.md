@@ -249,7 +249,31 @@ Once you have copied the SoftDevice firmware to the BBC micro:bit, you can then 
 
 The [BBC micro:bit v2](https://microbit.org/new-microbit/) uses an nRF52833 chip with a CMSIS-DAP interface.
 
-Support for the v2 will be available soon.
+You will need to install OpenOCD (http://openocd.org/) to flash this board.
+
+You can use the BBC micro:bit v2 either as a peripheral only using the S113 SoftDevice, or else with both central and peripheral support using S140. Note that S140 does require more memory, leaving less for user programs.
+
+To use S113, flash the SoftDevice firmware by copying the .hex file to the device. For example (on Linux):
+
+	cd bluetooth
+	cp ./s113_nrf52_7.0.1/s113_nrf52_7.0.1_softdevice.hex /media/yourusername/MICROBIT/
+
+Note that you should only have to do this one time. Do not reset the power on the board until you complete the next step.
+
+Now that you have copied the SoftDevice firmware to the BBC micro:bit v2, you can flash your TinyGo program:
+
+    tinygo flash -target=microbit-v2-s113v7 -programmer=cmsis-dap ./examples/heartrate
+
+To use S140 with central and peripheral support, flash the SoftDevice firmware by copying the .hex file to the device. For example (on Linux):
+
+	cd bluetooth
+	cp ./s140_nrf52_7.3.0/s140_nrf52_7.3.0_softdevice.hex /media/yourusername/MICROBIT/
+
+Note that you should only have to do this one time. Do not reset the power on the board until you complete the next step.
+
+Now that you have copied the SoftDevice firmware to the BBC micro:bit v2, you can flash your TinyGo program:
+
+    tinygo flash -target=microbit-v2-s140v7 -programmer=cmsis-dap ./examples/heartrate-monitor
 
 ### Supported Chips
 
