@@ -374,9 +374,9 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 // Configuration Descriptor (CCCD). And it favors Notify over Indicate.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	var err error
-	if c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify == 0 {
+	if c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify != 0 {
 		err = c.EnableNotificationsWithMode(NotificationModeNotify, callback)
-	} else if c.properties&genericattributeprofile.GattCharacteristicPropertiesIndicate == 0 {
+	} else if c.properties&genericattributeprofile.GattCharacteristicPropertiesIndicate != 0 {
 		err = c.EnableNotificationsWithMode(NotificationModeIndicate, callback)
 	} else {
 		return errNoNotifyOrIndicate
