@@ -163,6 +163,12 @@ type AdvertisementPayload interface {
 	// UUIDs and 128-bit UUIDs.
 	HasServiceUUID(UUID) bool
 
+	// ServiceUUIDs returns all of the Service Class UUIDs present in the
+	// advertisement payload.  Where possible, using HasServiceUUID() is preferred
+	// because this may need to construct the UUIDs on the fly.  The caller may
+	// not modify the returned UUIDs.
+	ServiceUUIDs() []UUID
+
 	// Bytes returns the raw advertisement packet, if available. It returns nil
 	// if this data is not available.
 	Bytes() []byte
@@ -216,6 +222,12 @@ func (p *advertisementFields) HasServiceUUID(uuid UUID) bool {
 		}
 	}
 	return false
+}
+
+// ServiceUUIDs returns the set of Service Class UUIDs present in the
+// advertisement payload.  The caller may not modify the returned UUIDs.
+func (p *advertisementFields) ServiceUUIDs() []UUID {
+	return p.AdvertisementFields.ServiceUUIDs
 }
 
 // Bytes returns nil, as structured advertisement data does not have the
@@ -320,6 +332,27 @@ func (buf *rawAdvertisementPayload) HasServiceUUID(uuid UUID) bool {
 		}
 		return false
 	}
+}
+
+// ServiceUUIDs returns the set of Service Class UUIDs in the advertisement
+// payload.  Both 16-bit UUIDs and 128-bit UUIDs will be included.
+func (buf *rawAdvertisementPayload) ServiceUUIDs() []UUID {
+	var uuids []UUID
+	b := buf.findField(0x03) // Complete List of 16-bit Service Class UUIDs
+	if len(b) == 0 {
+		b = buf.findField(0x02) // Incomplete List of 16-bit Service Class UUIDs
+	}
+	for i := 0; i < len(b)/2; i++ {
+		uuids = append(uuids, New16BitUUID(uint16(b[i*2])|(uint16(b[i*2+1])<<8)))
+	}
+	b = buf.findField(0x07) // Complete List of 128-bit Service Class UUIDs
+	if len(b) == 0 {
+		b = buf.findField(0x06) // Incomplete List of 128-bit Service Class UUIDs
+	}
+	for i := 0; i < len(b)/16; i++ {
+		uuids = append(uuids, NewUUID([16]byte(b[i*16:i*16+16])))
+	}
+	return uuids
 }
 
 // ManufacturerData returns the manufacturer data in the advertisement payload.
