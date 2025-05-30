@@ -107,6 +107,11 @@ func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 			}
 		}
 
+		go func() {
+			<-d.ctx.Done()
+			srv.Close()
+		}()
+
 		services = append(services, DeviceService{
 			uuidWrapper: serviceUuid,
 			service:     srv,
