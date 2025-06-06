@@ -22,8 +22,6 @@ This example shows a central that scans for peripheral devices and then displays
 package main
 
 import (
-	"fmt"
-
 	"tinygo.org/x/bluetooth"
 )
 
@@ -34,9 +32,9 @@ func main() {
 	must("enable BLE stack", adapter.Enable())
 
 	// Start scanning.
-	fmt.Println("scanning...")
+	println("scanning...")
 	err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
-		fmt.Println("found device:", device.Address.String(), device.RSSI, device.LocalName())
+		println("found device:", device.Address.String(), device.RSSI, device.LocalName())
 	})
 	must("start scan", err)
 }
@@ -59,7 +57,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"tinygo.org/x/bluetooth"
@@ -74,7 +71,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	adapter.SetConnectHandler(func(device bluetooth.Device, connected bool){
 		if connected {
-			fmt.Println("device connected:", device.Address.String(), device.RSSI, device.LocalName())
+			println("device connected:", device.Address.String(), device.RSSI, device.LocalName())
 			cancel()
 		}
 	})
@@ -88,7 +85,7 @@ func main() {
   	// Start advertising
 	must("start adv", adv.Start())
 
-	fmt.Println("advertising...")
+	println("advertising...")
 	<- ctx.Done()
 }
 
