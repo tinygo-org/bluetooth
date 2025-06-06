@@ -84,6 +84,9 @@ func main() {
   
   	// Start advertising
 	must("start adv", adv.Start())
+	
+	// Stop advertising to release resources
+	defer adv.Stop()
 
 	println("advertising...")
 	<- ctx.Done()
