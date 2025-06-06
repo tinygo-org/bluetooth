@@ -22,6 +22,8 @@ This example shows a central that scans for peripheral devices and then displays
 package main
 
 import (
+	"fmt"
+
 	"tinygo.org/x/bluetooth"
 )
 
@@ -32,9 +34,9 @@ func main() {
 	must("enable BLE stack", adapter.Enable())
 
 	// Start scanning.
-	println("scanning...")
+	fmt.Println("scanning...")
 	err := adapter.Scan(func(adapter *bluetooth.Adapter, device bluetooth.ScanResult) {
-		println("found device:", device.Address.String(), device.RSSI, device.LocalName())
+		fmt.Println("found device:", device.Address.String(), device.RSSI, device.LocalName())
 	})
 	must("start scan", err)
 }
@@ -56,6 +58,8 @@ This example shows a peripheral that advertises itself as being available for co
 package main
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"tinygo.org/x/bluetooth"
@@ -67,6 +71,14 @@ func main() {
   	// Enable BLE interface.
 	must("enable BLE stack", adapter.Enable())
 
+	ctx, cancel := context.WithCancel(context.Background())
+	adapter.SetConnectHandler(func(device bluetooth.Device, connected bool){
+		if connected {
+			fmt.Println("device connected:", device.Address.String(), device.RSSI, device.LocalName())
+			cancel()
+		}
+	})
+
   	// Define the peripheral device info.
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
@@ -76,11 +88,8 @@ func main() {
   	// Start advertising
 	must("start adv", adv.Start())
 
-	println("advertising...")
-	for {
-		// Sleep forever.
-		time.Sleep(time.Hour)
-	}
+	fmt.Println("advertising...")
+	<- ctx.Done()
 }
 
 func must(action string, err error) {

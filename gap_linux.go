@@ -12,6 +12,17 @@ import (
 	"github.com/godbus/dbus/v5/prop"
 )
 
+const (
+	// Match rule constants for D-Bus signals.
+	//
+	// See [DBusPropertiesLink] for more information.
+	DBusPropertiesChangedInterfaceName = 0
+	DBusPropertiesChangedDictionary    = 1
+	DBusPropertiesChangedInvalidated   = 2
+)
+
+// [DBusPropertiesLink]: https://dbus.freedesktop.org/doc/dbus-specification.html#standard-interfaces-properties
+
 var errAdvertisementNotStarted = errors.New("bluetooth: advertisement is not started")
 var errAdvertisementAlreadyStarted = errors.New("bluetooth: advertisement is already started")
 var errAdaptorNotPowered = errors.New("bluetooth: adaptor is not powered")
@@ -30,6 +41,10 @@ type Advertisement struct {
 	properties *prop.Properties
 	path       dbus.ObjectPath
 	started    bool
+
+	// D-Bus Signals
+	sigCh     chan *dbus.Signal
+	matchOpts []dbus.MatchOption
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -107,6 +122,20 @@ func (a *Advertisement) Start() error {
 		return fmt.Errorf("bluetooth: could not start advertisement: %w", err)
 	}
 
+	if a.adapter.connectHandler != nil {
+		a.sigCh = make(chan *dbus.Signal)
+		a.adapter.bus.Signal(a.sigCh)
+
+		a.matchOpts = []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
+			dbus.WithMatchMember("PropertiesChanged"),
+			dbus.WithMatchArg(DBusPropertiesChangedInterfaceName, "org.bluez.Device1")}
+		if err := a.adapter.bus.AddMatchSignal(a.matchOpts...); err != nil {
+			return fmt.Errorf("add match signal: %w", err)
+		}
+
+		go a.handleDBusSignals()
+	}
+
 	// Make us discoverable.
 	err = a.adapter.adapter.SetProperty("org.bluez.Adapter1.Discoverable", dbus.MakeVariant(true))
 	if err != nil {
@@ -126,6 +155,14 @@ func (a *Advertisement) Stop() error {
 		return fmt.Errorf("bluetooth: could not stop advertisement: %w", err)
 	}
 	a.started = false
+
+	if a.sigCh != nil {
+		defer close(a.sigCh)
+		if err := a.adapter.bus.RemoveMatchSignal(a.matchOpts...); err != nil {
+			return fmt.Errorf("bluetooth: failed to clean up dbus signals: %w", err)
+		}
+		a.adapter.bus.RemoveSignal(a.sigCh)
+	}
 	return nil
 }
 
@@ -495,4 +532,66 @@ func (a *Adapter) SetRandomAddress(mac MAC) error {
 	}
 
 	return nil
+}
+
+// SetAdapterAlias sets the alias of the adapter in BlueZ.
+func (a *Adapter) SetAdapterAlias(alias string) error {
+	call := a.adapter.Call("org.freedesktop.DBus.Properties.Set", 0,
+		"org.bluez.Adapter1", "Alias", dbus.MakeVariant(alias))
+	return call.Err
+}
+
+func (a *Advertisement) handleDBusSignals() {
+	for {
+		select {
+		case sig, ok := <-a.sigCh:
+			if !ok {
+				return // channel closed
+			}
+
+			if sig.Name != "org.freedesktop.DBus.Properties.PropertiesChanged" {
+				continue
+			}
+
+			// Skip any signals that are not the Device1 interface.
+			if interfaceName, ok := sig.Body[DBusPropertiesChangedInterfaceName].(string); !ok || interfaceName != "org.bluez.Device1" {
+				continue
+			}
+
+			// Get all changed properties and skip any signals that are not
+			// compliant with the Device1 interface.
+			changes, ok := sig.Body[DBusPropertiesChangedDictionary].(map[string]dbus.Variant)
+			if !ok {
+				continue
+			}
+
+			// Call the connect handler if the Connected property has changed.
+			if connected, ok := changes["Connected"].Value().(bool); ok {
+				devicePath := sig.Path
+				obj := a.adapter.bus.Object("org.bluez", devicePath)
+
+				// The only property received is the changed property "Connected",
+				// so we have to get the Address from D-Bus.
+				deviceAddr, err := obj.GetProperty("org.bluez.Device1.Address")
+				if err != nil {
+					continue
+				}
+
+				// In the event that the address is not provided, use an empty
+				// value so that the handler can still be called.
+				mac := [6]byte{}
+				if addrStr, ok := deviceAddr.Value().(string); ok {
+					if pmac, err := ParseMAC(addrStr); err == nil {
+						mac = pmac
+					}
+				}
+
+				a.adapter.connectHandler(Device{
+					Address: Address{MACAddress: MACAddress{MAC: mac}},
+					device:  obj,
+					adapter: a.adapter,
+				}, connected)
+			}
+		}
+	}
 }
