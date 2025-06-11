@@ -108,6 +108,17 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	}
 	a.properties = props
 
+	if options.LocalName != "" {
+		// In BlueZ AdvertisementOptions.LocalName will be sent in Extended
+		// Advertising Data and it will not change the Adapter alias.  Setting
+		// this property will update the name in the initial advertising data.
+		call := a.adapter.adapter.Call("org.freedesktop.DBus.Properties.Set", 0,
+			"org.bluez.Adapter1", "Alias", dbus.MakeVariant(options.LocalName))
+		if call.Err != nil {
+			return fmt.Errorf("set adapter alias: %w", call.Err)
+		}
+	}
+
 	return nil
 }
 
@@ -394,7 +405,7 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	}
 }
 
-// Device is a connection to a remote peripheral.
+// Device is a connection to a remote bluetooth device.
 type Device struct {
 	Address Address // the MAC address of the device
 
@@ -534,13 +545,6 @@ func (a *Adapter) SetRandomAddress(mac MAC) error {
 	return nil
 }
 
-// SetAdapterAlias sets the alias of the adapter in BlueZ.
-func (a *Adapter) SetAdapterAlias(alias string) error {
-	call := a.adapter.Call("org.freedesktop.DBus.Properties.Set", 0,
-		"org.bluez.Adapter1", "Alias", dbus.MakeVariant(alias))
-	return call.Err
-}
-
 func (a *Advertisement) handleDBusSignals() {
 	for {
 		select {
@@ -571,27 +575,43 @@ func (a *Advertisement) handleDBusSignals() {
 				obj := a.adapter.bus.Object("org.bluez", devicePath)
 
 				// The only property received is the changed property "Connected",
-				// so we have to get the Address from D-Bus.
-				deviceAddr, err := obj.GetProperty("org.bluez.Device1.Address")
+				// so we have to get the other properties from D-Bus.
+				device, err := getDeviceProperties(a.adapter, obj)
 				if err != nil {
 					continue
 				}
 
-				// In the event that the address is not provided, use an empty
-				// value so that the handler can still be called.
-				mac := [6]byte{}
-				if addrStr, ok := deviceAddr.Value().(string); ok {
-					if pmac, err := ParseMAC(addrStr); err == nil {
-						mac = pmac
-					}
-				}
-
-				a.adapter.connectHandler(Device{
-					Address: Address{MACAddress: MACAddress{MAC: mac}},
-					device:  obj,
-					adapter: a.adapter,
-				}, connected)
+				a.adapter.connectHandler(*device, connected)
 			}
 		}
 	}
+}
+
+// getDeviceProperties will fetch all known properties of a device from D-Bus
+//
+// For all possible properties see:
+// https://github.com/luetzel/bluez/blob/master/doc/device-api.txt
+func getDeviceProperties(a *Adapter, obj dbus.BusObject) (*Device, error) {
+	var props map[string]dbus.Variant
+	if err := obj.Call("org.freedesktop.DBus.Properties.GetAll", 0, "org.bluez.Device1").Store(&props); err != nil {
+		return nil, fmt.Errorf("org.freedesktop.DBus.Properties.GetAll: %w", err)
+	}
+
+	d := Device{
+		device:  obj,
+		adapter: a,
+	}
+
+	for k, v := range props {
+		switch k {
+		case "Address":
+			if addrStr, ok := v.Value().(string); ok {
+				if mac, err := ParseMAC(addrStr); err == nil {
+					d.Address = Address{MACAddress: MACAddress{MAC: mac}}
+				}
+			}
+		}
+	}
+
+	return &d, nil
 }
