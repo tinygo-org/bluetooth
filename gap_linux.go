@@ -16,12 +16,34 @@ const (
 	// Match rule constants for D-Bus signals.
 	//
 	// See [DBusPropertiesLink] for more information.
-	DBusPropertiesChangedInterfaceName = 0
-	DBusPropertiesChangedDictionary    = 1
-	DBusPropertiesChangedInvalidated   = 2
+
+	dbusPropertiesChangedInterfaceName = 0
+	dbusPropertiesChangedDictionary    = 1
+	dbusPropertiesChangedInvalidated   = 2
+
+	dbusInterfacesAddedDictionary = 1
+
+	dbusSignalInterfacesAdded   = "org.freedesktop.DBus.ObjectManager.InterfacesAdded"
+	dbusSignalPropertiesChanged = "org.freedesktop.DBus.Properties.PropertiesChanged"
+
+	bluezDevice1Interface = "org.bluez.Device1"
+	bluezDevice1Address   = "Address"
+	bluezDevice1Connected = "Connected"
+)
+
+var (
+	// See [DBusPropertiesLink] for more information.
+	matchOptionsPropertiesChanged = []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
+		dbus.WithMatchMember("PropertiesChanged"),
+		dbus.WithMatchArg(dbusPropertiesChangedInterfaceName, "org.bluez.Device1")}
+
+	// See [DBusObjectManagerLink] for more information.
+	matchOptionsInterfacesAdded = []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.ObjectManager"),
+		dbus.WithMatchMember("InterfacesAdded")}
 )
 
 // [DBusPropertiesLink]: https://dbus.freedesktop.org/doc/dbus-specification.html#standard-interfaces-properties
+// [DBusObjectManagerLink]: https://dbus.freedesktop.org/doc/dbus-specification.html#standard-interfaces-objectmanager
 
 var errAdvertisementNotStarted = errors.New("bluetooth: advertisement is not started")
 var errAdvertisementAlreadyStarted = errors.New("bluetooth: advertisement is already started")
@@ -43,8 +65,7 @@ type Advertisement struct {
 	started    bool
 
 	// D-Bus Signals
-	sigCh     chan *dbus.Signal
-	matchOpts []dbus.MatchOption
+	sigCh chan *dbus.Signal
 }
 
 // DefaultAdvertisement returns the default advertisement instance but does not
@@ -137,11 +158,12 @@ func (a *Advertisement) Start() error {
 		a.sigCh = make(chan *dbus.Signal)
 		a.adapter.bus.Signal(a.sigCh)
 
-		a.matchOpts = []dbus.MatchOption{dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
-			dbus.WithMatchMember("PropertiesChanged"),
-			dbus.WithMatchArg(DBusPropertiesChangedInterfaceName, "org.bluez.Device1")}
-		if err := a.adapter.bus.AddMatchSignal(a.matchOpts...); err != nil {
-			return fmt.Errorf("add match signal: %w", err)
+		if err := a.adapter.bus.AddMatchSignal(matchOptionsPropertiesChanged...); err != nil {
+			return fmt.Errorf("bluetooth: add dbus match signal: PropertiesChanged: %w", err)
+		}
+
+		if err := a.adapter.bus.AddMatchSignal(matchOptionsInterfacesAdded...); err != nil {
+			return fmt.Errorf("bluetooth: add dbus match signal: InterfacesAdded: %w", err)
 		}
 
 		go a.handleDBusSignals()
@@ -169,8 +191,11 @@ func (a *Advertisement) Stop() error {
 
 	if a.sigCh != nil {
 		defer close(a.sigCh)
-		if err := a.adapter.bus.RemoveMatchSignal(a.matchOpts...); err != nil {
-			return fmt.Errorf("bluetooth: failed to clean up dbus signals: %w", err)
+		if err := a.adapter.bus.RemoveMatchSignal(matchOptionsPropertiesChanged...); err != nil {
+			return fmt.Errorf("bluetooth: remove dbus match signal: PropertiesChanged: %w", err)
+		}
+		if err := a.adapter.bus.RemoveMatchSignal(matchOptionsInterfacesAdded...); err != nil {
+			return fmt.Errorf("bluetooth: remove dbus match signal: InterfacesAdded: %w", err)
 		}
 		a.adapter.bus.RemoveSignal(a.sigCh)
 	}
@@ -553,65 +578,81 @@ func (a *Advertisement) handleDBusSignals() {
 				return // channel closed
 			}
 
-			if sig.Name != "org.freedesktop.DBus.Properties.PropertiesChanged" {
-				continue
+			device := Device{
+				device:  a.adapter.bus.Object("org.bluez", sig.Path),
+				adapter: a.adapter,
 			}
 
-			// Skip any signals that are not the Device1 interface.
-			if interfaceName, ok := sig.Body[DBusPropertiesChangedInterfaceName].(string); !ok || interfaceName != "org.bluez.Device1" {
-				continue
-			}
+			switch sig.Name {
+			case dbusSignalInterfacesAdded:
+				interfaces := sig.Body[dbusInterfacesAddedDictionary].(map[string]map[string]dbus.Variant)
 
-			// Get all changed properties and skip any signals that are not
-			// compliant with the Device1 interface.
-			changes, ok := sig.Body[DBusPropertiesChangedDictionary].(map[string]dbus.Variant)
-			if !ok {
-				continue
-			}
-
-			// Call the connect handler if the Connected property has changed.
-			if connected, ok := changes["Connected"].Value().(bool); ok {
-				devicePath := sig.Path
-				obj := a.adapter.bus.Object("org.bluez", devicePath)
-
-				// The only property received is the changed property "Connected",
-				// so we have to get the other properties from D-Bus.
-				device, err := getDeviceProperties(a.adapter, obj)
-				if err != nil {
+				// InterfacesAdded signal also contains all known properties so
+				// so we do not need to call org.freedesktop.DBus.Properties.GetAll
+				props, ok := interfaces[bluezDevice1Interface]
+				if !ok {
 					continue
 				}
 
-				a.adapter.connectHandler(*device, connected)
+				if err := device.parseProperties(&props); err != nil {
+					continue
+				}
+
+				if connected, ok := props[bluezDevice1Connected].Value().(bool); ok {
+					a.adapter.connectHandler(device, connected)
+				}
+			case dbusSignalPropertiesChanged:
+				// Skip any signals that are not the Device1 interface.
+				if interfaceName, ok := sig.Body[dbusPropertiesChangedInterfaceName].(string); !ok || interfaceName != bluezDevice1Interface {
+					continue
+				}
+
+				// Get all changed properties and skip any signals that are not
+				// compliant with the Device1 interface.
+				changes, ok := sig.Body[dbusPropertiesChangedDictionary].(map[string]dbus.Variant)
+				if !ok {
+					continue
+				}
+
+				// Call the connect handler if the Connected property has changed.
+				if connected, ok := changes[bluezDevice1Connected].Value().(bool); ok {
+					// The only property received is the changed property "Connected",
+					// so we have to get the other properties from D-Bus.
+					var props map[string]dbus.Variant
+					if err := device.device.Call("org.freedesktop.DBus.Properties.GetAll",
+						0,
+						bluezDevice1Interface).Store(&props); err != nil {
+						continue
+					}
+
+					if err := device.parseProperties(&props); err != nil {
+						continue
+					}
+
+					a.adapter.connectHandler(device, connected)
+				}
 			}
 		}
 	}
 }
 
-// getDeviceProperties will fetch all known properties of a device from D-Bus
+// parseProperties will set fields from provided properties
 //
 // For all possible properties see:
 // https://github.com/luetzel/bluez/blob/master/doc/device-api.txt
-func getDeviceProperties(a *Adapter, obj dbus.BusObject) (*Device, error) {
-	var props map[string]dbus.Variant
-	if err := obj.Call("org.freedesktop.DBus.Properties.GetAll", 0, "org.bluez.Device1").Store(&props); err != nil {
-		return nil, fmt.Errorf("org.freedesktop.DBus.Properties.GetAll: %w", err)
-	}
-
-	d := Device{
-		device:  obj,
-		adapter: a,
-	}
-
-	for k, v := range props {
-		switch k {
-		case "Address":
+func (d *Device) parseProperties(props *map[string]dbus.Variant) error {
+	for prop, v := range *props {
+		switch prop {
+		case bluezDevice1Address:
 			if addrStr, ok := v.Value().(string); ok {
-				if mac, err := ParseMAC(addrStr); err == nil {
-					d.Address = Address{MACAddress: MACAddress{MAC: mac}}
+				mac, err := ParseMAC(addrStr)
+				if err != nil {
+					return fmt.Errorf("ParseMAC: %w", err)
 				}
+				d.Address = Address{MACAddress: MACAddress{MAC: mac}}
 			}
 		}
 	}
 
-	return &d, nil
+	return nil
 }
