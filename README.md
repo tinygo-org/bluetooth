@@ -56,6 +56,7 @@ This example shows a peripheral that advertises itself as being available for co
 package main
 
 import (
+	"context"
 	"time"
 
 	"tinygo.org/x/bluetooth"
@@ -67,6 +68,17 @@ func main() {
   	// Enable BLE interface.
 	must("enable BLE stack", adapter.Enable())
 
+	ctx, cancel := context.WithCancel(context.Background())
+	adapter.SetConnectHandler(func(device bluetooth.Device, connected bool) {
+		if connected {
+			println("device connected:", device.Address.String())
+			return
+		}
+
+		println("device disconnected:", device.Address.String())
+		cancel()
+	})
+
   	// Define the peripheral device info.
 	adv := adapter.DefaultAdvertisement()
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
@@ -75,12 +87,12 @@ func main() {
   
   	// Start advertising
 	must("start adv", adv.Start())
+	
+	// Stop advertising to release resources
+	defer adv.Stop()
 
 	println("advertising...")
-	for {
-		// Sleep forever.
-		time.Sleep(time.Hour)
-	}
+	<- ctx.Done()
 }
 
 func must(action string, err error) {
