@@ -1,3 +1,36 @@
+0.12.0
+---
+* **core**
+  - UUID: implement encoding methods MarshalBinary, UnmarshalBinary, AppendBinary, MarshalText, UnmarshalText, and AppendText. Also enhance testing and improve performance. ParseUUID and UUID.String now use these methods. UnmarshalText supports 128, 32, and 16-bit UUIDs.
+  - MAC: implement encoding interfaces (TextMarshaler, BinaryMarshaler, TextAppender, BinaryAppender) for efficient encoding and use with packages like encoding/json and encoding/xml. String method performance improved.
+  - fix: correctly handle slice of connection handles for notification updates.
+* **hci**
+  - fix: handle l2cap connection param req updates with invalid length data.
+* **linux**
+  - Fix: `Adapter.connectHandler` is now called after `Advertisement.Start`. D-Bus signals added to handle connect/disconnect events when peripheral is advertising (#369).
+  - Fix: ensure `connectHandler` is invoked on initial device connection.
+  - Advertising: Add alias update on advertising.
+  - Advertising: Extend property handling for D-Bus signals.
+  - Adapter: check powered state before connecting.
+  - Adapter: call `startDiscovery` asynchronously as it can block if adapter is powered off.
+  - Adapter: close scan-in-progress channel if adapter is powered off during scan.
+  - Adapter: handle adapter power state to return an error if the adapter is powered off while connecting.
+  - Adapter: handle adapter power state to return an error if the adapter is powered off while scanning.
+* **windows**
+  - Fix: Notify/Indicate characteristics detection.
+* **modules**
+  - Update to latest `soypat/cyw43439` package.
+  - Update to use `cyw43439` package with BLE read length fix.
+* **docs**
+  - Update inline documentation for Linux `Adapter.SetConnectHandler`.
+  - Update README usage example for Linux `connectHandler`.
+  - Correct README example for Linux advertising.
+  - Add info on flashing the Microbit v2.
+* **examples**
+  - Add resource cleanup in Linux advertising example.
+  - Add `connectHandler` to Linux advertisement example.
+
+
 0.11.0
 ---
 * **core**
