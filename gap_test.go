@@ -131,3 +131,58 @@ func TestCreateAdvertisementPayload(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceUUIDs(t *testing.T) {
+	type testCase struct {
+		raw      string
+		expected []UUID
+	}
+	uuidBytes := ServiceUUIDAdafruitSound.Bytes()
+	tests := []testCase{
+		{},
+		{
+			raw:      "\x03\x03\x0d\x18", // service UUID
+			expected: []UUID{ServiceUUIDHeartRate},
+		},
+		{
+			raw:      "\x03\x02\x0f\x18", // Service UUID
+			expected: []UUID{ServiceUUIDBattery},
+		},
+		{
+			raw:      "\x11\x07" + string(uuidBytes[:]),
+			expected: []UUID{ServiceUUIDAdafruitSound},
+		},
+		{
+			raw:      "\x11\x06" + string(uuidBytes[:]),
+			expected: []UUID{ServiceUUIDAdafruitSound},
+		},
+		{
+			raw: "\x11\x06" + string(uuidBytes[:15]), // data was cut off
+		},
+	}
+	for _, tc := range tests {
+		raw := rawAdvertisementPayload{len: uint8(len(tc.raw))}
+		copy(raw.data[:], []byte(tc.raw))
+		actual := raw.ServiceUUIDs()
+		if !reflect.DeepEqual(actual, tc.expected) {
+			t.Errorf("unexpected raw service UUIDs: %#v\nexpected: %#v\nactual:   %#v\n",
+				tc.raw, tc.expected, actual)
+		}
+		for _, uuid := range actual {
+			if !raw.HasServiceUUID(uuid) {
+				t.Errorf("raw payload does not have UUID %#v\nhas: %#v", uuid, raw.ServiceUUIDs())
+			}
+		}
+		fields := advertisementFields{AdvertisementFields: AdvertisementFields{ServiceUUIDs: tc.expected}}
+		actual = fields.ServiceUUIDs()
+		if !reflect.DeepEqual(actual, tc.expected) {
+			t.Errorf("unexpected structured service UUIDs: %#v\nexpected: %#v\nactual:   %#v\n",
+				tc.raw, tc.expected, actual)
+		}
+		for _, uuid := range actual {
+			if !fields.HasServiceUUID(uuid) {
+				t.Errorf("structured payload does not have UUID %#v\nhas: %#v", uuid, fields.ServiceUUIDs())
+			}
+		}
+	}
+}

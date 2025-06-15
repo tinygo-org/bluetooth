@@ -350,7 +350,9 @@ func (buf *rawAdvertisementPayload) ServiceUUIDs() []UUID {
 		b = buf.findField(0x06) // Incomplete List of 128-bit Service Class UUIDs
 	}
 	for i := 0; i < len(b)/16; i++ {
-		uuids = append(uuids, NewUUID([16]byte(b[i*16:i*16+16])))
+		var uuid UUID
+		_ = uuid.UnmarshalBinary(b[i*16 : i*16+16])
+		uuids = append(uuids, uuid)
 	}
 	return uuids
 }
