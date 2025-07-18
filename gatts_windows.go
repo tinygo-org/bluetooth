@@ -110,6 +110,9 @@ func (a *Adapter) AddService(s *Service) error {
 			// TODO: connection?
 			goChar.writeEvent(0, int(offset), bufferToSlice(buf))
 		}
+		if option, err := gattWriteRequest.GetOption(); err == nil && option == genericattributeprofile.GattWriteOptionWriteWithResponse {
+			gattWriteRequest.Respond()
+		}
 	})
 
 	guid = winrt.ParameterizedInstanceGUID(
