@@ -1,6 +1,15 @@
 0.12.0
 ---
 * **core**
+  - Introduce AdvertisementPayload.ServiceUUIDs()
+* **windows**
+  - Fix device disconnect for windows (#368)
+  - Fix write respond
+
+
+0.12.0
+---
+* **core**
   - UUID: implement encoding methods MarshalBinary, UnmarshalBinary, AppendBinary, MarshalText, UnmarshalText, and AppendText. Also enhance testing and improve performance. ParseUUID and UUID.String now use these methods. UnmarshalText supports 128, 32, and 16-bit UUIDs.
   - MAC: implement encoding interfaces (TextMarshaler, BinaryMarshaler, TextAppender, BinaryAppender) for efficient encoding and use with packages like encoding/json and encoding/xml. String method performance improved.
   - fix: correctly handle slice of connection handles for notification updates.
