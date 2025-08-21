@@ -50,9 +50,17 @@ func (om *objectManager) GetManagedObjects() (map[dbus.ObjectPath]map[string]map
 type bluezChar struct {
 	props      *prop.Properties
 	writeEvent func(client Connection, offset int, value []byte)
+
+	mtu int
 }
 
 func (c *bluezChar) ReadValue(options map[string]dbus.Variant) ([]byte, *dbus.Error) {
+	if mtu, ok := options["mtu"]; ok {
+		// Store the MTU, so it can be retrieved later.
+		mtuValue := mtu.Value().(uint16)
+		c.mtu = int(mtuValue)
+	}
+
 	// TODO: should we use the offset value? The BlueZ documentation doesn't
 	// clearly specify this. The go-bluetooth library doesn't, but I believe it
 	// should be respected.
@@ -61,6 +69,12 @@ func (c *bluezChar) ReadValue(options map[string]dbus.Variant) ([]byte, *dbus.Er
 }
 
 func (c *bluezChar) WriteValue(value []byte, options map[string]dbus.Variant) *dbus.Error {
+	if mtu, ok := options["mtu"]; ok {
+		// Store the MTU, so it can be retrieved later.
+		mtuValue := mtu.Value().(uint16)
+		c.mtu = int(mtuValue)
+	}
+
 	if c.writeEvent != nil {
 		// BlueZ doesn't seem to tell who did the write, so pass 0 always as the
 		// connection ID.
@@ -167,4 +181,9 @@ func (c *Characteristic) Write(p []byte) (n int, err error) {
 		return 0, gattError
 	}
 	return len(p), nil
+}
+
+// MTU returns the exchanged MTU value, or zero if not available.
+func (c *Characteristic) MTU() int {
+	return c.char.mtu
 }
