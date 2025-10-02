@@ -316,7 +316,7 @@ func (buf *rawAdvertisementPayload) HasServiceUUID(uuid UUID) bool {
 		if len(b) == 0 {
 			b = buf.findField(0x06) // Incomplete List of 128-bit Service Class UUIDs
 		}
-		uuidBuf1 := uuid.Bytes()
+		uuidBuf1 := uuid.bytes()
 		for i := 0; i < len(b)/16; i++ {
 			uuidBuf2 := b[i*16 : i*16+16]
 			match := true
@@ -519,7 +519,7 @@ func (buf *rawAdvertisementPayload) addServiceData(uuid UUID, data []byte) (ok b
 		// Add the data.
 		buf.data[buf.len+0] = byte(fieldLength - 1)
 		buf.data[buf.len+1] = 0x21
-		uuid_bytes := uuid.Bytes()
+		uuid_bytes := uuid.bytes()
 		copy(buf.data[buf.len+2:], uuid_bytes[:])
 		copy(buf.data[buf.len+2+16:], data)
 		buf.len += uint8(fieldLength)
@@ -579,7 +579,7 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 		}
 		buf.data[buf.len+0] = 17   // length of field, including type
 		buf.data[buf.len+1] = 0x07 // type, 0x07 means "Complete List of 128-bit Service Class UUIDs"
-		rawUUID := uuid.Bytes()
+		rawUUID := uuid.bytes()
 		copy(buf.data[buf.len+2:], rawUUID[:])
 		buf.len += 18
 		return true

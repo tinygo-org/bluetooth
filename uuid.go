@@ -10,18 +10,20 @@ import (
 
 // UUID is a single UUID as used in the Bluetooth stack. It is represented as a
 // [4]uint32 instead of a [16]byte for efficiency.
-type UUID [4]uint32
+type UUID struct {
+	id [4]uint32
+}
 
 var errInvalidUUID = errors.New("bluetooth: failed to parse UUID")
 
 // NewUUID returns a new UUID based on the 128-bit (or 16-byte) input.
 func NewUUID(uuid [16]byte) UUID {
-	u := UUID{}
-	u[0] = uint32(uuid[15]) | uint32(uuid[14])<<8 | uint32(uuid[13])<<16 | uint32(uuid[12])<<24
-	u[1] = uint32(uuid[11]) | uint32(uuid[10])<<8 | uint32(uuid[9])<<16 | uint32(uuid[8])<<24
-	u[2] = uint32(uuid[7]) | uint32(uuid[6])<<8 | uint32(uuid[5])<<16 | uint32(uuid[4])<<24
-	u[3] = uint32(uuid[3]) | uint32(uuid[2])<<8 | uint32(uuid[1])<<16 | uint32(uuid[0])<<24
-	return u
+	uu := UUID{}
+	uu.id[0] = uint32(uuid[15]) | uint32(uuid[14])<<8 | uint32(uuid[13])<<16 | uint32(uuid[12])<<24
+	uu.id[1] = uint32(uuid[11]) | uint32(uuid[10])<<8 | uint32(uuid[9])<<16 | uint32(uuid[8])<<24
+	uu.id[2] = uint32(uuid[7]) | uint32(uuid[6])<<8 | uint32(uuid[5])<<16 | uint32(uuid[4])<<24
+	uu.id[3] = uint32(uuid[3]) | uint32(uuid[2])<<8 | uint32(uuid[1])<<16 | uint32(uuid[0])<<24
+	return uu
 }
 
 // New16BitUUID returns a new 128-bit UUID based on a 16-bit UUID.
@@ -29,13 +31,13 @@ func NewUUID(uuid [16]byte) UUID {
 // Note: only use registered UUIDs. See
 // https://www.bluetooth.com/specifications/gatt/services/ for a list.
 func New16BitUUID(shortUUID uint16) UUID {
-	// https://stackoverflow.com/questions/36212020/how-can-i-convert-a-bluetooth-16-bit-service-uuid-into-a-128-bit-uuid
-	var uuid UUID
-	uuid[0] = 0x5F9B34FB
-	uuid[1] = 0x80000080
-	uuid[2] = 0x00001000
-	uuid[3] = uint32(shortUUID)
-	return uuid
+	// https://stackoverflow.com/questions/36212020/how-can-i-convert-a-bluetooth-16-bit-service-uu-into-a-128-bit-uu
+	var uu UUID
+	uu.id[0] = 0x5F9B34FB
+	uu.id[1] = 0x80000080
+	uu.id[2] = 0x00001000
+	uu.id[3] = uint32(shortUUID)
+	return uu
 }
 
 // New32BitUUID returns a new 128-bit UUID based on a 32-bit UUID.
@@ -44,12 +46,12 @@ func New16BitUUID(shortUUID uint16) UUID {
 // https://www.bluetooth.com/specifications/gatt/services/ for a list.
 func New32BitUUID(shortUUID uint32) UUID {
 	// https://stackoverflow.com/questions/36212020/how-can-i-convert-a-bluetooth-16-bit-service-uuid-into-a-128-bit-uuid
-	var uuid UUID
-	uuid[0] = 0x5F9B34FB
-	uuid[1] = 0x80000080
-	uuid[2] = 0x00001000
-	uuid[3] = shortUUID
-	return uuid
+	var uu UUID
+	uu.id[0] = 0x5F9B34FB
+	uu.id[1] = 0x80000080
+	uu.id[2] = 0x00001000
+	uu.id[3] = shortUUID
+	return uu
 }
 
 // Replace16BitComponent returns a new UUID where bits 16..32 have been replaced
@@ -59,19 +61,19 @@ func New32BitUUID(shortUUID uint32) UUID {
 // This is especially useful for the Nordic SoftDevice, because it is able to
 // store custom UUIDs more efficiently when only these bits vary between them.
 func (uuid UUID) Replace16BitComponent(component uint16) UUID {
-	uuid[3] &^= 0x0000ffff       // clear the new component bits
-	uuid[3] |= uint32(component) // set the component bits
+	uuid.id[3] &^= 0x0000ffff       // clear the new component bits
+	uuid.id[3] |= uint32(component) // set the component bits
 	return uuid
 }
 
 // Is16Bit returns whether this UUID is a 16-bit BLE UUID.
 func (uuid UUID) Is16Bit() bool {
-	return uuid.Is32Bit() && uuid[3] == uint32(uint16(uuid[3]))
+	return uuid.Is32Bit() && uuid.id[3] == uint32(uint16(uuid.id[3]))
 }
 
 // Is32Bit returns whether this UUID is a 32-bit or 16-bit BLE UUID.
 func (uuid UUID) Is32Bit() bool {
-	return uuid[0] == 0x5F9B34FB && uuid[1] == 0x80000080 && uuid[2] == 0x00001000
+	return uuid.id[0] == 0x5F9B34FB && uuid.id[1] == 0x80000080 && uuid.id[2] == 0x00001000
 }
 
 // Get16Bit returns the 16-bit version of this UUID. This is only valid if it
@@ -79,7 +81,7 @@ func (uuid UUID) Is32Bit() bool {
 func (uuid UUID) Get16Bit() uint16 {
 	// Note: using a Get* function as a getter because method names can't start
 	// with a number.
-	return uint16(uuid[3])
+	return uint16(uuid.id[3])
 }
 
 // Get32Bit returns the 32-bit version of this UUID. This is only valid if it
@@ -87,54 +89,65 @@ func (uuid UUID) Get16Bit() uint16 {
 func (uuid UUID) Get32Bit() uint32 {
 	// Note: using a Get* function as a getter because method names can't start
 	// with a number.
-	return uuid[3]
+	return uuid.id[3]
 }
 
-// Bytes returns a 16-byte array containing the raw UUID.
-func (uuid UUID) Bytes() [16]byte {
-	buf := [16]byte{}
-	buf[0] = byte(uuid[0])
-	buf[1] = byte(uuid[0] >> 8)
-	buf[2] = byte(uuid[0] >> 16)
-	buf[3] = byte(uuid[0] >> 24)
-	buf[4] = byte(uuid[1])
-	buf[5] = byte(uuid[1] >> 8)
-	buf[6] = byte(uuid[1] >> 16)
-	buf[7] = byte(uuid[1] >> 24)
-	buf[8] = byte(uuid[2])
-	buf[9] = byte(uuid[2] >> 8)
-	buf[10] = byte(uuid[2] >> 16)
-	buf[11] = byte(uuid[2] >> 24)
-	buf[12] = byte(uuid[3])
-	buf[13] = byte(uuid[3] >> 8)
-	buf[14] = byte(uuid[3] >> 16)
-	buf[15] = byte(uuid[3] >> 24)
-	return buf
+// BytesBytesBigEndian returns a 16-byte array containing the raw UUID in
+// network order. The result from BytesBigEndian may be used as the input for
+// NewUUID.
+func (uuid UUID) BytesBigEndian() [16]byte {
+	return [16]byte{
+		0:  byte(uuid.id[3] >> 24),
+		1:  byte(uuid.id[3] >> 16),
+		2:  byte(uuid.id[3] >> 8),
+		3:  byte(uuid.id[3]),
+		4:  byte(uuid.id[2] >> 24),
+		5:  byte(uuid.id[2] >> 16),
+		6:  byte(uuid.id[2] >> 8),
+		7:  byte(uuid.id[2]),
+		8:  byte(uuid.id[1] >> 24),
+		9:  byte(uuid.id[1] >> 16),
+		10: byte(uuid.id[1] >> 8),
+		11: byte(uuid.id[1]),
+		12: byte(uuid.id[0] >> 24),
+		13: byte(uuid.id[0] >> 16),
+		14: byte(uuid.id[0] >> 8),
+		15: byte(uuid.id[0]),
+	}
 }
 
-// AppendBinary appends the bytes of the uuid to the given byte slice b.
+// bytes returns a 16-byte array containing the raw UUID in little-endian
+// order.
+func (uuid UUID) bytes() [16]byte {
+	return [16]byte{
+		0:  byte(uuid.id[0]),
+		1:  byte(uuid.id[0] >> 8),
+		2:  byte(uuid.id[0] >> 16),
+		3:  byte(uuid.id[0] >> 24),
+		4:  byte(uuid.id[1]),
+		5:  byte(uuid.id[1] >> 8),
+		6:  byte(uuid.id[1] >> 16),
+		7:  byte(uuid.id[1] >> 24),
+		8:  byte(uuid.id[2]),
+		9:  byte(uuid.id[2] >> 8),
+		10: byte(uuid.id[2] >> 16),
+		11: byte(uuid.id[2] >> 24),
+		12: byte(uuid.id[3]),
+		13: byte(uuid.id[3] >> 8),
+		14: byte(uuid.id[3] >> 16),
+		15: byte(uuid.id[3] >> 24),
+	}
+}
+
+// AppendBinary appends the bytes of the uuid in little-endian order to the
+// given byte slice b.
 func (uuid UUID) AppendBinary(b []byte) ([]byte, error) {
-	return append(b,
-		byte(uuid[0]),
-		byte(uuid[0]>>8),
-		byte(uuid[0]>>16),
-		byte(uuid[0]>>24),
-		byte(uuid[1]),
-		byte(uuid[1]>>8),
-		byte(uuid[1]>>16),
-		byte(uuid[1]>>24),
-		byte(uuid[2]),
-		byte(uuid[2]>>8),
-		byte(uuid[2]>>16),
-		byte(uuid[2]>>24),
-		byte(uuid[3]),
-		byte(uuid[3]>>8),
-		byte(uuid[3]>>16),
-		byte(uuid[3]>>24),
-	), nil
+	id := uuid.bytes()
+	return append(b, id[:]...), nil
 }
 
-// MarshalBinary marshals the uuid into and byte slice and returns the slice.  It will not return an error
+// MarshalBinary marshals the uuid into and byte slice in little-endian order
+// and returns the slice. It will not return an error.
 func (uuid UUID) MarshalBinary() (data []byte, err error) {
 	return uuid.AppendBinary(make([]byte, 0, 16))
 }
@@ -191,25 +204,25 @@ func (u *UUID) unmarshalText128(s []byte) error {
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]]) << 28
+		u.id[i] |= uint32(reverseHexTable[s[j]]) << 28
 		j++
 
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]]) << 24
+		u.id[i] |= uint32(reverseHexTable[s[j]]) << 24
 		j++
 
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]]) << 20
+		u.id[i] |= uint32(reverseHexTable[s[j]]) << 20
 		j++
 
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]]) << 16
+		u.id[i] |= uint32(reverseHexTable[s[j]]) << 16
 		j++
 
 		// skip hypens
@@ -220,25 +233,25 @@ func (u *UUID) unmarshalText128(s []byte) error {
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]]) << 12
+		u.id[i] |= uint32(reverseHexTable[s[j]]) << 12
 		j++
 
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]]) << 8
+		u.id[i] |= uint32(reverseHexTable[s[j]]) << 8
 		j++
 
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]]) << 4
+		u.id[i] |= uint32(reverseHexTable[s[j]]) << 4
 		j++
 
 		if reverseHexTable[s[j]] == 255 {
 			return errInvalidUUID
 		}
-		u[i] |= uint32(reverseHexTable[s[j]])
+		u.id[i] |= uint32(reverseHexTable[s[j]])
 		j++
 	}
 
@@ -248,58 +261,58 @@ func (u *UUID) unmarshalText128(s []byte) error {
 // Using the reverseHexTable rebuild the UUID from the string s represented in bytes
 // This implementation is the inverse of MarshalText and reaches performance pairity
 func (u *UUID) unmarshalText32(s []byte) error {
-	u[0] = 0x5F9B34FB
-	u[1] = 0x80000080
-	u[2] = 0x00001000
+	u.id[0] = 0x5F9B34FB
+	u.id[1] = 0x80000080
+	u.id[2] = 0x00001000
 
 	var j uint8 = 0
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 28
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 28
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 24
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 24
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 20
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 20
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 16
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 16
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 12
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 12
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 8
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 8
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 4
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 4
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]])
+	u.id[3] |= uint32(reverseHexTable[s[j]])
 	j++
 
 	return nil
@@ -308,33 +321,33 @@ func (u *UUID) unmarshalText32(s []byte) error {
 // Using the reverseHexTable rebuild the UUID from the string s represented in bytes
 // This implementation is the inverse of MarshalText and reaches performance pairity
 func (u *UUID) unmarshalText16(s []byte) error {
-	u[0] = 0x5F9B34FB
-	u[1] = 0x80000080
-	u[2] = 0x00001000
+	u.id[0] = 0x5F9B34FB
+	u.id[1] = 0x80000080
+	u.id[2] = 0x00001000
 
 	var j uint8 = 0
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 12
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 12
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 8
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 8
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]]) << 4
+	u.id[3] |= uint32(reverseHexTable[s[j]]) << 4
 	j++
 
 	if reverseHexTable[s[j]] == 255 {
 		return errInvalidUUID
 	}
-	u[3] |= uint32(reverseHexTable[s[j]])
+	u.id[3] |= uint32(reverseHexTable[s[j]])
 	j++
 
 	return nil
@@ -377,11 +390,11 @@ func (u UUID) AppendText(buf []byte) ([]byte, error) {
 			buf = append(buf, '-')
 		}
 
-		buf = append(buf, hexDigitLower[byte(u[i]>>24)>>4])
-		buf = append(buf, hexDigitLower[byte(u[i]>>24)&0xF])
+		buf = append(buf, hexDigitLower[byte(u.id[i]>>24)>>4])
+		buf = append(buf, hexDigitLower[byte(u.id[i]>>24)&0xF])
 
-		buf = append(buf, hexDigitLower[byte(u[i]>>16)>>4])
-		buf = append(buf, hexDigitLower[byte(u[i]>>16)&0xF])
+		buf = append(buf, hexDigitLower[byte(u.id[i]>>16)>>4])
+		buf = append(buf, hexDigitLower[byte(u.id[i]>>16)&0xF])
 
 		// Insert a hyphen at the correct locations.
 		// position 6 and 10
@@ -389,11 +402,11 @@ func (u UUID) AppendText(buf []byte) ([]byte, error) {
 			buf = append(buf, '-')
 		}
 
-		buf = append(buf, hexDigitLower[byte(u[i]>>8)>>4])
-		buf = append(buf, hexDigitLower[byte(u[i]>>8)&0xF])
+		buf = append(buf, hexDigitLower[byte(u.id[i]>>8)>>4])
+		buf = append(buf, hexDigitLower[byte(u.id[i]>>8)&0xF])
 
-		buf = append(buf, hexDigitLower[byte(u[i])>>4])
-		buf = append(buf, hexDigitLower[byte(u[i])&0xF])
+		buf = append(buf, hexDigitLower[byte(u.id[i])>>4])
+		buf = append(buf, hexDigitLower[byte(u.id[i])&0xF])
 	}
 
 	return buf, nil
@@ -408,15 +421,15 @@ func (u UUID) MarshalText() ([]byte, error) {
 
 var ErrInvalidBinaryUUID = errors.New("bluetooth: failed to unmarshal the given binary UUID")
 
-// UnmarshalBinary copies the given uuid bytes onto itself
+// UnmarshalBinary copies the given uuid bytes in little-endian order onto itself.
 func (u *UUID) UnmarshalBinary(uuid []byte) error {
 	if len(uuid) != 16 {
 		return ErrInvalidBinaryUUID
 	}
 
-	u[0] = uint32(uuid[0]) | uint32(uuid[1])<<8 | uint32(uuid[2])<<16 | uint32(uuid[3])<<24
-	u[1] = uint32(uuid[4]) | uint32(uuid[5])<<8 | uint32(uuid[6])<<16 | uint32(uuid[7])<<24
-	u[2] = uint32(uuid[8]) | uint32(uuid[9])<<8 | uint32(uuid[10])<<16 | uint32(uuid[11])<<24
-	u[3] = uint32(uuid[12]) | uint32(uuid[13])<<8 | uint32(uuid[14])<<16 | uint32(uuid[15])<<24
+	u.id[0] = uint32(uuid[0]) | uint32(uuid[1])<<8 | uint32(uuid[2])<<16 | uint32(uuid[3])<<24
+	u.id[1] = uint32(uuid[4]) | uint32(uuid[5])<<8 | uint32(uuid[6])<<16 | uint32(uuid[7])<<24
+	u.id[2] = uint32(uuid[8]) | uint32(uuid[9])<<8 | uint32(uuid[10])<<16 | uint32(uuid[11])<<24
+	u.id[3] = uint32(uuid[12]) | uint32(uuid[13])<<8 | uint32(uuid[14])<<16 | uint32(uuid[15])<<24
 	return nil
 }
