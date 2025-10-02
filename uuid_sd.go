@@ -12,12 +12,12 @@ type shortUUID C.ble_uuid_t
 
 func (uuid UUID) shortUUID() (C.ble_uuid_t, C.uint32_t) {
 	var short C.ble_uuid_t
-	short.uuid = C.uint16_t(uuid[3])
+	short.uuid = C.uint16_t(uuid.id[3])
 	if uuid.Is16Bit() {
 		short._type = C.BLE_UUID_TYPE_BLE
 		return short, 0
 	}
-	errCode := C.sd_ble_uuid_vs_add((*C.ble_uuid128_t)(unsafe.Pointer(&uuid[0])), &short._type)
+	errCode := C.sd_ble_uuid_vs_add((*C.ble_uuid128_t)(unsafe.Pointer(&uuid.id[0])), &short._type)
 	return short, errCode
 }
 
@@ -28,7 +28,7 @@ func (s shortUUID) UUID() UUID {
 	}
 	var outLen C.uint8_t
 	var outUUID UUID
-	C.sd_ble_uuid_encode(((*C.ble_uuid_t)(unsafe.Pointer(&s))), &outLen, ((*C.uint8_t)(unsafe.Pointer(&outUUID))))
+	C.sd_ble_uuid_encode(((*C.ble_uuid_t)(unsafe.Pointer(&s))), &outLen, ((*C.uint8_t)(unsafe.Pointer(&outUUID.id))))
 	return outUUID
 }
 

@@ -420,7 +420,7 @@ func (a *Advertisement) Start() error {
 			binary.LittleEndian.PutUint16(advertisingData[5:], uuid.Get16Bit())
 		case uuid.Is32Bit():
 			sz = 6
-			data := uuid.Bytes()
+			data := uuid.bytes()
 			slices.Reverse(data[:])
 			copy(advertisingData[5:], data[:])
 		}

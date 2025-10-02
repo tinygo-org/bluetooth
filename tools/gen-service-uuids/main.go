@@ -45,7 +45,7 @@ func (s Service) UUIDFunc() string {
 	if err != nil {
 		panic(err)
 	}
-	b := uuid.Bytes()
+	b := uuid.bytes()
 	bs := hex.EncodeToString(b[:])
 	bss := ""
 	for i := 0; i < len(bs); i += 2 {
