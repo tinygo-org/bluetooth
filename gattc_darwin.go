@@ -228,7 +228,11 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return uint16(c.service.device.prph.MaximumWriteValueLength(false)), nil
 }
 
-// CanSendWriteWithoutResponse returns the MTU for the characteristic.
+// CanSendWriteWithoutResponse returns whether a WriteWithoutResponse can be sent
+// at this time. If this returns false, you must wait for some time before
+// sending another WriteWithoutResponse. This is typically because the internal
+// buffer is full. You can use this to implement your own flow control when
+// sending many WriteWithoutResponse calls in a row.
 func (c DeviceCharacteristic) CanSendWriteWithoutResponse() bool {
 	return c.service.device.prph.CanSendWriteWithoutResponse()
 }
