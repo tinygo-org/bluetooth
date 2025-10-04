@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -104,6 +105,11 @@ type deviceInternal struct {
 
 // Connect starts a connection attempt to the given peripheral device address.
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
+	return a.ConnectWithContext(context.Background(), address, params)
+}
+
+// ConnectWithContext starts a connection attempt to the given peripheral device address.
+func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error) {
 	uuid, err := cbgo.ParseUUID(address.UUID.String())
 	if err != nil {
 		return Device{}, err
@@ -161,6 +167,16 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 			// record an error to use when the disconnect comes through later.
 			connectionError = errors.New("timeout on Connect")
+
+			// we are not ready to return yet, we need to wait for the disconnect event to come through
+			// so continue on from this case and wait for something to show up on prphCh
+			continue
+		case <-ctx.Done():
+			// we need to cancel the connection if the context is done
+			a.cm.CancelConnect(prphs[0])
+
+			// record an error to use when the disconnect comes through later.
+			connectionError = ctx.Err()
 
 			// we are not ready to return yet, we need to wait for the disconnect event to come through
 			// so continue on from this case and wait for something to show up on prphCh
