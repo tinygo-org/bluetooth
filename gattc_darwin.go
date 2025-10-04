@@ -199,8 +199,9 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
-// writes can be in flight at any given time. This call is also known as a
-// "write command" (as opposed to a write request).
+// writes can be in flight at any given time.
+// You can use CanSendWriteWithoutResponse to check if you can send more writes.
+// This call is also known as a "write command" (as opposed to a write request).
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
 
@@ -225,6 +226,11 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return uint16(c.service.device.prph.MaximumWriteValueLength(false)), nil
+}
+
+// CanSendWriteWithoutResponse returns the MTU for the characteristic.
+func (c DeviceCharacteristic) CanSendWriteWithoutResponse() bool {
+	return c.service.device.prph.CanSendWriteWithoutResponse()
 }
 
 // Read reads the current characteristic value.
