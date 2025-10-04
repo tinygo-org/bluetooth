@@ -39,6 +39,12 @@ func (ad *Address) Set(val string) {
 // Scan starts a BLE scan. It is stopped by a call to StopScan. A common pattern
 // is to cancel the scan when a particular device has been found.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
+	return a.ScanWithContext(context.Background(), callback)
+}
+
+// ScanWithContext starts a BLE scan. It is stopped by a call to StopScan. A common pattern
+// is to cancel the scan when a particular device has been found.
+func (a *Adapter) ScanWithContext(ctx context.Context, callback func(*Adapter, ScanResult)) (err error) {
 	if callback == nil {
 		return errors.New("must provide callback to Scan function")
 	}
@@ -63,6 +69,11 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 	// the callback calls StopScan() (no new callbacks may be called after
 	// StopScan is called).
 	select {
+	case <-ctx.Done():
+		// StopScan can return an error, but we ignore it here since
+		// it only returns an error if no scan is in progress.
+		_ = a.StopScan()
+		return ctx.Err()
 	case <-a.scanChan:
 		close(a.scanChan)
 		a.scanChan = nil

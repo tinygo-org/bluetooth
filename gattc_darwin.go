@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -15,6 +16,19 @@ import (
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
 func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+	ctx, cancel := context.WithTimeoutCause(context.Background(), 10*time.Second, errors.New("timeout on DiscoverServices"))
+	defer cancel()
+	return d.DiscoverServicesWithContext(ctx, uuids)
+}
+
+// DiscoverServicesWithContext starts a service discovery procedure. Pass a list of service
+// UUIDs you are interested in to this function. Either a slice of all services
+// is returned (of the same length as the requested UUIDs and in the same
+// order), or if some services could not be discovered an error is returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of
+// services.
+func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
 	d.prph.DiscoverServices([]cbgo.UUID{})
 
 	// clear cache of services
@@ -52,8 +66,8 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 			d.services[svc.uuidWrapper] = svc
 		}
 		return svcs, nil
-	case <-time.NewTimer(10 * time.Second).C:
-		return nil, errors.New("timeout on DiscoverServices")
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 
@@ -90,6 +104,21 @@ func (s DeviceService) UUID() UUID {
 // Passing a nil slice of UUIDs will return a complete list of
 // characteristics.
 func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+	ctx, cancel := context.WithTimeoutCause(context.Background(), 10*time.Second, errors.New("timeout on DiscoverCharacteristics"))
+	defer cancel()
+	return s.DiscoverCharacteristicsWithContext(ctx, uuids)
+}
+
+// DiscoverCharacteristicsWithContext discovers characteristics in this service. Pass a
+// list of characteristic UUIDs you are interested in to this function. Either a
+// list of all requested services is returned, or if some services could not be
+// discovered an error is returned. If there is no error, the characteristics
+// slice has the same length as the UUID slice with characteristics in the same
+// order in the slice as in the requested UUID list.
+//
+// Passing a nil slice of UUIDs will return a complete list of
+// characteristics.
+func (s DeviceService) DiscoverCharacteristicsWithContext(ctx context.Context, uuids []UUID) ([]DeviceCharacteristic, error) {
 	cbuuids := []cbgo.UUID{}
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
@@ -136,8 +165,8 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 			}
 		}
 		return chars, nil
-	case <-time.NewTimer(10 * time.Second).C:
-		return nil, errors.New("timeout on DiscoverCharacteristics")
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 
@@ -179,13 +208,21 @@ func (c DeviceCharacteristic) UUID() UUID {
 // Write replaces the characteristic value with a new value. The
 // call will return after all data has been written.
 func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
+	ctx, cancel := context.WithTimeoutCause(context.Background(), 10*time.Second, errors.New("timeout on Write()"))
+	defer cancel()
+	return c.WriteWithContext(ctx, p)
+}
+
+// WriteWithContext replaces the characteristic value with a new value. The
+// call will return after all data has been written.
+func (c DeviceCharacteristic) WriteWithContext(ctx context.Context, p []byte) (n int, err error) {
 	c.writeChan = make(chan error)
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, true)
 
 	// wait for result
 	select {
-	case <-time.NewTimer(10 * time.Second).C:
-		err = errors.New("timeout on Write()")
+	case <-ctx.Done():
+		err = ctx.Err()
 	case err = <-c.writeChan:
 	}
 
@@ -229,6 +266,13 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 
 // Read reads the current characteristic value.
 func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
+	ctx, cancel := context.WithTimeoutCause(context.Background(), 10*time.Second, errors.New("timeout on Read()"))
+	defer cancel()
+	return c.ReadWithContext(ctx, data)
+}
+
+// ReadWithContext reads the current characteristic value.
+func (c *deviceCharacteristic) ReadWithContext(ctx context.Context, data []byte) (n int, err error) {
 	c.readChan = make(chan error)
 	c.service.device.prph.ReadCharacteristic(c.characteristic)
 
@@ -239,9 +283,9 @@ func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
 		if err != nil {
 			return 0, err
 		}
-	case <-time.NewTimer(10 * time.Second).C:
+	case <-ctx.Done():
 		c.readChan = nil
-		return 0, errors.New("timeout on Read()")
+		return 0, ctx.Err()
 	}
 
 	copy(data, c.characteristic.Value())
