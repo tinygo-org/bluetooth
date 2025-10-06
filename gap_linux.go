@@ -230,7 +230,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	// Check if the adapter is powered on.
 	powered, err := a.adapter.GetProperty("org.bluez.Adapter1.Powered")
 	if err != nil {
-		return err
+		return fmt.Errorf("bluetooth: scan bluez get Powered: %w", err)
 	}
 	if !powered.Value().(bool) {
 		return errAdaptorNotPowered
@@ -244,11 +244,10 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 
 	// This appears to be necessary to receive any BLE discovery results at all.
 	defer a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0)
-	err = a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0, map[string]interface{}{
+	if err := a.adapter.Call("org.bluez.Adapter1.SetDiscoveryFilter", 0, map[string]interface{}{
 		"Transport": "le",
-	}).Err
-	if err != nil {
-		return err
+	}).Err; err != nil {
+		return fmt.Errorf("bluetooth: scan bluez SetDiscoveryFilter: %w", err)
 	}
 
 	// Go through all connected devices and present the connected devices as
@@ -257,9 +256,8 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	// list of cached devices as scan results as devices may be cached for a
 	// long time, long after they have moved out of range.
 	var deviceList map[dbus.ObjectPath]map[string]map[string]dbus.Variant
-	err = a.bluez.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&deviceList)
-	if err != nil {
-		return err
+	if err := a.bluez.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&deviceList); err != nil {
+		return fmt.Errorf("bluetooth: scan dbus GetManagedObjects: %w", err)
 	}
 	devices := make(map[dbus.ObjectPath]map[string]dbus.Variant)
 	for path, v := range deviceList {
@@ -293,7 +291,10 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		// StopScan is called).
 		select {
 		case <-cancelChan:
-			return a.adapter.Call("org.bluez.Adapter1.StopDiscovery", 0).Err
+			if err := a.adapter.Call("org.bluez.Adapter1.StopDiscovery", 0).Err; err != nil {
+				return fmt.Errorf("bluetooth: scan bluez StopDiscovery: %w", err)
+			}
+			return nil
 		default:
 		}
 
@@ -302,7 +303,10 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 			if startDiscovery.Err != nil {
 				close(cancelChan)
 				a.scanCancelChan = nil
-				return startDiscovery.Err
+				if err := startDiscovery.Err; err != nil {
+					return fmt.Errorf("bluetooth: scan bluez StartDiscovery: %w", err)
+				}
+				return nil
 			}
 		case sig := <-signal:
 			// This channel receives anything that we watch for, so we'll have
@@ -462,7 +466,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 	powered, err := a.adapter.GetProperty("org.bluez.Adapter1.Powered")
 	if err != nil {
-		return Device{}, err
+		return Device{}, fmt.Errorf("bluetooth: bluez get Powered: %w", err)
 	}
 	if !powered.Value().(bool) {
 		return Device{}, errAdaptorNotPowered
@@ -471,19 +475,18 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	// Read whether this device is already connected.
 	connected, err := device.device.GetProperty("org.bluez.Device1.Connected")
 	if err != nil {
-		return Device{}, err
+		return Device{}, fmt.Errorf("bluetooth: bluez get Connected: %w", err)
 	}
 
 	// Connect to the device, if not already connected.
 	if !connected.Value().(bool) {
 		// Start connecting (async).
-		err := device.device.Call("org.bluez.Device1.Connect", 0).Err
-		if err != nil {
+		if err := device.device.Call("org.bluez.Device1.Connect", 0).Err; err != nil {
 			return Device{}, fmt.Errorf("bluetooth: failed to connect: %w", err)
 		}
 
-		// Wait until the device has connected.
-		connectChan := make(chan struct{})
+		// Wait until the device has connected successfully or finished with error.
+		errChan := make(chan error)
 		go func() {
 			for sig := range signal {
 				switch sig.Name {
@@ -496,8 +499,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 						for k, v := range changes {
 							if k == "Powered" && !v.Value().(bool) {
 								// adapter is powered off, stop the scan
-								err = errAdaptorNotPowered
-								close(connectChan)
+								errChan <- errAdaptorNotPowered
 							}
 						}
 					case "org.bluez.Device1":
@@ -506,14 +508,15 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 						}
 						changes := sig.Body[1].(map[string]dbus.Variant)
 						if connected, ok := changes["Connected"].Value().(bool); ok && connected {
-							close(connectChan)
+							errChan <- nil
+							close(errChan)
 						}
 					}
 				}
 			}
 		}()
-		<-connectChan
 
+		err := <-errChan
 		if err != nil {
 			return Device{}, err
 		}
@@ -535,7 +538,11 @@ func (d Device) Disconnect() error {
 
 	// we don't call our cancel function here, instead we wait for the
 	// property change in `watchForConnect` and cancel things then
-	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err
+	if err := d.device.Call("org.bluez.Device1.Disconnect", 0).Err; err != nil {
+		return fmt.Errorf("bluetooth: bluez failed to disconnect: %w", err)
+	}
+
+	return nil
 }
 
 // RequestConnectionParams requests a different connection latency and timeout
