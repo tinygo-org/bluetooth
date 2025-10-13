@@ -70,9 +70,14 @@ func (a *Adapter) ScanWithContext(ctx context.Context, callback func(*Adapter, S
 	// StopScan is called).
 	select {
 	case <-ctx.Done():
-		// StopScan can return an error, but we ignore it here since
-		// it only returns an error if no scan is in progress.
-		_ = a.StopScan()
+		err = a.StopScan()
+		if err != nil {
+			return errors.Join(err, ctx.Err())
+		}
+
+		<-a.scanChan
+		close(a.scanChan)
+		a.scanChan = nil
 		return ctx.Err()
 	case <-a.scanChan:
 		close(a.scanChan)
