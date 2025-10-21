@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/tinygo-org/cbgo"
@@ -145,9 +146,10 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 func (s DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic) DeviceCharacteristic {
 	char := DeviceCharacteristic{
 		deviceCharacteristic: &deviceCharacteristic{
-			uuidWrapper:    uuid,
-			service:        s,
-			characteristic: dchar,
+			uuidWrapper:            uuid,
+			service:                s,
+			characteristic:         dchar,
+			writeWithoutResponseMx: sync.Mutex{},
 		},
 	}
 	s.characteristics = append(s.characteristics, char)
@@ -165,10 +167,11 @@ type deviceCharacteristic struct {
 
 	service DeviceService
 
-	characteristic cbgo.Characteristic
-	callback       func(buf []byte)
-	readChan       chan error
-	writeChan      chan error
+	characteristic         cbgo.Characteristic
+	callback               func(buf []byte)
+	readChan               chan error
+	writeChan              chan error
+	writeWithoutResponseMx sync.Mutex
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -200,9 +203,15 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time.
-// You can use CanSendWriteWithoutResponse to check if you can send more writes.
-// This call is also known as a "write command" (as opposed to a write request).
+// If the client is not ready to send write without response requests at this time, ErrCannotSendWriteWithoutResponse is returned.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+	c.writeWithoutResponseMx.Lock()
+	defer c.writeWithoutResponseMx.Unlock()
+
+	if !c.service.device.prph.CanSendWriteWithoutResponse() {
+		return 0, ErrCannotSendWriteWithoutResponse
+	}
+
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
