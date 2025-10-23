@@ -2,7 +2,6 @@ package bluetooth
 
 import (
 	"errors"
-	"sync"
 	"time"
 
 	"github.com/tinygo-org/cbgo"
@@ -146,10 +145,9 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 func (s DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic) DeviceCharacteristic {
 	char := DeviceCharacteristic{
 		deviceCharacteristic: &deviceCharacteristic{
-			uuidWrapper:            uuid,
-			service:                s,
-			characteristic:         dchar,
-			writeWithoutResponseMx: sync.Mutex{},
+			uuidWrapper:    uuid,
+			service:        s,
+			characteristic: dchar,
 		},
 	}
 	s.characteristics = append(s.characteristics, char)
@@ -167,11 +165,10 @@ type deviceCharacteristic struct {
 
 	service DeviceService
 
-	characteristic         cbgo.Characteristic
-	callback               func(buf []byte)
-	readChan               chan error
-	writeChan              chan error
-	writeWithoutResponseMx sync.Mutex
+	characteristic cbgo.Characteristic
+	callback       func(buf []byte)
+	readChan       chan error
+	writeChan      chan error
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -205,9 +202,6 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // writes can be in flight at any given time.
 // If the client is not ready to send write without response requests at this time, ErrCannotSendWriteWithoutResponse is returned.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
-	c.writeWithoutResponseMx.Lock()
-	defer c.writeWithoutResponseMx.Unlock()
-
 	if !c.service.device.prph.CanSendWriteWithoutResponse() {
 		return 0, ErrCannotSendWriteWithoutResponse
 	}
