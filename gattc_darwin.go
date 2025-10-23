@@ -201,7 +201,7 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time.
 // If the client is not ready to send write without response requests at this time, ErrCannotSendWriteWithoutResponse is returned.
-func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 	if !c.service.device.prph.CanSendWriteWithoutResponse() {
 		return 0, ErrCannotSendWriteWithoutResponse
 	}
@@ -234,8 +234,7 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 // CanSendWriteWithoutResponse returns whether a WriteWithoutResponse can be sent
 // at this time. If this returns false, you must wait for some time before
 // sending another WriteWithoutResponse. This is typically because the internal
-// buffer is full. You can use this to implement your own flow control when
-// sending many WriteWithoutResponse calls in a row.
+// buffer is full.
 func (c DeviceCharacteristic) CanSendWriteWithoutResponse() bool {
 	return c.service.device.prph.CanSendWriteWithoutResponse()
 }
