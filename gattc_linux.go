@@ -277,12 +277,19 @@ func (c *DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) er
 		if c.property == nil {
 			return nil
 		}
-
-		err := c.adapter.bus.RemoveMatchSignal(c.propertiesChangedMatchOption)
+		// Make the D-Bus call to stop notifications on the characteristic.
+		stopNotifyErr := c.characteristic.Call("org.bluez.GattCharacteristic1.StopNotify", 0).Err
+		// Still clean up other resources if there was an error
+		removeSignalErr := c.adapter.bus.RemoveMatchSignal(c.propertiesChangedMatchOption)
 		c.adapter.bus.RemoveSignal(c.property)
 		close(c.property)
 		c.property = nil
-		return err
+
+		// If there were errors, prioritize notify err
+		if stopNotifyErr == nil {
+			return removeSignalErr
+		}
+		return stopNotifyErr		
 	}
 }
 
