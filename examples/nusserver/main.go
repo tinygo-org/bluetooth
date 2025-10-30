@@ -8,8 +8,8 @@ package main
 // Code to interact with a raw terminal is in separate files with build tags.
 
 import (
-	"tinygo.org/x/bluetooth"
-	"tinygo.org/x/bluetooth/rawterm"
+	"github.com/aventari/bluetooth"
+	"github.com/aventari/bluetooth/rawterm"
 )
 
 var (

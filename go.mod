@@ -1,4 +1,4 @@
-module tinygo.org/x/bluetooth
+module github.com/aventari/bluetooth
 
 go 1.22.1
 

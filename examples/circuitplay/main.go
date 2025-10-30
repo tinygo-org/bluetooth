@@ -8,7 +8,7 @@ import (
 	"machine"
 	"time"
 
-	"tinygo.org/x/bluetooth"
+	"github.com/aventari/bluetooth"
 	"tinygo.org/x/drivers/ws2812"
 )
 
