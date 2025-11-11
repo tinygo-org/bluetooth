@@ -13,11 +13,11 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Install Go
-        uses: actions/setup-go@v4.1.0
+        uses: actions/setup-go@v6
         with:
-          go-version: '1.21.0'
+          go-version: '1.25'
       - name: Checkout
-        uses: actions/checkout@v3.6.0
+        uses: actions/checkout@v5
       - name: Run unit tests
         run: go test
       - name: "Run Windows smoke tests"
