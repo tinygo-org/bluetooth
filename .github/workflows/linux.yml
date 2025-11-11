@@ -17,7 +17,7 @@ jobs:
         # We're not on a multi-user machine, so this is safe.
         run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
       - name: TinyGo version check
         run: tinygo version
       - name: Run unit tests
