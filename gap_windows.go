@@ -225,12 +225,10 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 	}
 
 	winAdv, err := args.GetAdvertisement()
-	if winAdv != nil {
-		defer winAdv.Release()
-	}
 	if err != nil {
 		return result
 	}
+	defer winAdv.Release()
 
 	var manufacturerData []ManufacturerDataElement
 	mVector, _ := winAdv.GetManufacturerData()
