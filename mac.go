@@ -56,6 +56,11 @@ func (mac MAC) String() string {
 	return unsafe.String(unsafe.SliceData(buf), 17)
 }
 
+// Address returns the MAC address in the typical (big-endian) format.
+func (mac MAC) Address() [6]uint8 {
+	return [6]uint8{mac[5], mac[4], mac[3], mac[2], mac[1], mac[0]}
+}
+
 const hexDigit = "0123456789ABCDEF"
 
 // AppendText appends the textual representation of itself to the end of b
