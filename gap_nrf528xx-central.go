@@ -87,10 +87,8 @@ func (a *Adapter) StopScan() error {
 		return errNotScanning
 	}
 	a.scanning = false
-
-	// TODO: stop immediately, not when the next scan result arrives.
-
-	return nil
+	errCode := C.sd_ble_gap_scan_stop()
+	return makeError(errCode)
 }
 
 // In-progress connection attempt.
