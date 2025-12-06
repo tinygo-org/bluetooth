@@ -197,6 +197,12 @@ func (h *hci) poll() error {
 		// perform read only if more data is available
 		available := h.transport.Buffered()
 		if available > 0 {
+			// limit to buffer size
+			if available > len(h.buf)-h.end {
+				available = len(h.buf) - h.end
+			}
+
+			// read in 4 byte aligned chunks
 			aligned := available + (4-(available%4))%4
 			n, err := h.transport.Read(h.buf[h.end : h.end+aligned])
 			if err != nil {
