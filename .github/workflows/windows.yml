@@ -17,7 +17,7 @@ jobs:
         with:
           go-version: '1.25'
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
       - name: Run unit tests
         run: go test
       - name: "Run Windows smoke tests"
