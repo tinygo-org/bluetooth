@@ -1,4 +1,19 @@
-0.12.0
+0.14.0
+---
+* **core**
+  - mac: Add MAC accessor for returning the MAC in the usual format
+* **nordic semi**
+  - sd: send the correct response to BLE_GAP_EVT_PHY_UPDATE_REQUEST
+* **hci**
+  - fix: HCI should not read data past the end of the available buffer to store it. To fix #396
+* **linux**
+  - fix: Actually stop BLE scan.
+  - fix: Update gattc_linux.go to properly unsubscribe from notifications using dbus call
+* **windows**
+  - fix: Fix memory leak in adapter.Scan (#383)
+
+
+0.13.0
 ---
 * **core**
   - Introduce AdvertisementPayload.ServiceUUIDs()
