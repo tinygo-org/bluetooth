@@ -289,8 +289,10 @@ type Device struct {
 
 	Address Address // the MAC address of the device
 
-	device  *bluetooth.BluetoothLEDevice
-	session *genericattributeprofile.GattSession
+	device                        *bluetooth.BluetoothLEDevice
+	session                       *genericattributeprofile.GattSession
+	connectionStatusListenerToken foundation.EventRegistrationToken
+	connectionStatusListener      *foundation.TypedEventHandler
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -367,8 +369,36 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		session: newSession,
 	}
 
-	if a.connectHandler != nil {
-		a.connectHandler(device, true)
+	// https://learn.microsoft.com/es-es/uwp/api/windows.devices.bluetooth.bluetoothledevice.connectionstatuschanged?view=winrt-26100
+	// TypedEventHandler<BluetoothLEDevice,object>
+	connectionStatusChangedGUID := winrt.ParameterizedInstanceGUID(
+		foundation.GUIDTypedEventHandler,
+		bluetooth.SignatureBluetoothLEDevice,
+		"cinterface(IInspectable)", // object
+	)
+
+	handler := foundation.NewTypedEventHandler(ole.NewGUID(connectionStatusChangedGUID), func(instance *foundation.TypedEventHandler, sender, arg unsafe.Pointer) {
+		status, err := bleDevice.GetConnectionStatus()
+		if err != nil {
+			return
+		}
+		if status == bluetooth.BluetoothConnectionStatusDisconnected {
+			device.Disconnect()
+		}
+
+		if a.connectHandler != nil {
+			a.connectHandler(device, status == bluetooth.BluetoothConnectionStatusConnected)
+		}
+	})
+
+	token, err := device.device.AddConnectionStatusChanged(handler)
+
+	device.connectionStatusListenerToken = token
+	device.connectionStatusListener = handler
+
+	if err != nil {
+		_ = handler.Release()
+		return device, err
 	}
 
 	return device, nil
@@ -379,18 +409,20 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 func (d Device) Disconnect() error {
 	defer d.device.Release()
 	defer d.session.Release()
+	if d.connectionStatusListener != nil {
+		defer d.connectionStatusListener.Release()
+	}
 
 	d.cancel()
 
 	if err := d.session.Close(); err != nil {
 		return err
 	}
+
+	_ = d.device.RemoveConnectionStatusChanged(d.connectionStatusListenerToken)
+
 	if err := d.device.Close(); err != nil {
 		return err
-	}
-
-	if DefaultAdapter.connectHandler != nil {
-		DefaultAdapter.connectHandler(d, false)
 	}
 
 	return nil
