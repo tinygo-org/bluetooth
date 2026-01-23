@@ -211,14 +211,17 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
 // notification with a new value every time the value of the characteristic
 // changes.
+// Users may call EnableNotifications with a nil callback to disable notifications.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+	// If callback is nil, disable notifications
 	if callback == nil {
-		return errors.New("must provide a callback for EnableNotifications")
+		c.service.device.prph.SetNotify(false, c.characteristic)
+		c.callback = nil // Clear notification callback
+	} else {
+		// Enable notifications and set notification callback
+		c.callback = callback
+		c.service.device.prph.SetNotify(true, c.characteristic)
 	}
-
-	c.callback = callback
-	c.service.device.prph.SetNotify(true, c.characteristic)
-
 	return nil
 }
 
