@@ -2,6 +2,7 @@ package bluetooth
 
 // Service is a GATT service to be used in AddService.
 type Service struct {
+	id     uint64
 	handle uint16
 	UUID
 	Characteristics []CharacteristicConfig
