@@ -22,7 +22,10 @@ static inline uint32_t sd_ble_gatts_value_set_noescape(uint16_t conn_handle, uin
 }
 */
 import "C"
-import "unsafe"
+import (
+	"errors"
+	"unsafe"
+)
 
 // Characteristic is a single characteristic in a service. It has an UUID and a
 // value.
@@ -89,6 +92,11 @@ func (a *Adapter) AddService(service *Service) error {
 		}
 	}
 	return makeError(errCode)
+}
+
+// RemoveService removes a service previously added with AddService.
+func (a *Adapter) RemoveService(s *Service) error {
+	return errors.ErrUnsupported
 }
 
 // charWriteHandler contains a handler->callback mapping for characteristic
