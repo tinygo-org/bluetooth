@@ -7,6 +7,7 @@ import (
 	"github.com/go-ole/go-ole"
 	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/advertisement"
+	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/genericattributeprofile"
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
@@ -16,6 +17,8 @@ type Adapter struct {
 	connectHandler func(device Device, connected bool)
 
 	defaultAdvertisement *Advertisement
+
+	gattServiceProvider *genericattributeprofile.GattServiceProvider
 }
 
 // DefaultAdapter is the default adapter on the system.

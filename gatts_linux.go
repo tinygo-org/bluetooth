@@ -71,6 +71,12 @@ func (c *bluezChar) WriteValue(value []byte, options map[string]dbus.Variant) *d
 	return nil
 }
 
+func (a *Adapter) StopServiceAdvertisement() error {
+	// TODO: implement on linux
+
+	return nil
+}
+
 // AddService creates a new service with the characteristics listed in the
 // Service struct.
 func (a *Adapter) AddService(s *Service) error {

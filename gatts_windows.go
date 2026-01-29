@@ -49,6 +49,8 @@ func (a *Adapter) AddService(s *Service) error {
 		return err
 	}
 
+	a.gattServiceProvider = serviceProvider
+
 	localService, err := serviceProvider.GetService()
 	if err != nil {
 		return err
@@ -238,6 +240,10 @@ func (a *Adapter) AddService(s *Service) error {
 	}
 
 	return serviceProvider.StartAdvertisingWithParameters(params)
+}
+
+func (a *Adapter) StopServiceAdvertisement() error {
+	return a.gattServiceProvider.StopAdvertising()
 }
 
 // Write replaces the characteristic value with a new value.
