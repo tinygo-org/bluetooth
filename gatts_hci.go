@@ -2,6 +2,8 @@
 
 package bluetooth
 
+import "errors"
+
 type Characteristic struct {
 	adapter     *Adapter
 	handle      uint16
@@ -77,6 +79,11 @@ func (a *Adapter) AddService(service *Service) error {
 	a.att.addLocalService(serviceHandle, endHandle, service.UUID)
 
 	return nil
+}
+
+// RemoveService removes a previously added service.
+func (a *Adapter) RemoveService(s *Service) error {
+	return errors.ErrUnsupported
 }
 
 // Write replaces the characteristic value with a new value.
