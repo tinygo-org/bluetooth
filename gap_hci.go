@@ -76,7 +76,6 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 			rp := rawAdvertisementPayload{len: a.hci.advData.eirLength}
 			copy(rp.data[:], a.hci.advData.eirData[:a.hci.advData.eirLength])
 			if rp.LocalName() != "" {
-				println("LocalName:", rp.LocalName())
 				adf.LocalName = rp.LocalName()
 			}
 
