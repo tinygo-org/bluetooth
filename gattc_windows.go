@@ -3,6 +3,7 @@ package bluetooth
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"syscall"
 	"unsafe"
 
@@ -224,8 +225,8 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 
 		// only include characteristics that are included in the input filter
 		if len(filterUUIDs) > 0 {
-			for _, uuid := range filterUUIDs {
-				if characteristics[i] != (DeviceCharacteristic{}) {
+			for j, uuid := range filterUUIDs {
+				if characteristics[j] != (DeviceCharacteristic{}) {
 					// To support multiple identical characteristics, we
 					// need to ignore the characteristics that are already
 					// found. See:
@@ -234,7 +235,7 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 				}
 				if characteristicUUID.String() == uuid.String() {
 					// One of the characteristics we're looking for.
-					characteristics[i] = s.makeCharacteristic(characteristicUUID, characteristic, properties)
+					characteristics[j] = s.makeCharacteristic(characteristicUUID, characteristic, properties)
 					break
 				}
 			}
@@ -244,10 +245,8 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 		}
 	}
 
-	for _, char := range characteristics {
-		if char == (DeviceCharacteristic{}) {
-			return nil, errors.New("bluetooth: did not find all requested characteristic")
-		}
+	if slices.Contains(characteristics, (DeviceCharacteristic{})) {
+		return nil, errors.New("bluetooth: did not find all requested characteristic")
 	}
 
 	return characteristics, nil
