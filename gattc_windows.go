@@ -105,25 +105,13 @@ func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 			for j, uuid := range filterUUIDs {
 				if serviceUuid.String() == uuid.String() {
 					// One of the services we're looking for.
-					services[j] = DeviceService{
-						deviceService: &deviceService{
-							uuidWrapper: serviceUuid,
-							service:     srv,
-							device:      d,
-						},
-					}
+					services[j] = makeService(serviceUuid, srv, d)
 					break
 				}
 			}
 		} else {
 			// The caller wants to get all services, in any order.
-			services = append(services, DeviceService{
-				deviceService: &deviceService{
-					uuidWrapper: serviceUuid,
-					service:     srv,
-					device:      d,
-				},
-			})
+			services = append(services, makeService(serviceUuid, srv, d))
 		}
 
 		go func() {
@@ -160,6 +148,7 @@ func winRTUuidToUuid(uuid syscall.GUID) UUID {
 // struct method of the same name.
 type uuidWrapper = UUID
 
+// Small helper to create a DeviceService object.
 func makeService(serviceUuid uuidWrapper, srv *genericattributeprofile.GattDeviceService, d Device) DeviceService {
 	svc := DeviceService{
 		deviceService: &deviceService{
@@ -171,11 +160,11 @@ func makeService(serviceUuid uuidWrapper, srv *genericattributeprofile.GattDevic
 	return svc
 }
 
+// DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
 	*deviceService
 }
 
-// DeviceService is a BLE service on a connected peripheral device.
 type deviceService struct {
 	uuidWrapper
 
