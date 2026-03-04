@@ -64,7 +64,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 type uuidWrapper = UUID
 
 // Small helper to create a DeviceService object.
-func (d Device) makeService(dsvcuuid uuidWrapper, dsvc *cbgo.Service) DeviceService {
+func (d Device) makeService(dsvcuuid uuidWrapper, dsvc cbgo.Service) DeviceService {
 	svc := DeviceService{
 		deviceService: &deviceService{
 			uuidWrapper: dsvcuuid,
