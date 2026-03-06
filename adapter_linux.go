@@ -23,7 +23,10 @@ type Adapter struct {
 	address              string
 	defaultAdvertisement *Advertisement
 
-	connectHandler func(device Device, connected bool)
+	connectHandler        func(device Device, connected bool)
+	connectionMonitorChan chan *dbus.Signal
+	monitoringConnections bool
+	stopMonitorChan       chan struct{}
 }
 
 // NewAdapter creates a new Adapter with the given ID.
@@ -61,6 +64,11 @@ func (a *Adapter) Enable() (err error) {
 	}
 	addr.Store(&a.address)
 
+	// Start connection monitoring if connectHandler is set
+	if a.connectHandler != nil {
+		a.startConnectionMonitoring()
+	}
+
 	return nil
 }
 
@@ -73,4 +81,81 @@ func (a *Adapter) Address() (MACAddress, error) {
 		return MACAddress{}, err
 	}
 	return MACAddress{MAC: mac}, nil
+}
+
+func (a *Adapter) startConnectionMonitoring() error {
+	if a.monitoringConnections {
+		return nil // already monitoring
+	}
+
+	a.connectionMonitorChan = make(chan *dbus.Signal, 10)
+	a.stopMonitorChan = make(chan struct{})
+	a.bus.Signal(a.connectionMonitorChan)
+
+	if err := a.bus.AddMatchSignal(matchOptionsPropertiesChanged...); err != nil {
+		return fmt.Errorf("bluetooth: add dbus match signal: %w", err)
+	}
+
+	a.monitoringConnections = true
+	go a.handleConnectionSignals()
+
+	return nil
+}
+
+func (a *Adapter) handleConnectionSignals() {
+	for {
+		select {
+		case <-a.stopMonitorChan:
+			return
+		case sig, ok := <-a.connectionMonitorChan:
+			if !ok {
+				return // channel was closed
+			}
+			if sig.Name != dbusSignalPropertiesChanged {
+				continue
+			}
+			interfaceName, ok := sig.Body[0].(string)
+			if !ok || interfaceName != bluezDevice1Interface {
+				continue
+			}
+			changes, ok := sig.Body[1].(map[string]dbus.Variant)
+			if !ok {
+				continue
+			}
+			if connectedVariant, ok := changes["Connected"]; ok {
+				connected, ok := connectedVariant.Value().(bool)
+				if !ok {
+					continue
+				}
+				device := Device{
+					device:  a.bus.Object("org.bluez", sig.Path),
+					adapter: a,
+				}
+				var props map[string]dbus.Variant
+				if err := device.device.Call("org.freedesktop.DBus.Properties.GetAll",
+					0, bluezDevice1Interface).Store(&props); err != nil {
+					continue
+				}
+				if err := device.parseProperties(&props); err != nil {
+					continue
+				}
+				a.connectHandler(device, connected)
+			}
+		}
+	}
+}
+
+func (a *Adapter) StopConnectionMonitoring() error {
+	if !a.monitoringConnections {
+		return nil
+	}
+	// Unregister the signal channel from D-Bus before closing
+	a.bus.RemoveSignal(a.connectionMonitorChan)
+	if err := a.bus.RemoveMatchSignal(matchOptionsPropertiesChanged...); err != nil {
+		return fmt.Errorf("bluetooth: remove dbus match signal: %w", err)
+	}
+	close(a.stopMonitorChan)
+	close(a.connectionMonitorChan)
+	a.monitoringConnections = false
+	return nil
 }
