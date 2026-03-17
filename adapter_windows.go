@@ -3,6 +3,8 @@ package bluetooth
 import (
 	"errors"
 	"fmt"
+	"syscall"
+	"unsafe"
 
 	"github.com/go-ole/go-ole"
 	"github.com/saltosystems/winrt-go"
@@ -57,9 +59,55 @@ func awaitAsyncOperation(asyncOperation *foundation.IAsyncOperation, genericPara
 	<-waitChan
 
 	if status != foundation.AsyncStatusCompleted {
+		if err := getAsyncError(asyncOperation); err != nil {
+			return fmt.Errorf("async operation failed with status %d: %w", status, err)
+		}
 		return fmt.Errorf("async operation failed with status %d", status)
 	}
 	return nil
+}
+
+// getAsyncError queries IAsyncInfo from an IAsyncOperation to retrieve
+// the error code of a failed async operation. If the HRESULT corresponds
+// to a Bluetooth ATT error (facility 0x65), it returns an AttributeProtocolError.
+func getAsyncError(asyncOperation *foundation.IAsyncOperation) error {
+	iid := ole.NewGUID(foundation.GUIDIAsyncInfo)
+
+	var asyncInfo *foundation.IAsyncInfo
+	hr, _, _ := syscall.SyscallN(
+		asyncOperation.VTable().QueryInterface,
+		uintptr(unsafe.Pointer(asyncOperation)),
+		uintptr(unsafe.Pointer(iid)),
+		uintptr(unsafe.Pointer(&asyncInfo)),
+	)
+	if hr != 0 {
+		return nil
+	}
+	defer asyncInfo.Release()
+
+	result, err := asyncInfo.GetErrorCode()
+	if err != nil {
+		return err
+	}
+	if result.Value == 0 {
+		return nil
+	}
+
+	return hresultToError(uint32(result.Value))
+}
+
+// hresultToError converts an HRESULT to an appropriate error type.
+// For Bluetooth ATT errors (facility 0x65), it returns an error with the ATT error code.
+// For other errors, it returns a generic error with the HRESULT value.
+func hresultToError(hr uint32) error {
+	facility := (hr >> 16) & 0x1FFF
+	code := hr & 0xFFFF
+
+	if facility == 0x65 { // FACILITY_BLUETOOTH_ATT
+		return fmt.Errorf("Bluetooth ATT error (code 0x%04X)", code)
+	}
+
+	return fmt.Errorf("HRESULT 0x%08X", hr)
 }
 
 func (a *Adapter) Address() (MACAddress, error) {
