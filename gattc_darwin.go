@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/tinygo-org/cbgo"
@@ -24,33 +25,34 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	select {
 	case <-d.servicesChan:
 		svcs := []DeviceService{}
+
+		if len(uuids) > 0 {
+			// The caller wants to get a list of services in a specific
+			// order.
+			svcs = make([]DeviceService, len(uuids))
+		}
+
 		for _, dsvc := range d.prph.Services() {
 			dsvcuuid, _ := ParseUUID(dsvc.UUID().String())
-			// add if in our original list
+
+			// only include services that are included in the input filter
 			if len(uuids) > 0 {
-				found := false
-				for _, uuid := range uuids {
+				for j, uuid := range uuids {
 					if dsvcuuid.String() == uuid.String() {
-						// one of the services we're looking for.
-						found = true
-						break
+						// One of the services we're looking for.
+						svcs[j] = d.makeService(dsvcuuid, dsvc)
 					}
 				}
-				if !found {
-					continue
-				}
+			} else {
+				// The caller wants to get all services, in any order.
+				svcs = append(svcs, d.makeService(dsvcuuid, dsvc))
 			}
-
-			svc := DeviceService{
-				deviceService: &deviceService{
-					uuidWrapper: dsvcuuid,
-					device:      d,
-					service:     dsvc,
-				},
-			}
-			svcs = append(svcs, svc)
-			d.services[svc.uuidWrapper] = svc
 		}
+
+		if slices.Contains(svcs, (DeviceService{})) {
+			return nil, errors.New("bluetooth: did not find all requested services")
+		}
+
 		return svcs, nil
 	case <-time.NewTimer(10 * time.Second).C:
 		return nil, errors.New("timeout on DiscoverServices")
@@ -60,6 +62,20 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 // uuidWrapper is a type alias for UUID so we ensure no conflicts with
 // struct method of the same name.
 type uuidWrapper = UUID
+
+// Small helper to create a DeviceService object.
+func (d Device) makeService(dsvcuuid uuidWrapper, dsvc cbgo.Service) DeviceService {
+	svc := DeviceService{
+		deviceService: &deviceService{
+			uuidWrapper: dsvcuuid,
+			device:      d,
+			service:     dsvc,
+		},
+	}
+	// Cache the service in the device's services map, so that we can find it
+	d.services[svc.uuidWrapper] = svc
+	return svc
+}
 
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
