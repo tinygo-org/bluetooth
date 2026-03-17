@@ -586,6 +586,19 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 	}
 }
 
+type ConnectionLatency uint8
+
+const (
+	// A latency setting that uses the default connection parameters of the system.
+	ConnectionLatencyDefault ConnectionLatency = 0
+	// A latency setting indicating that prioritizes rapid communication over battery life.
+	ConnectionLatencyLow ConnectionLatency = 1
+	// A latency setting that balances communication frequency and battery life.
+	ConnectionLatencyMedium ConnectionLatency = 2
+	// A latency setting that prioritizes extending battery life over rapid communication.
+	ConnectionLatencyHigh ConnectionLatency = 3
+)
+
 // ConnectionParams are used when connecting to a peripherals or when changing
 // the parameters of an active connection.
 type ConnectionParams struct {
@@ -604,4 +617,14 @@ type ConnectionParams struct {
 	// communication, the connection is considered lost. If no timeout is
 	// specified, the timeout will be unchanged.
 	Timeout Duration
+
+	// Latency setting. This is a high-level setting that indicates whether the connection should
+	// prioritize rapid communication or battery life.
+	//
+	// Some platforms (e.g. Windows) may not support setting the connection parameters directly,
+	// but may support setting a latency level that corresponds to a set of connection parameters.
+	// In this case, the Latency field can be used to set the latency level instead of setting the connection parameters directly.
+	//
+	// If no latency is specified, the latency will be unchanged.
+	Latency ConnectionLatency
 }
