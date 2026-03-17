@@ -433,11 +433,39 @@ func (d Device) Disconnect() error {
 // Whether or not the device will actually honor this, depends on the device and
 // on the specific parameters.
 //
-// On Windows, this call doesn't do anything.
+// On Windows, only the latency level can be set, since Windows does not support setting the connection parameters directly.
+// If a latency level is specified, the corresponding latency level will be set on the connection.
+// If no latency level is specified, the latency level will be left unchanged.
 func (d Device) RequestConnectionParams(params ConnectionParams) error {
-	// TODO: implement this using
-	// BluetoothLEDevice.RequestPreferredConnectionParameters.
+	pref, err := preferredConnectionParametersFromConnectionParams(params)
+	if err != nil {
+		return err
+	}
+
+	// The user has requested a specific connection latency
+	if pref != nil {
+		_, err = d.device.RequestPreferredConnectionParameters(pref)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func preferredConnectionParametersFromConnectionParams(params ConnectionParams) (*bluetooth.BluetoothLEPreferredConnectionParameters, error) {
+	switch params.Latency {
+	case ConnectionLatencyDefault:
+		return nil, nil
+	case ConnectionLatencyLow:
+		return bluetooth.BluetoothLEPreferredConnectionParametersGetThroughputOptimized()
+	case ConnectionLatencyMedium:
+		return bluetooth.BluetoothLEPreferredConnectionParametersGetBalanced()
+	case ConnectionLatencyHigh:
+		return bluetooth.BluetoothLEPreferredConnectionParametersGetPowerOptimized()
+	default:
+		return nil, fmt.Errorf("invalid latency value: %d", params.Latency)
+	}
 }
 
 // SetRandomAddress sets the random address to be used for advertising.
