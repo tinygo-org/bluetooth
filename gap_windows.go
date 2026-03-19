@@ -430,6 +430,18 @@ func (d Device) Disconnect() error {
 	return nil
 }
 
+// Connected returns whether the device is currently connected.
+func (d Device) Connected() (bool, error) {
+	if d.device == nil {
+		return false, nil
+	}
+	status, err := d.device.GetConnectionStatus()
+	if err != nil {
+		return false, err
+	}
+	return status == bluetooth.BluetoothConnectionStatusConnected, nil
+}
+
 // RequestConnectionParams requests a different connection latency and timeout
 // of the given device connection. Fields that are unset will be left alone.
 // Whether or not the device will actually honor this, depends on the device and
