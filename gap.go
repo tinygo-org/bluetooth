@@ -605,3 +605,14 @@ type ConnectionParams struct {
 	// specified, the timeout will be unchanged.
 	Timeout Duration
 }
+
+type PHY int
+
+const (
+	// PHY1M is the 1M PHY, which is the default for Bluetooth LE.
+	PHY1M PHY = iota
+	// PHY2M is the 2M PHY, which allows for higher data rates but consumes more power.
+	PHY2M
+	// PHYCoded is the Coded PHY, which allows for longer range at the cost of lower data rates.
+	PHYCoded
+)
