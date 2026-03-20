@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"syscall"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
@@ -231,21 +232,44 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 	defer winAdv.Release()
 
 	var manufacturerData []ManufacturerDataElement
-	mVector, _ := winAdv.GetManufacturerData()
-	if mVector != nil {
-		defer mVector.Release()
-		mSize, _ := mVector.GetSize()
-		for i := uint32(0); i < mSize; i++ {
-			element, _ := mVector.GetAt(i)
+	var serviceUUIDs []UUID
+	if winAdv, err := args.GetAdvertisement(); err == nil && winAdv != nil {
+		// Extract manufacturer data
+		vector, _ := winAdv.GetManufacturerData()
+		size, _ := vector.GetSize()
+		for i := uint32(0); i < size; i++ {
+			element, _ := vector.GetAt(i)
 			manData := (*advertisement.BluetoothLEManufacturerData)(element)
+
 			companyID, _ := manData.GetCompanyId()
 			buffer, _ := manData.GetData()
 			manufacturerData = append(manufacturerData, ManufacturerDataElement{
 				CompanyID: companyID,
 				Data:      bufferToSlice(buffer),
 			})
-			buffer.Release()
-			manData.Release()
+		}
+
+		// Extract service UUIDs
+		vector, _ = winAdv.GetServiceUuids()
+		size, _ = vector.GetSize()
+		for i := uint32(0); i < size; i++ {
+			// Maybe we can use
+			// element, _ := vector.GetAt(i)
+			// serviceGUID := (*syscall.GUID)(element)
+			// ?
+			var outGuid syscall.GUID
+			hr, _, _ := syscall.SyscallN(
+				vector.VTable().GetAt,
+				uintptr(unsafe.Pointer(vector)),
+				uintptr(i),
+				uintptr(unsafe.Pointer(&outGuid)),
+			)
+			if hr != 0 {
+				println("failed to get service UUID")
+				continue
+			}
+			uuid := GUIDToUUID(outGuid)
+			serviceUUIDs = append(serviceUUIDs, uuid)
 		}
 	}
 
@@ -254,11 +278,29 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 	result.AdvertisementPayload = &advertisementFields{
 		AdvertisementFields{
 			LocalName:        localName,
+			ServiceUUIDs:     serviceUUIDs,
 			ManufacturerData: manufacturerData,
 		},
 	}
 
 	return result
+}
+
+func GUIDToUUID(guid syscall.GUID) UUID {
+	return NewUUID([16]byte{
+		byte(guid.Data1 >> 24),
+		byte(guid.Data1 >> 16),
+		byte(guid.Data1 >> 8),
+		byte(guid.Data1),
+		byte(guid.Data2 >> 8),
+		byte(guid.Data2),
+		byte(guid.Data3 >> 8),
+		byte(guid.Data3),
+		guid.Data4[0], guid.Data4[1],
+		guid.Data4[2], guid.Data4[3],
+		guid.Data4[4], guid.Data4[5],
+		guid.Data4[6], guid.Data4[7],
+	})
 }
 
 func bufferToSlice(buffer *streams.IBuffer) []byte {
