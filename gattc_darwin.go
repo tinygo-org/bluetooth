@@ -115,7 +115,14 @@ func (s DeviceService) UUID() UUID {
 // Passing a nil slice of UUIDs will return a complete list of
 // characteristics.
 func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
-	cbuuids := []cbgo.UUID{}
+	cbuuids := make([]cbgo.UUID, len(uuids))
+	for i, u := range uuids {
+		cbuuid, err := cbgo.ParseUUID(u.String())
+		if err != nil {
+			return nil, err
+		}
+		cbuuids[i] = cbuuid
+	}
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
