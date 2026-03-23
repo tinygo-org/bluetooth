@@ -125,4 +125,8 @@ func (d Device) RequestConnectionParams(params ConnectionParams) error {
 	return errNotYetImplmented
 }
 
+func (d Device) Connected() (bool, error) {
+	return false, errNotYetImplmented
+}
+
 type DeviceService struct{}

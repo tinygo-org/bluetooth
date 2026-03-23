@@ -237,3 +237,7 @@ func (d Device) RequestConnectionParams(params ConnectionParams) error {
 	errCode := C.sd_ble_gap_conn_param_update(d.connectionHandle, &connParams)
 	return makeError(errCode)
 }
+
+func (d Device) Connected() (bool, error) {
+	return false, errNotYetImplmented
+}

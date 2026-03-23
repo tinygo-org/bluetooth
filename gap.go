@@ -134,6 +134,7 @@ type Connection uint16
 type GAPDevice interface {
 	DiscoverServices(uuids []UUID) ([]DeviceService, error)
 	RequestConnectionParams(params ConnectionParams) error
+	Connected() (bool, error)
 	Disconnect() error
 }
 
