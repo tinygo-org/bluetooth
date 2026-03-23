@@ -430,6 +430,8 @@ func makeScanResult(props map[string]dbus.Variant) ScanResult {
 	}
 }
 
+var _ DeviceInterface = Device{}
+
 // Device is a connection to a remote bluetooth device.
 type Device struct {
 	Address Address // the MAC address of the device
