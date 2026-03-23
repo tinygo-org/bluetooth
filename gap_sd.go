@@ -7,6 +7,8 @@ package bluetooth
 */
 import "C"
 
+var _ GAPDevice = Device{}
+
 // Device is a connection to a remote peripheral or central.
 type Device struct {
 	Address Address

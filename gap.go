@@ -130,6 +130,13 @@ func NewDuration(interval time.Duration) Duration {
 // Connection is a numeric identifier that indicates a connection handle.
 type Connection uint16
 
+// GAPDevice is the shared interface that all platform-specific Device types must implement.
+type GAPDevice interface {
+	DiscoverServices(uuids []UUID) ([]DeviceService, error)
+	RequestConnectionParams(params ConnectionParams) error
+	Disconnect() error
+}
+
 // ScanResult contains information from when an advertisement packet was
 // received. It is passed as a parameter to the callback of the Scan method.
 type ScanResult struct {

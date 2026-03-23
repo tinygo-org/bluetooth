@@ -282,6 +282,8 @@ func (a *Adapter) StopScan() error {
 	return a.watcher.Stop()
 }
 
+var _ GAPDevice = Device{}
+
 // Device is a connection to a remote peripheral.
 type Device struct {
 	ctx    context.Context

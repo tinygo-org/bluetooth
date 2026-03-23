@@ -83,6 +83,8 @@ func (a *Adapter) StopScan() error {
 	return nil
 }
 
+var _ GAPDevice = Device{}
+
 // Device is a connection to a remote peripheral.
 type Device struct {
 	Address Address
