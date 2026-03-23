@@ -130,8 +130,8 @@ func NewDuration(interval time.Duration) Duration {
 // Connection is a numeric identifier that indicates a connection handle.
 type Connection uint16
 
-// DeviceInterface is the shared interface that all platform-specific Device types must implement.
-type DeviceInterface interface {
+// GAPDevice is the shared interface that all platform-specific Device types must implement.
+type GAPDevice interface {
 	DiscoverServices(uuids []UUID) ([]DeviceService, error)
 	RequestConnectionParams(params ConnectionParams) error
 	Disconnect() error

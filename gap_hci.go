@@ -267,7 +267,7 @@ type notificationRegistration struct {
 	callback func([]byte)
 }
 
-var _ DeviceInterface = Device{}
+var _ GAPDevice = Device{}
 
 // Device is a connection to a remote peripheral.
 type Device struct {
