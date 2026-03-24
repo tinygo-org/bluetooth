@@ -8,6 +8,10 @@ import (
 	"github.com/tinygo-org/cbgo"
 )
 
+var (
+	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+)
+
 // DiscoverServices starts a service discovery procedure. Pass a list of service
 // UUIDs you are interested in to this function. Either a slice of all services
 // is returned (of the same length as the requested UUIDs and in the same
@@ -231,9 +235,13 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
-// writes can be in flight at any given time. This call is also known as a
-// "write command" (as opposed to a write request).
-func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+// writes can be in flight at any given time.
+// If the client is not ready to send write without response requests at this time (e.g. because the internal buffer is full), an error is returned.
+func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
+	if !c.service.device.prph.CanSendWriteWithoutResponse() {
+		return 0, errCannotSendWriteWithoutResponse
+	}
+
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
