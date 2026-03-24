@@ -204,7 +204,7 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time.
-// If the client is not ready to send write without response requests at this time, ErrCannotSendWriteWithoutResponse is returned.
+// If the client is not ready to send write without response requests at this time (e.g. because the internal buffer is full), an error is returned.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 	if !c.service.device.prph.CanSendWriteWithoutResponse() {
 		return 0, errCannotSendWriteWithoutResponse
