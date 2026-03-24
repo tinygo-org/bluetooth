@@ -7,6 +7,10 @@ import (
 	"github.com/tinygo-org/cbgo"
 )
 
+var (
+	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+)
+
 // DiscoverServices starts a service discovery procedure. Pass a list of service
 // UUIDs you are interested in to this function. Either a slice of all services
 // is returned (of the same length as the requested UUIDs and in the same
@@ -203,7 +207,7 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // If the client is not ready to send write without response requests at this time, ErrCannotSendWriteWithoutResponse is returned.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 	if !c.service.device.prph.CanSendWriteWithoutResponse() {
-		return 0, ErrCannotSendWriteWithoutResponse
+		return 0, errCannotSendWriteWithoutResponse
 	}
 
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
@@ -229,14 +233,6 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return uint16(c.service.device.prph.MaximumWriteValueLength(false)), nil
-}
-
-// CanSendWriteWithoutResponse returns whether a WriteWithoutResponse can be sent
-// at this time. If this returns false, you must wait for some time before
-// sending another WriteWithoutResponse. This is typically because the internal
-// buffer is full.
-func (c DeviceCharacteristic) CanSendWriteWithoutResponse() bool {
-	return c.service.device.prph.CanSendWriteWithoutResponse()
 }
 
 // Read reads the current characteristic value.
