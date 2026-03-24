@@ -296,6 +296,10 @@ func (d Device) Disconnect() error {
 	return nil
 }
 
+func (d Device) Connected() (bool, error) {
+	return false, errNotYetImplmented
+}
+
 // RequestConnectionParams requests a different connection latency and timeout
 // of the given device connection. Fields that are unset will be left alone.
 // Whether or not the device will actually honor this, depends on the device and
