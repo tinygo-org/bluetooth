@@ -131,6 +131,17 @@ func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager
 	}
 }
 
+// DidFailToConnectPeripheral when peripheral connection fails.
+func (cmd *centralManagerDelegate) DidFailToConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral, err error) {
+	id := prph.Identifier().String()
+
+	// Send the peripheral through so ConnectWithContext can check its state
+	// and return the appropriate error.
+	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
+		ch.(chan cbgo.Peripheral) <- prph
+	}
+}
+
 // makeScanResult creates a ScanResult when peripheral is found.
 func makeScanResult(prph cbgo.Peripheral, advFields cbgo.AdvFields, rssi int) ScanResult {
 	uuid, _ := ParseUUID(prph.Identifier().String())
