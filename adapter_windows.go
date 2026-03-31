@@ -10,6 +10,8 @@ import (
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
+var _ BLEAdapter = &Adapter{}
+
 type Adapter struct {
 	watcher *advertisement.BluetoothLEAdvertisementWatcher
 

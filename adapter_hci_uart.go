@@ -8,6 +8,8 @@ import (
 
 const maxConnections = 1
 
+var _ BLEAdapter = &Adapter{}
+
 // Adapter represents a "plain" UART connection to the HCI controller.
 type Adapter struct {
 	hciAdapter

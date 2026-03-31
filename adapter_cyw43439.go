@@ -12,6 +12,8 @@ import (
 
 const maxConnections = 1
 
+var _ BLEAdapter = &Adapter{}
+
 // Adapter represents a SPI connection to the HCI controller on an attached CYW4349 module.
 type Adapter struct {
 	hciAdapter

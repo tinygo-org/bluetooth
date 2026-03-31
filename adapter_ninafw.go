@@ -9,6 +9,8 @@ import (
 
 const maxConnections = 1
 
+var _ BLEAdapter = &Adapter{}
+
 // Adapter represents the HCI connection to the NINA fw using the hardware UART.
 type Adapter struct {
 	hciAdapter

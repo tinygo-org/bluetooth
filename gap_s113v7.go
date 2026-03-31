@@ -10,21 +10,30 @@ package bluetooth
 import "C"
 
 // Disconnect from the BLE device.
+//
+// Not yet implemented on the s113v7.
 func (d Device) Disconnect() error {
 	return errNotYetImplmented
 }
 
 // DiscoverServices starts a service discovery procedure.
+//
+// Not yet implemented on the s113v7.
 func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	return nil, errNotYetImplmented
 }
 
 // RequestConnectionParams requests a different connection latency and timeout
 // of the given device connection.
+//
+// Not yet implemented on the s113v7.
 func (d Device) RequestConnectionParams(params ConnectionParams) error {
 	return errNotYetImplmented
 }
 
+// Connected returns whether the device is currently connected.
+//
+// Not yet implemented on the s113v7.
 func (d Device) Connected() (bool, error) {
 	return false, errNotYetImplmented
 }
