@@ -14,21 +14,21 @@ import "C"
 
 // Connect starts a connection attempt to the given peripheral device address.
 //
-// Not yet implemented on the s113v7.
+// s113v7 is a peripheral-only device, so this is not supported.
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
-	return Device{}, errNotYetImplmented
+	return Device{}, errNotSupported
 }
 
 // Scan starts a BLE scan. It is stopped by a call to StopScan.
 //
-// Not yet implemented on the s113v7.
+// s113v7 is a peripheral-only device, so this is not supported.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
-	return errNotYetImplmented
+	return errNotSupported
 }
 
 // StopScan stops any in-progress scan.
 //
-// Not yet implemented on the s113v7.
+// s113v7 is a peripheral-only device, so this is not supported.
 func (a *Adapter) StopScan() error {
-	return errNotYetImplmented
+	return errNotSupported
 }
