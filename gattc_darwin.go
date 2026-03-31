@@ -11,8 +11,8 @@ import (
 var errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
 
 var (
-	_ GATTCService        = DeviceService{}
-	_ GATTCCharacteristic = DeviceCharacteristic{}
+	_ GATTCService        = (*DeviceService)(nil)
+	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
 )
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service

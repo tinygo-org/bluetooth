@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	_ GATTCService        = DeviceService{}
+	_ GATTCService        = (*DeviceService)(nil)
 	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
 )
 
