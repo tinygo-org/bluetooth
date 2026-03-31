@@ -8,7 +8,7 @@ import (
 	"github.com/tinygo-org/cbgo"
 )
 
-var _ BLEAdapter = &Adapter{}
+var _ BLEAdapter = (*Adapter)(nil)
 
 // Adapter is a connection to BLE devices.
 type Adapter struct {
