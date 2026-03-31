@@ -3,9 +3,14 @@ package bluetooth
 import (
 	"context"
 	"errors"
+	"slices"
 	"time"
 
 	"github.com/tinygo-org/cbgo"
+)
+
+var (
+	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
 )
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
@@ -29,7 +34,16 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
 func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
-	d.prph.DiscoverServices([]cbgo.UUID{})
+	cbuuids := make([]cbgo.UUID, len(uuids))
+	for i, u := range uuids {
+		cbuuid, err := cbgo.ParseUUID(u.String())
+		if err != nil {
+			return nil, err
+		}
+		cbuuids[i] = cbuuid
+	}
+
+	d.prph.DiscoverServices(cbuuids)
 
 	// clear cache of services
 	d.services = make(map[UUID]DeviceService)
@@ -38,33 +52,34 @@ func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) (
 	select {
 	case <-d.servicesChan:
 		svcs := []DeviceService{}
+
+		if len(uuids) > 0 {
+			// The caller wants to get a list of services in a specific
+			// order.
+			svcs = make([]DeviceService, len(uuids))
+		}
+
 		for _, dsvc := range d.prph.Services() {
 			dsvcuuid, _ := ParseUUID(dsvc.UUID().String())
-			// add if in our original list
+
+			// only include services that are included in the input filter
 			if len(uuids) > 0 {
-				found := false
-				for _, uuid := range uuids {
+				for j, uuid := range uuids {
 					if dsvcuuid.String() == uuid.String() {
-						// one of the services we're looking for.
-						found = true
-						break
+						// One of the services we're looking for.
+						svcs[j] = d.makeService(dsvcuuid, dsvc)
 					}
 				}
-				if !found {
-					continue
-				}
+			} else {
+				// The caller wants to get all services, in any order.
+				svcs = append(svcs, d.makeService(dsvcuuid, dsvc))
 			}
-
-			svc := DeviceService{
-				deviceService: &deviceService{
-					uuidWrapper: dsvcuuid,
-					device:      d,
-					service:     dsvc,
-				},
-			}
-			svcs = append(svcs, svc)
-			d.services[svc.uuidWrapper] = svc
 		}
+
+		if slices.Contains(svcs, (DeviceService{})) {
+			return nil, errors.New("bluetooth: did not find all requested services")
+		}
+
 		return svcs, nil
 	case <-ctx.Done():
 		return nil, ctx.Err()
@@ -74,6 +89,20 @@ func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) (
 // uuidWrapper is a type alias for UUID so we ensure no conflicts with
 // struct method of the same name.
 type uuidWrapper = UUID
+
+// Small helper to create a DeviceService object.
+func (d Device) makeService(dsvcuuid uuidWrapper, dsvc cbgo.Service) DeviceService {
+	svc := DeviceService{
+		deviceService: &deviceService{
+			uuidWrapper: dsvcuuid,
+			device:      d,
+			service:     dsvc,
+		},
+	}
+	// Cache the service in the device's services map, so that we can find it
+	d.services[svc.uuidWrapper] = svc
+	return svc
+}
 
 // DeviceService is a BLE service on a connected peripheral device.
 type DeviceService struct {
@@ -119,7 +148,14 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 // Passing a nil slice of UUIDs will return a complete list of
 // characteristics.
 func (s DeviceService) DiscoverCharacteristicsWithContext(ctx context.Context, uuids []UUID) ([]DeviceCharacteristic, error) {
-	cbuuids := []cbgo.UUID{}
+	cbuuids := make([]cbgo.UUID, len(uuids))
+	for i, u := range uuids {
+		cbuuid, err := cbgo.ParseUUID(u.String())
+		if err != nil {
+			return nil, err
+		}
+		cbuuids[i] = cbuuid
+	}
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
@@ -236,9 +272,13 @@ func (c DeviceCharacteristic) WriteWithContext(ctx context.Context, p []byte) (n
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
-// writes can be in flight at any given time. This call is also known as a
-// "write command" (as opposed to a write request).
-func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
+// writes can be in flight at any given time.
+// If the client is not ready to send write without response requests at this time (e.g. because the internal buffer is full), an error is returned.
+func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
+	if !c.service.device.prph.CanSendWriteWithoutResponse() {
+		return 0, errCannotSendWriteWithoutResponse
+	}
+
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
@@ -248,14 +288,17 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
 // notification with a new value every time the value of the characteristic
 // changes.
+// Users may call EnableNotifications with a nil callback to disable notifications.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+	// If callback is nil, disable notifications
 	if callback == nil {
-		return errors.New("must provide a callback for EnableNotifications")
+		c.service.device.prph.SetNotify(false, c.characteristic)
+		c.callback = nil // Clear notification callback
+	} else {
+		// Enable notifications and set notification callback
+		c.callback = callback
+		c.service.device.prph.SetNotify(true, c.characteristic)
 	}
-
-	c.callback = callback
-	c.service.device.prph.SetNotify(true, c.characteristic)
-
 	return nil
 }
 

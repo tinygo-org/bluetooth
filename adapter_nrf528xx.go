@@ -67,3 +67,9 @@ func makeMACAddress(addr C.ble_gap_addr_t) MACAddress {
 		isRandom: addr.bitfield_addr_type() != 0,
 	}
 }
+
+// Always let the BLE stack pick the right PHY.
+var phyUpdateResponse = C.ble_gap_phys_t{
+	tx_phys: C.BLE_GAP_PHY_AUTO,
+	rx_phys: C.BLE_GAP_PHY_AUTO,
+}

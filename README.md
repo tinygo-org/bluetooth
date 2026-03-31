@@ -12,6 +12,9 @@ By using [TinyGo](https://tinygo.org/), it can also be used running "bare metal"
 
 The Go Bluetooth package can be used to create both Bluetooth Low Energy Centrals as well as to create Bluetooth Low Energy Peripherals.
 
+> [!IMPORTANT]
+> You can help TinyGo with a financial contribution using OpenCollective. Please see https://opencollective.com/tinygo for more information. Thank you!
+
 ## Bluetooth Low Energy Central
 
 A typical Bluetooth Low Energy Central would be your laptop computer or mobile phone.

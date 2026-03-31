@@ -100,6 +100,14 @@ func TestNewUUID(t *testing.T) {
 	}
 }
 
+func TestUUIDBytesRoundTrip(t *testing.T) {
+	uuid := NewUUID([16]byte{0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf})
+	rt := NewUUID(uuid.BytesBigEndian())
+	if uuid != rt {
+		t.Errorf("%s does not match %s", uuid, rt)
+	}
+}
+
 func BenchmarkUUIDToString(b *testing.B) {
 	uuid, e := ParseUUID("00001234-0000-1000-8000-00805f9b34fb")
 	if e != nil {

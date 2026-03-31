@@ -55,7 +55,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	}
 
 	// Wait for received scan reports.
-	for a.scanning {
+	for {
 		// Wait for the next advertisement packet to arrive.
 		// TODO: use some sort of condition variable once the scheduler supports
 		// them.
@@ -69,6 +69,11 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		// Call the callback with the scan result.
 		callback(a, globalScanResult)
 
+		if !a.scanning {
+			// the callback has stopped the scanning, calling "sd_ble_gap_scan_start" would be for nothing
+			break
+		}
+
 		// Restart the advertisement. This is needed, because advertisements are
 		// automatically stopped when the first packet arrives.
 		errCode := C.sd_ble_gap_scan_start(nil, &scanReportBufferInfo)
@@ -76,7 +81,11 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 			return Error(errCode)
 		}
 	}
-	return nil
+
+	// calling "C.sd_ble_gap_scan_stop()" in "StopScan" would lead to an error in "C.sd_ble_gap_scan_start()", because
+	// "StopScan" is usually called in the "callback()" just before
+	errCode = C.sd_ble_gap_scan_stop()
+	return makeError(errCode)
 }
 
 // StopScan stops any in-progress scan. It can be called from within a Scan
@@ -87,8 +96,6 @@ func (a *Adapter) StopScan() error {
 		return errNotScanning
 	}
 	a.scanning = false
-
-	// TODO: stop immediately, not when the next scan result arrives.
 
 	return nil
 }
@@ -229,4 +236,8 @@ func (d Device) RequestConnectionParams(params ConnectionParams) error {
 	// Send them to peer device.
 	errCode := C.sd_ble_gap_conn_param_update(d.connectionHandle, &connParams)
 	return makeError(errCode)
+}
+
+func (d Device) Connected() (bool, error) {
+	return false, errNotYetImplmented
 }

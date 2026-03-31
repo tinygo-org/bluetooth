@@ -240,6 +240,32 @@ func (a *Adapter) AddService(s *Service) error {
 	return serviceProvider.StartAdvertisingWithParameters(params)
 }
 
+// RemoveService stops advertising the service and removes it.
+func (a *Adapter) RemoveService(s *Service) error {
+	gattServiceOp, err := genericattributeprofile.GattServiceProviderCreateAsync(syscallUUIDFromUUID(s.UUID))
+
+	if err != nil {
+		return err
+	}
+
+	if err = awaitAsyncOperation(gattServiceOp, genericattributeprofile.SignatureGattServiceProviderResult); err != nil {
+		return err
+	}
+
+	res, err := gattServiceOp.GetResults()
+	if err != nil {
+		return err
+	}
+
+	serviceProviderResult := (*genericattributeprofile.GattServiceProviderResult)(res)
+	serviceProvider, err := serviceProviderResult.GetServiceProvider()
+	if err != nil {
+		return err
+	}
+
+	return serviceProvider.StopAdvertising()
+}
+
 // Write replaces the characteristic value with a new value.
 func (c *Characteristic) Write(p []byte) (n int, err error) {
 	length := len(p)

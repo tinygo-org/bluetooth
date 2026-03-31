@@ -76,6 +76,8 @@ func (c *bluezChar) WriteValue(value []byte, options map[string]dbus.Variant) *d
 func (a *Adapter) AddService(s *Service) error {
 	// Create a unique DBus path for this service.
 	id := atomic.AddUint64(&serviceID, 1)
+	s.id = id
+
 	path := dbus.ObjectPath(fmt.Sprintf("/org/tinygo/bluetooth/service%d", id))
 
 	// All objects that will be part of the ObjectManager.
@@ -151,6 +153,12 @@ func (a *Adapter) AddService(s *Service) error {
 
 	// Register our service.
 	return a.adapter.Call("org.bluez.GattManager1.RegisterApplication", 0, path, map[string]dbus.Variant(nil)).Err
+}
+
+// RemoveService removes a previously added service.
+func (a *Adapter) RemoveService(s *Service) error {
+	path := dbus.ObjectPath(fmt.Sprintf("/org/tinygo/bluetooth/service%d", s.id))
+	return a.adapter.Call("org.bluez.GattManager1.UnregisterApplication", 0, path).Err
 }
 
 // Write replaces the characteristic value with a new value.

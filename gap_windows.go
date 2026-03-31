@@ -224,12 +224,19 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 		Address: adr,
 	}
 
+	winAdv, err := args.GetAdvertisement()
+	if err != nil {
+		return result
+	}
+	defer winAdv.Release()
+
 	var manufacturerData []ManufacturerDataElement
-	if winAdv, err := args.GetAdvertisement(); err == nil && winAdv != nil {
-		vector, _ := winAdv.GetManufacturerData()
-		size, _ := vector.GetSize()
-		for i := uint32(0); i < size; i++ {
-			element, _ := vector.GetAt(i)
+	mVector, _ := winAdv.GetManufacturerData()
+	if mVector != nil {
+		defer mVector.Release()
+		mSize, _ := mVector.GetSize()
+		for i := uint32(0); i < mSize; i++ {
+			element, _ := mVector.GetAt(i)
 			manData := (*advertisement.BluetoothLEManufacturerData)(element)
 			companyID, _ := manData.GetCompanyId()
 			buffer, _ := manData.GetData()
@@ -237,12 +244,13 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 				CompanyID: companyID,
 				Data:      bufferToSlice(buffer),
 			})
+			buffer.Release()
+			manData.Release()
 		}
 	}
 
 	// Note: the IsRandom bit is never set.
-	advertisement, _ := args.GetAdvertisement()
-	localName, _ := advertisement.GetLocalName()
+	localName, _ := winAdv.GetLocalName()
 	result.AdvertisementPayload = &advertisementFields{
 		AdvertisementFields{
 			LocalName:        localName,
@@ -274,6 +282,8 @@ func (a *Adapter) StopScan() error {
 	return a.watcher.Stop()
 }
 
+var _ GAPDevice = Device{}
+
 // Device is a connection to a remote peripheral.
 type Device struct {
 	ctx    context.Context
@@ -281,8 +291,10 @@ type Device struct {
 
 	Address Address // the MAC address of the device
 
-	device  *bluetooth.BluetoothLEDevice
-	session *genericattributeprofile.GattSession
+	device                        *bluetooth.BluetoothLEDevice
+	session                       *genericattributeprofile.GattSession
+	connectionStatusListenerToken foundation.EventRegistrationToken
+	connectionStatusListener      *foundation.TypedEventHandler
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -359,8 +371,36 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		session: newSession,
 	}
 
-	if a.connectHandler != nil {
-		a.connectHandler(device, true)
+	// https://learn.microsoft.com/es-es/uwp/api/windows.devices.bluetooth.bluetoothledevice.connectionstatuschanged?view=winrt-26100
+	// TypedEventHandler<BluetoothLEDevice,object>
+	connectionStatusChangedGUID := winrt.ParameterizedInstanceGUID(
+		foundation.GUIDTypedEventHandler,
+		bluetooth.SignatureBluetoothLEDevice,
+		"cinterface(IInspectable)", // object
+	)
+
+	handler := foundation.NewTypedEventHandler(ole.NewGUID(connectionStatusChangedGUID), func(instance *foundation.TypedEventHandler, sender, arg unsafe.Pointer) {
+		status, err := bleDevice.GetConnectionStatus()
+		if err != nil {
+			return
+		}
+		if status == bluetooth.BluetoothConnectionStatusDisconnected {
+			device.Disconnect()
+		}
+
+		if a.connectHandler != nil {
+			a.connectHandler(device, status == bluetooth.BluetoothConnectionStatusConnected)
+		}
+	})
+
+	token, err := device.device.AddConnectionStatusChanged(handler)
+
+	device.connectionStatusListenerToken = token
+	device.connectionStatusListener = handler
+
+	if err != nil {
+		_ = handler.Release()
+		return device, err
 	}
 
 	return device, nil
@@ -371,21 +411,35 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 func (d Device) Disconnect() error {
 	defer d.device.Release()
 	defer d.session.Release()
+	if d.connectionStatusListener != nil {
+		defer d.connectionStatusListener.Release()
+	}
 
 	d.cancel()
 
 	if err := d.session.Close(); err != nil {
 		return err
 	}
+
+	_ = d.device.RemoveConnectionStatusChanged(d.connectionStatusListenerToken)
+
 	if err := d.device.Close(); err != nil {
 		return err
 	}
 
-	if DefaultAdapter.connectHandler != nil {
-		DefaultAdapter.connectHandler(d, false)
-	}
-
 	return nil
+}
+
+// Connected returns whether the device is currently connected.
+func (d Device) Connected() (bool, error) {
+	if d.device == nil {
+		return false, nil
+	}
+	status, err := d.device.GetConnectionStatus()
+	if err != nil {
+		return false, err
+	}
+	return status == bluetooth.BluetoothConnectionStatusConnected, nil
 }
 
 // RequestConnectionParams requests a different connection latency and timeout

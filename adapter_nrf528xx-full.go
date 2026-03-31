@@ -111,8 +111,8 @@ func handleEvent() {
 		case C.BLE_GAP_EVT_DATA_LENGTH_UPDATE:
 			// ignore confirmation of data length successfully updated
 		case C.BLE_GAP_EVT_PHY_UPDATE_REQUEST:
-			phyUpdateRequest := gapEvent.params.unionfield_phy_update_request()
-			C.sd_ble_gap_phy_update(gapEvent.conn_handle, &phyUpdateRequest.peer_preferred_phys)
+			// Tell the Bluetooth stack to update the PHY as it sees fit.
+			C.sd_ble_gap_phy_update(gapEvent.conn_handle, &phyUpdateResponse)
 		case C.BLE_GAP_EVT_PHY_UPDATE:
 			// ignore confirmation of phy successfully updated
 		case C.BLE_GAP_EVT_TIMEOUT:

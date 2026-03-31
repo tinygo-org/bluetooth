@@ -76,7 +76,6 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 			rp := rawAdvertisementPayload{len: a.hci.advData.eirLength}
 			copy(rp.data[:], a.hci.advData.eirData[:a.hci.advData.eirLength])
 			if rp.LocalName() != "" {
-				println("LocalName:", rp.LocalName())
 				adf.LocalName = rp.LocalName()
 			}
 
@@ -268,6 +267,8 @@ type notificationRegistration struct {
 	callback func([]byte)
 }
 
+var _ GAPDevice = Device{}
+
 // Device is a connection to a remote peripheral.
 type Device struct {
 	Address Address
@@ -293,6 +294,10 @@ func (d Device) Disconnect() error {
 
 	d.adapter.removeConnection(d)
 	return nil
+}
+
+func (d Device) Connected() (bool, error) {
+	return false, errNotYetImplmented
 }
 
 // RequestConnectionParams requests a different connection latency and timeout
@@ -420,7 +425,7 @@ func (a *Advertisement) Start() error {
 			binary.LittleEndian.PutUint16(advertisingData[5:], uuid.Get16Bit())
 		case uuid.Is32Bit():
 			sz = 6
-			data := uuid.Bytes()
+			data := uuid.bytes()
 			slices.Reverse(data[:])
 			copy(advertisingData[5:], data[:])
 		}

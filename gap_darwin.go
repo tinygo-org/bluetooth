@@ -100,6 +100,8 @@ func (a *Adapter) StopScan() error {
 	return nil
 }
 
+var _ GAPDevice = Device{}
+
 // Device is a connection to a remote peripheral.
 type Device struct {
 	Address Address
@@ -206,6 +208,11 @@ func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, param
 func (d Device) Disconnect() error {
 	d.cm.CancelConnect(d.prph)
 	return nil
+}
+
+// Connected returns whether the device is currently connected.
+func (d Device) Connected() (bool, error) {
+	return d.prph.State() == cbgo.PeripheralStateConnected, nil
 }
 
 // RequestConnectionParams requests a different connection latency and timeout
