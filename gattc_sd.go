@@ -20,6 +20,11 @@ const (
 )
 
 var (
+	_ GATTCService        = DeviceService{}
+	_ GATTCCharacteristic = DeviceCharacteristic{}
+)
+
+var (
 	errAlreadyDiscovering = errors.New("bluetooth: already discovering a service or characteristic")
 	errNotFound           = errors.New("bluetooth: not found")
 	errNoNotify           = errors.New("bluetooth: no notify permission")
@@ -310,6 +315,13 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	}
 
 	return characteristics, nil
+}
+
+// Write replaces the characteristic value with a new value.
+//
+// Not yet implemented on SoftDevice.
+func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
+	return 0, errNotFound
 }
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The

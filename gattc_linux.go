@@ -12,6 +12,11 @@ import (
 )
 
 var (
+	_ GATTCService        = DeviceService{}
+	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
+)
+
+var (
 	errDupNotif = errors.New("unclosed notifications")
 )
 

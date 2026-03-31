@@ -17,6 +17,11 @@ var (
 	errCharacteristicNotFound    = errors.New("bluetooth: characteristic not found")
 )
 
+var (
+	_ GATTCService        = DeviceService{}
+	_ GATTCCharacteristic = DeviceCharacteristic{}
+)
+
 const (
 	maxDefaultServicesToDiscover        = 8
 	maxDefaultCharacteristicsToDiscover = 16
@@ -234,6 +239,13 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	}
 
 	return characteristics, nil
+}
+
+// Write replaces the characteristic value with a new value.
+//
+// Not yet implemented on HCI.
+func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
+	return 0, errNotYetImplemented
 }
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The
