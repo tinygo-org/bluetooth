@@ -136,6 +136,7 @@ type GAPDevice interface {
 	RequestConnectionParams(params ConnectionParams) error
 	Connected() (bool, error)
 	Disconnect() error
+	OpenL2CAPChannel(psm L2CAPPSM) (*L2CAPConn, error)
 }
 
 // ScanResult contains information from when an advertisement packet was
