@@ -1,4 +1,4 @@
-//go:build !baremetal || (softdevice && s132v6) || (softdevice && s140v6) || (softdevice && s140v7) || hci || ninafw || cyw43439
+//go:build !baremetal || !(s110v8 || s113v7)
 
 package bluetooth
 
