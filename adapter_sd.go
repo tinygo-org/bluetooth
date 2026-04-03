@@ -41,6 +41,8 @@ func init() {
 	secModeOpen.set_bitfield_lv(1)
 }
 
+var _ BLEAdapter = (*Adapter)(nil)
+
 // Adapter is a dummy adapter: it represents the connection to the (only)
 // SoftDevice on the chip.
 type Adapter struct {

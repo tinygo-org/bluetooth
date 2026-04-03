@@ -14,6 +14,8 @@ import (
 
 const defaultAdapter = "hci0"
 
+var _ BLEAdapter = (*Adapter)(nil)
+
 type Adapter struct {
 	id                   string
 	scanCancelChan       chan struct{}
