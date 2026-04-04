@@ -98,8 +98,9 @@ type deviceInternal struct {
 	cm   cbgo.CentralManager
 	prph cbgo.Peripheral
 
-	servicesChan chan error
-	charsChan    chan error
+	servicesChan           chan error
+	charsChan              chan error
+	writeWithoutResponseCh chan struct{}
 
 	services map[UUID]DeviceService
 }
@@ -143,10 +144,11 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			d := Device{
 				Address: address,
 				deviceInternal: &deviceInternal{
-					cm:           a.cm,
-					prph:         p,
-					servicesChan: make(chan error),
-					charsChan:    make(chan error),
+					cm:                     a.cm,
+					prph:                   p,
+					servicesChan:           make(chan error),
+					charsChan:              make(chan error),
+					writeWithoutResponseCh: make(chan struct{}, 1),
 				},
 			}
 
@@ -237,6 +239,15 @@ func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripher
 
 		}
 
+	}
+}
+
+// IsReadyToSendWriteWithoutResponse is called when the peripheral is again
+// ready to send write-without-response requests after the internal buffer was full.
+func (pd *peripheralDelegate) IsReadyToSendWriteWithoutResponse(prph cbgo.Peripheral) {
+	select {
+	case pd.d.writeWithoutResponseCh <- struct{}{}:
+	default:
 	}
 }
 

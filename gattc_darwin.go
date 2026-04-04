@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
-	errTimeoutEnableNotifications     = errors.New("timeout on EnableNotifications")
+	errWriteWithoutResponseTimeout = errors.New("bluetooth: write without response timed out waiting for buffer space")
+	errTimeoutEnableNotifications  = errors.New("timeout on EnableNotifications")
 )
 
 var (
@@ -243,10 +243,23 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time.
-// If the client is not ready to send write without response requests at this time (e.g. because the internal buffer is full), an error is returned.
+// If the peripheral's buffer is full, this method waits for the
+// peripheralIsReady(toSendWriteWithoutResponse:) delegate callback before
+// retrying, with a 10-second timeout.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 	if !c.service.device.prph.CanSendWriteWithoutResponse() {
-		return 0, errCannotSendWriteWithoutResponse
+		// Drain any stale readiness signal.
+		select {
+		case <-c.service.device.writeWithoutResponseCh:
+		default:
+		}
+
+		// Wait for the delegate callback signalling the peripheral is ready.
+		select {
+		case <-c.service.device.writeWithoutResponseCh:
+		case <-time.NewTimer(10 * time.Second).C:
+			return 0, errWriteWithoutResponseTimeout
+		}
 	}
 
 	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
