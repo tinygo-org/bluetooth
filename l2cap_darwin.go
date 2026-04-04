@@ -25,8 +25,7 @@ type L2CAPConn struct {
 	closed  bool
 }
 
-// Compile-time check that L2CAPConn implements io.ReadWriteCloser.
-var _ io.ReadWriteCloser = (*L2CAPConn)(nil)
+var _ L2CAPChannel = (*L2CAPConn)(nil)
 
 // OpenL2CAPChannel opens an L2CAP Connection-Oriented Channel to the
 // connected peripheral. The PSM (Protocol/Service Multiplexer) identifies the
