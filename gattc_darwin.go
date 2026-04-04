@@ -243,26 +243,21 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time.
-// If the peripheral's buffer is full, this method waits for the
-// peripheralIsReady(toSendWriteWithoutResponse:) delegate callback before
-// retrying, with a 10-second timeout.
+// If the peripheral's buffer is full, this method polls
+// CanSendWriteWithoutResponse every 15ms (one BLE connection interval) until
+// ready, with a 10-second timeout.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
-	if !c.service.device.prph.CanSendWriteWithoutResponse() {
-		// Drain any stale readiness signal.
-		select {
-		case <-c.service.device.writeWithoutResponseCh:
-		default:
-		}
+	dev := c.service.device
 
-		// Wait for the delegate callback signalling the peripheral is ready.
-		select {
-		case <-c.service.device.writeWithoutResponseCh:
-		case <-time.NewTimer(10 * time.Second).C:
+	deadline := time.Now().Add(10 * time.Second)
+	for !dev.prph.CanSendWriteWithoutResponse() {
+		if time.Now().After(deadline) {
 			return 0, errWriteWithoutResponseTimeout
 		}
+		time.Sleep(15 * time.Millisecond)
 	}
 
-	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
+	dev.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
 }
