@@ -8,8 +8,11 @@ import (
 	"github.com/tinygo-org/cbgo"
 )
 
+var errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+
 var (
-	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+	_ GATTCService        = (*DeviceService)(nil)
+	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
 )
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
