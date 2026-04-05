@@ -10,6 +10,7 @@ import (
 
 var (
 	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+	errTimeoutEnableNotifications     = errors.New("timeout on EnableNotifications")
 )
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
@@ -267,8 +268,8 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	var err error
 	select {
 	case err = <-c.notifyChan:
-	case <-time.NewTimer(10 * time.Second).C:
-		err = errors.New("timeout on EnableNotifications")
+	case <-time.After(10 * time.Second):
+		err = errTimeoutEnableNotifications
 	}
 
 	c.notifyChan = nil
