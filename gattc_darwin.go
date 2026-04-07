@@ -287,6 +287,13 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// WriteWithoutResponseWithContext replaces the characteristic value with a new value.
+// On Darwin, the context parameter is accepted for interface compatibility but
+// not used for cancellation since WriteWithoutResponse is non-blocking.
+func (c DeviceCharacteristic) WriteWithoutResponseWithContext(ctx context.Context, p []byte) (int, error) {
+	return c.WriteWithoutResponse(p)
+}
+
 // EnableNotifications enables notifications in the Client Characteristic
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
 // notification with a new value every time the value of the characteristic

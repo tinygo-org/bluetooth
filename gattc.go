@@ -2,6 +2,8 @@
 
 package bluetooth
 
+import "context"
+
 // GATTCService is the common interface that all platform-specific
 // DeviceService types must implement.
 type GATTCService interface {
@@ -13,6 +15,9 @@ type GATTCService interface {
 	// function. Either a list of all requested services is returned, or if
 	// some services could not be discovered an error is returned.
 	DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error)
+
+	// DiscoverCharacteristicsWithContext is the same as DiscoverCharacteristics but allows passing a context for cancellation and timeouts.
+	DiscoverCharacteristicsWithContext(ctx context.Context, uuids []UUID) ([]DeviceCharacteristic, error)
 }
 
 // GATTCCharacteristic is the common interface that all platform-specific
@@ -24,12 +29,21 @@ type GATTCCharacteristic interface {
 	// Read reads the current characteristic value.
 	Read(data []byte) (int, error)
 
+	// ReadWithContext is the same as Read but allows passing a context for cancellation and timeouts.
+	ReadWithContext(ctx context.Context, data []byte) (int, error)
+
 	// Write replaces the characteristic value with a new value.
 	Write(p []byte) (n int, err error)
+
+	// WriteWithContext is the same as Write but allows passing a context for cancellation and timeouts.
+	WriteWithContext(ctx context.Context, p []byte) (n int, err error)
 
 	// WriteWithoutResponse replaces the characteristic value with a new
 	// value. The call will return before all data has been written.
 	WriteWithoutResponse(p []byte) (n int, err error)
+
+	// WriteWithoutResponseWithContext is the same as WriteWithoutResponse but allows passing a context for cancellation and timeouts.
+	WriteWithoutResponseWithContext(ctx context.Context, p []byte) (n int, err error)
 
 	// EnableNotifications enables notifications for this characteristic,
 	// calling the provided callback with the new value when the

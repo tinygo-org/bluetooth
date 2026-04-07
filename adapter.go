@@ -1,8 +1,11 @@
 package bluetooth
 
+import "context"
+
 // BLEAdapter is the shared interface that all platform-specific Adapter types must implement.
 type BLEAdapter interface {
 	Connect(address Address, params ConnectionParams) (Device, error)
+	ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error)
 	Enable() error
 	Scan(callback func(*Adapter, ScanResult)) (err error)
 	SetConnectHandler(c func(device Device, connected bool))
