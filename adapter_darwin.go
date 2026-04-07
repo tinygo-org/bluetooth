@@ -135,7 +135,7 @@ func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager
 func (cmd *centralManagerDelegate) DidFailToConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral, err error) {
 	id := prph.Identifier().String()
 
-	// Send the peripheral through so ConnectWithContext can check its state
+	// Send the peripheral through so Connect can check its state
 	// and return the appropriate error.
 	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
 		ch.(chan cbgo.Peripheral) <- prph
