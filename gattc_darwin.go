@@ -13,6 +13,11 @@ var (
 	errTimeoutEnableNotifications     = errors.New("timeout on EnableNotifications")
 )
 
+var (
+	_ GATTCService        = (*DeviceService)(nil)
+	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
+)
+
 // DiscoverServices starts a service discovery procedure. Pass a list of service
 // UUIDs you are interested in to this function. Either a slice of all services
 // is returned (of the same length as the requested UUIDs and in the same

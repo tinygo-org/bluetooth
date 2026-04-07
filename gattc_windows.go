@@ -16,6 +16,11 @@ import (
 )
 
 var (
+	_ GATTCService        = (*DeviceService)(nil)
+	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
+)
+
+var (
 	errNoWrite                   = errors.New("bluetooth: write not supported")
 	errNoWriteWithoutResponse    = errors.New("bluetooth: write without response not supported")
 	errWriteFailed               = errors.New("bluetooth: write failed")
