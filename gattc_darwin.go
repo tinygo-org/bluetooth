@@ -8,7 +8,10 @@ import (
 	"github.com/tinygo-org/cbgo"
 )
 
-var errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+var (
+	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+	errTimeoutEnableNotifications     = errors.New("timeout on EnableNotifications")
+)
 
 var (
 	_ GATTCService        = (*DeviceService)(nil)
@@ -208,6 +211,7 @@ type deviceCharacteristic struct {
 	callback       func(buf []byte)
 	readChan       chan error
 	writeChan      chan error
+	notifyChan     chan error
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -256,15 +260,35 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 // changes.
 // Users may call EnableNotifications with a nil callback to disable notifications.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
-	// If callback is nil, disable notifications
+	c.notifyChan = make(chan error)
+
 	if callback == nil {
 		c.service.device.prph.SetNotify(false, c.characteristic)
-		c.callback = nil // Clear notification callback
 	} else {
-		// Enable notifications and set notification callback
 		c.callback = callback
 		c.service.device.prph.SetNotify(true, c.characteristic)
 	}
+
+	// Wait for CoreBluetooth to confirm the notification state change.
+	var err error
+	select {
+	case err = <-c.notifyChan:
+	case <-time.After(10 * time.Second):
+		err = errTimeoutEnableNotifications
+	}
+
+	c.notifyChan = nil
+
+	if err != nil {
+		c.callback = nil
+		return err
+	}
+
+	// Clear callback after confirmed disable.
+	if callback == nil {
+		c.callback = nil
+	}
+
 	return nil
 }
 
