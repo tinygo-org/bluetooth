@@ -253,22 +253,11 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 		vector, _ = winAdv.GetServiceUuids()
 		size, _ = vector.GetSize()
 		for i := uint32(0); i < size; i++ {
-			// Maybe we can use
-			// element, _ := vector.GetAt(i)
-			// serviceGUID := (*syscall.GUID)(element)
-			// ?
-			var outGuid syscall.GUID
-			hr, _, _ := syscall.SyscallN(
-				vector.VTable().GetAt,
-				uintptr(unsafe.Pointer(vector)),
-				uintptr(i),
-				uintptr(unsafe.Pointer(&outGuid)),
-			)
-			if hr != 0 {
-				println("failed to get service UUID")
-				continue
-			}
-			uuid := GUIDToUUID(outGuid)
+			element, _ := vector.GetAt(i)
+			// element is not a pointer, but a GUID struct. But we cannot convert
+			// unsafe.Pointer to a non-pointer type, so instead we are doing this:
+			serviceGUID := (*syscall.GUID)(unsafe.Pointer(&element))
+			uuid := GUIDToUUID(*serviceGUID)
 			serviceUUIDs = append(serviceUUIDs, uuid)
 		}
 	}
