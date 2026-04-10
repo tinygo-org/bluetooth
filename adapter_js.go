@@ -1,0 +1,44 @@
+package bluetooth
+
+import (
+	"errors"
+	"syscall/js"
+)
+
+var _ BLEAdapter = (*Adapter)(nil)
+
+// Adapter represents the WebBluetooth adapter accessed via navigator.bluetooth.
+type Adapter struct {
+	bluetooth      js.Value
+	connectHandler func(device Device, connected bool)
+
+	// RequestedServices is the list of service UUIDs that will be passed as
+	// optionalServices to navigator.bluetooth.requestDevice(). WebBluetooth
+	// requires services to be declared upfront — you cannot discover or
+	// access services that are not listed here or matched by a filter.
+	//
+	// Set this before calling Scan().
+	RequestedServices []UUID
+}
+
+// DefaultAdapter is the default adapter using the navigator.bluetooth API.
+//
+// Make sure to call Enable() before using it to initialize the adapter.
+var DefaultAdapter = &Adapter{
+	connectHandler: func(device Device, connected bool) {},
+}
+
+// Enable configures the BLE stack. It must be called before any
+// Bluetooth-related calls (unless otherwise indicated).
+func (a *Adapter) Enable() error {
+	navigator := js.Global().Get("navigator")
+	if navigator.IsUndefined() {
+		return errors.New("bluetooth: navigator is not available")
+	}
+	bt := navigator.Get("bluetooth")
+	if bt.IsUndefined() {
+		return errors.New("bluetooth: WebBluetooth is not supported in this browser")
+	}
+	a.bluetooth = bt
+	return nil
+}
