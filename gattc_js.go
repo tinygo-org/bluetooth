@@ -1,0 +1,282 @@
+package bluetooth
+
+import (
+	"errors"
+	"syscall/js"
+)
+
+var (
+	_ GATTCService        = (*DeviceService)(nil)
+	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
+)
+
+// uuidWrapper is a type alias for UUID so we ensure no conflicts with
+// struct method of the same name.
+type uuidWrapper = UUID
+
+// DiscoverServices starts a service discovery procedure. Pass a list of service
+// UUIDs you are interested in to this function. Either a slice of all services
+// is returned (of the same length as the requested UUIDs and in the same
+// order), or if some services could not be discovered an error is returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of
+// services.
+//
+// Note: WebBluetooth's getPrimaryServices() without arguments requires that
+// optionalServices were specified during requestDevice. When using
+// acceptAllDevices, no services are known upfront. Prefer passing specific
+// UUIDs.
+func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
+	if d.server.IsUndefined() {
+		return nil, errors.New("bluetooth: not connected")
+	}
+
+	if len(uuids) == 0 {
+		// Get all primary services.
+		result, err := await(d.server.Call("getPrimaryServices"))
+		if err != nil {
+			return nil, err
+		}
+
+		length := result.Length()
+		services := make([]DeviceService, length)
+		for i := 0; i < length; i++ {
+			jsSvc := result.Index(i)
+			svcUUID, _ := ParseUUID(jsSvc.Get("uuid").String())
+			services[i] = DeviceService{
+				deviceService: &deviceService{
+					uuidWrapper: svcUUID,
+					device:      d,
+					service:     jsSvc,
+				},
+			}
+		}
+		return services, nil
+	}
+
+	// Get services by specific UUIDs, preserving order.
+	services := make([]DeviceService, len(uuids))
+	for i, uuid := range uuids {
+		result, err := await(d.server.Call("getPrimaryService", uuid.String()))
+		if err != nil {
+			return nil, err
+		}
+		services[i] = DeviceService{
+			deviceService: &deviceService{
+				uuidWrapper: uuid,
+				device:      d,
+				service:     result,
+			},
+		}
+	}
+	return services, nil
+}
+
+// DeviceService is a BLE service on a connected peripheral device.
+// It wraps a BluetoothRemoteGATTService JS object.
+type DeviceService struct {
+	*deviceService
+}
+
+type deviceService struct {
+	uuidWrapper
+
+	device  Device
+	service js.Value // BluetoothRemoteGATTService
+}
+
+// UUID returns the UUID for this DeviceService.
+func (s DeviceService) UUID() UUID {
+	return s.uuidWrapper
+}
+
+// DiscoverCharacteristics discovers characteristics in this service. Pass a
+// list of characteristic UUIDs you are interested in to this function. Either a
+// list of all requested characteristics is returned, or if some could not be
+// discovered an error is returned. If there is no error, the characteristics
+// slice has the same length as the UUID slice with characteristics in the same
+// order in the slice as in the requested UUID list.
+//
+// Passing a nil slice of UUIDs will return a complete list of
+// characteristics.
+func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
+	if len(uuids) == 0 {
+		result, err := await(s.service.Call("getCharacteristics"))
+		if err != nil {
+			return nil, err
+		}
+
+		length := result.Length()
+		chars := make([]DeviceCharacteristic, length)
+		for i := 0; i < length; i++ {
+			jsChar := result.Index(i)
+			cuuid, _ := ParseUUID(jsChar.Get("uuid").String())
+			chars[i] = DeviceCharacteristic{
+				deviceCharacteristic: &deviceCharacteristic{
+					uuidWrapper:    cuuid,
+					service:        s,
+					characteristic: jsChar,
+				},
+			}
+		}
+		return chars, nil
+	}
+
+	chars := make([]DeviceCharacteristic, len(uuids))
+	for i, uuid := range uuids {
+		result, err := await(s.service.Call("getCharacteristic", uuid.String()))
+		if err != nil {
+			return nil, err
+		}
+		chars[i] = DeviceCharacteristic{
+			deviceCharacteristic: &deviceCharacteristic{
+				uuidWrapper:    uuid,
+				service:        s,
+				characteristic: result,
+			},
+		}
+	}
+	return chars, nil
+}
+
+// DeviceCharacteristic is a BLE characteristic on a connected peripheral
+// device. It wraps a BluetoothRemoteGATTCharacteristic JS object.
+type DeviceCharacteristic struct {
+	*deviceCharacteristic
+}
+
+type deviceCharacteristic struct {
+	uuidWrapper
+
+	service        DeviceService
+	characteristic js.Value // BluetoothRemoteGATTCharacteristic
+	callback       func(buf []byte)
+	listener       js.Func
+	listening      bool
+}
+
+// UUID returns the UUID for this DeviceCharacteristic.
+func (c DeviceCharacteristic) UUID() UUID {
+	return c.uuidWrapper
+}
+
+// Read reads the current characteristic value.
+func (c *deviceCharacteristic) Read(data []byte) (int, error) {
+	result, err := await(c.characteristic.Call("readValue"))
+	if err != nil {
+		return 0, err
+	}
+
+	// result is a DataView; wrap in Uint8Array to use CopyBytesToGo.
+	buf := js.Global().Get("Uint8Array").New(result.Get("buffer"))
+	n := buf.Get("length").Int()
+	if n > len(data) {
+		n = len(data)
+	}
+	js.CopyBytesToGo(data[:n], buf)
+	return n, nil
+}
+
+// Write replaces the characteristic value with a new value. The
+// call will return after all data has been written.
+func (c DeviceCharacteristic) Write(p []byte) (int, error) {
+	jsArray := js.Global().Get("Uint8Array").New(len(p))
+	js.CopyBytesToJS(jsArray, p)
+	_, err := await(c.characteristic.Call("writeValueWithResponse", jsArray.Get("buffer")))
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// WriteWithoutResponse replaces the characteristic value with a new value. The
+// call will return before all data has been written.
+func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
+	jsArray := js.Global().Get("Uint8Array").New(len(p))
+	js.CopyBytesToJS(jsArray, p)
+	_, err := await(c.characteristic.Call("writeValueWithoutResponse", jsArray.Get("buffer")))
+	if err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// EnableNotifications enables notifications in the Client Characteristic
+// Configuration Descriptor (CCCD). This means that most peripherals will send a
+// notification with a new value every time the value of the characteristic
+// changes.
+//
+// Users may call EnableNotifications with a nil callback to disable notifications.
+func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
+	if callback == nil {
+		// Stop notifications.
+		if c.listening {
+			c.characteristic.Call("removeEventListener", "characteristicvaluechanged", c.listener)
+			c.listener.Release()
+			c.listener = js.Func{}
+			c.listening = false
+		}
+		_, err := await(c.characteristic.Call("stopNotifications"))
+		c.callback = nil
+		return err
+	}
+
+	c.callback = callback
+	c.listener = js.FuncOf(func(this js.Value, args []js.Value) any {
+		value := args[0].Get("target").Get("value") // DataView
+		buf := js.Global().Get("Uint8Array").New(value.Get("buffer"))
+		data := make([]byte, buf.Get("length").Int())
+		js.CopyBytesToGo(data, buf)
+		c.callback(data)
+		return nil
+	})
+
+	c.characteristic.Call("addEventListener", "characteristicvaluechanged", c.listener)
+	_, err := await(c.characteristic.Call("startNotifications"))
+	if err != nil {
+		c.characteristic.Call("removeEventListener", "characteristicvaluechanged", c.listener)
+		c.listener.Release()
+		c.listener = js.Func{}
+		c.callback = nil
+		return err
+	}
+	return nil
+}
+
+// GetMTU returns the MTU for the characteristic.
+//
+// WebBluetooth does not expose the negotiated MTU. This returns a default
+// value of 512 (the maximum ATT MTU) so callers can size buffers accordingly.
+// The browser itself handles fragmentation transparently.
+func (c DeviceCharacteristic) GetMTU() (uint16, error) {
+	return 512, nil
+}
+
+// await blocks on a JavaScript Promise and returns (result, error).
+func await(promise js.Value) (js.Value, error) {
+	ch := make(chan js.Value, 1)
+	errCh := make(chan error, 1)
+
+	thenFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
+		ch <- args[0]
+		return nil
+	})
+
+	catchFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
+		errCh <- errors.New(args[0].Call("toString").String())
+		return nil
+	})
+
+	promise.Call("then", thenFunc).Call("catch", catchFunc)
+
+	select {
+	case val := <-ch:
+		thenFunc.Release()
+		catchFunc.Release()
+		return val, nil
+	case err := <-errCh:
+		thenFunc.Release()
+		catchFunc.Release()
+		return js.Undefined(), err
+	}
+}

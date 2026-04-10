@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebBluetooth – TinyGo Device Information</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+        button { font-size: 1.1rem; padding: 0.5rem 1.5rem; cursor: pointer; }
+        #log { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 1rem; margin-top: 1rem; min-height: 120px; }
+        #log p { margin: 0.25rem 0; font-family: monospace; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <h1>WebBluetooth – TinyGo Device Information</h1>
+    <p>Click the button below to connect to a BLE device and read its Device Information service (manufacturer, model, firmware).</p>
+    <button id="connectBtn" disabled>Loading WASM…</button>
+    <div id="log"></div>
+
+    <script src="wasm_exec.js"></script>
+    <script>
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("wasm.wasm"), go.importObject).then((result) => {
+            go.run(result.instance);
+            const btn = document.getElementById("connectBtn");
+            btn.textContent = "Connect";
+            btn.disabled = false;
+            btn.addEventListener("click", () => {
+                if (typeof btConnect === "function") {
+                    btConnect();
+                } else {
+                    alert("WASM not ready yet");
+                }
+            });
+        });
+    </script>
+</body>
+</html>
