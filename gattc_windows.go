@@ -35,6 +35,7 @@ var (
 type NotificationMode = genericattributeprofile.GattCharacteristicProperties
 
 const (
+	NotificationModeDisable  NotificationMode = genericattributeprofile.GattCharacteristicPropertiesNone
 	NotificationModeNotify   NotificationMode = genericattributeprofile.GattCharacteristicPropertiesNotify
 	NotificationModeIndicate NotificationMode = genericattributeprofile.GattCharacteristicPropertiesIndicate
 )
@@ -303,6 +304,9 @@ type deviceCharacteristic struct {
 	properties     genericattributeprofile.GattCharacteristicProperties
 
 	service DeviceService
+
+	valueChangedEventHandler      *foundation.TypedEventHandler
+	valueChangedEventHandlerToken foundation.EventRegistrationToken
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -430,9 +434,13 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 
 // EnableNotifications enables notifications or indicate in the Client Characteristic
 // Configuration Descriptor (CCCD). And it favors Notify over Indicate.
+//
+// Users may call EnableNotifications with a nil callback to disable notifications.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	var err error
-	if c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify != 0 {
+	if callback == nil {
+		err = c.EnableNotificationsWithMode(NotificationModeDisable, nil)
+	} else if c.properties&genericattributeprofile.GattCharacteristicPropertiesNotify != 0 {
 		err = c.EnableNotificationsWithMode(NotificationModeNotify, callback)
 	} else if c.properties&genericattributeprofile.GattCharacteristicPropertiesIndicate != 0 {
 		err = c.EnableNotificationsWithMode(NotificationModeIndicate, callback)
@@ -449,10 +457,13 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 // EnableNotificationsWithMode enables notifications in the Client Characteristic
 // Configuration Descriptor (CCCD). This means that most peripherals will send a
 // notification with a new value every time the value of the characteristic
-// changes. And you can select the notify/indicate mode as you need.
+// changes. And you can select the disable/notify/indicate mode as you need.
 func (c DeviceCharacteristic) EnableNotificationsWithMode(mode NotificationMode, callback func(buf []byte)) error {
 	configValue := genericattributeprofile.GattClientCharacteristicConfigurationDescriptorValueNone
-	if mode == NotificationModeIndicate {
+	if mode == NotificationModeDisable {
+		// set to none mode, which disables notifications.
+		configValue = genericattributeprofile.GattClientCharacteristicConfigurationDescriptorValueNone
+	} else if mode == NotificationModeIndicate {
 		if c.properties&genericattributeprofile.GattCharacteristicPropertiesIndicate == 0 {
 			return errNoIndicate
 		}
@@ -468,38 +479,48 @@ func (c DeviceCharacteristic) EnableNotificationsWithMode(mode NotificationMode,
 		return errInvalidNotificationMode
 	}
 
-	// listen value changed event
-	// TypedEventHandler<GattCharacteristic,GattValueChangedEventArgs>
-	guid := winrt.ParameterizedInstanceGUID(foundation.GUIDTypedEventHandler, genericattributeprofile.SignatureGattCharacteristic, genericattributeprofile.SignatureGattValueChangedEventArgs)
-	valueChangedEventHandler := foundation.NewTypedEventHandler(ole.NewGUID(guid), func(instance *foundation.TypedEventHandler, sender, args unsafe.Pointer) {
-		valueChangedEvent := (*genericattributeprofile.GattValueChangedEventArgs)(args)
+	if c.valueChangedEventHandler != nil {
+		_ = c.characteristic.RemoveValueChanged(c.valueChangedEventHandlerToken)
+		c.valueChangedEventHandler.Release()
+		c.valueChangedEventHandler = nil
+	}
 
-		buf, err := valueChangedEvent.GetCharacteristicValue()
+	if mode != NotificationModeDisable {
+		// listen value changed event
+		// TypedEventHandler<GattCharacteristic,GattValueChangedEventArgs>
+		guid := winrt.ParameterizedInstanceGUID(foundation.GUIDTypedEventHandler, genericattributeprofile.SignatureGattCharacteristic, genericattributeprofile.SignatureGattValueChangedEventArgs)
+		valueChangedEventHandler := foundation.NewTypedEventHandler(ole.NewGUID(guid), func(instance *foundation.TypedEventHandler, sender, args unsafe.Pointer) {
+			valueChangedEvent := (*genericattributeprofile.GattValueChangedEventArgs)(args)
+
+			buf, err := valueChangedEvent.GetCharacteristicValue()
+			if err != nil {
+				return
+			}
+
+			reader, err := streams.DataReaderFromBuffer(buf)
+			if err != nil {
+				return
+			}
+			defer reader.Release()
+
+			buflen, err := buf.GetLength()
+			if err != nil {
+				return
+			}
+
+			data, err := reader.ReadBytes(buflen)
+			if err != nil {
+				return
+			}
+
+			callback(data)
+		})
+		token, err := c.characteristic.AddValueChanged(valueChangedEventHandler)
 		if err != nil {
-			return
+			return err
 		}
-
-		reader, err := streams.DataReaderFromBuffer(buf)
-		if err != nil {
-			return
-		}
-		defer reader.Release()
-
-		buflen, err := buf.GetLength()
-		if err != nil {
-			return
-		}
-
-		data, err := reader.ReadBytes(buflen)
-		if err != nil {
-			return
-		}
-
-		callback(data)
-	})
-	_, err := c.characteristic.AddValueChanged(valueChangedEventHandler)
-	if err != nil {
-		return err
+		c.valueChangedEventHandlerToken = token
+		c.valueChangedEventHandler = valueChangedEventHandler
 	}
 
 	writeOp, err := c.characteristic.WriteClientCharacteristicConfigurationDescriptorAsync(configValue)
