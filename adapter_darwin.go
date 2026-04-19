@@ -8,6 +8,8 @@ import (
 	"github.com/tinygo-org/cbgo"
 )
 
+var _ BLEAdapter = (*Adapter)(nil)
+
 // Adapter is a connection to BLE devices.
 type Adapter struct {
 	cmd *centralManagerDelegate
@@ -127,6 +129,17 @@ func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager
 	// ignore this connection.
 	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
 		// Unblock now that we're connected.
+		ch.(chan cbgo.Peripheral) <- prph
+	}
+}
+
+// DidFailToConnectPeripheral when peripheral connection fails.
+func (cmd *centralManagerDelegate) DidFailToConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral, err error) {
+	id := prph.Identifier().String()
+
+	// Send the peripheral through so Connect can check its state
+	// and return the appropriate error.
+	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
 		ch.(chan cbgo.Peripheral) <- prph
 	}
 }

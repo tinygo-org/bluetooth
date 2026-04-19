@@ -9,7 +9,13 @@ import (
 )
 
 var (
-	errCannotSendWriteWithoutResponse = errors.New("bluetooth: cannot send write without response (buffer full)")
+	errWriteWithoutResponseTimeout = errors.New("bluetooth: write without response timed out waiting for buffer space")
+	errTimeoutEnableNotifications  = errors.New("timeout on EnableNotifications")
+)
+
+var (
+	_ GATTCService        = (*DeviceService)(nil)
+	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
 )
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
@@ -205,6 +211,7 @@ type deviceCharacteristic struct {
 	callback       func(buf []byte)
 	readChan       chan error
 	writeChan      chan error
+	notifyChan     chan error
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -236,13 +243,21 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time.
-// If the client is not ready to send write without response requests at this time (e.g. because the internal buffer is full), an error is returned.
+// If the peripheral's buffer is full, this method polls
+// CanSendWriteWithoutResponse every 15ms (one BLE connection interval) until
+// ready, with a 10-second timeout.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
-	if !c.service.device.prph.CanSendWriteWithoutResponse() {
-		return 0, errCannotSendWriteWithoutResponse
+	dev := c.service.device
+
+	deadline := time.Now().Add(10 * time.Second)
+	for !dev.prph.CanSendWriteWithoutResponse() {
+		if time.Now().After(deadline) {
+			return 0, errWriteWithoutResponseTimeout
+		}
+		time.Sleep(15 * time.Millisecond)
 	}
 
-	c.service.device.prph.WriteCharacteristic(p, c.characteristic, false)
+	dev.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
 }
@@ -253,15 +268,35 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 // changes.
 // Users may call EnableNotifications with a nil callback to disable notifications.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
-	// If callback is nil, disable notifications
+	c.notifyChan = make(chan error)
+
 	if callback == nil {
 		c.service.device.prph.SetNotify(false, c.characteristic)
-		c.callback = nil // Clear notification callback
 	} else {
-		// Enable notifications and set notification callback
 		c.callback = callback
 		c.service.device.prph.SetNotify(true, c.characteristic)
 	}
+
+	// Wait for CoreBluetooth to confirm the notification state change.
+	var err error
+	select {
+	case err = <-c.notifyChan:
+	case <-time.After(10 * time.Second):
+		err = errTimeoutEnableNotifications
+	}
+
+	c.notifyChan = nil
+
+	if err != nil {
+		c.callback = nil
+		return err
+	}
+
+	// Clear callback after confirmed disable.
+	if callback == nil {
+		c.callback = nil
+	}
+
 	return nil
 }
 

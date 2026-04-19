@@ -11,6 +11,7 @@ var (
 	errScanStopped               = errors.New("bluetooth: scan was stopped unexpectedly")
 	errAdvertisementPacketTooBig = errors.New("bluetooth: advertisement packet overflows")
 	errNotYetImplmented          = errors.New("bluetooth: not implemented")
+	errNotSupported              = errors.New("bluetooth: not supported")
 )
 
 const (

@@ -19,7 +19,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.22'
+          go-version: '1.23.12'
       - name: Checkout
         uses: actions/checkout@v6
       - name: Run unit tests
@@ -34,7 +34,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v6
         with:
-          go-version: '1.25'
+          go-version: '1.26.2'
       - name: Checkout
         uses: actions/checkout@v6
       - name: Run unit tests

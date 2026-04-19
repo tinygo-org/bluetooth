@@ -10,23 +10,32 @@ package bluetooth
 import "C"
 
 // Disconnect from the BLE device.
+//
+// s113v7 is a peripheral-only device, so this is not supported.
 func (d Device) Disconnect() error {
-	return errNotYetImplmented
+	return errNotSupported
 }
 
 // DiscoverServices starts a service discovery procedure.
+//
+// s113v7 is a peripheral-only device, so this is not supported.
 func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
-	return nil, errNotYetImplmented
+	return nil, errNotSupported
 }
 
 // RequestConnectionParams requests a different connection latency and timeout
 // of the given device connection.
+//
+// s113v7 is a peripheral-only device, so this is not supported.
 func (d Device) RequestConnectionParams(params ConnectionParams) error {
-	return errNotYetImplmented
+	return errNotSupported
 }
 
+// Connected returns whether the device is currently connected.
+//
+// s113v7 is a peripheral-only device, so this is not supported.
 func (d Device) Connected() (bool, error) {
-	return false, errNotYetImplmented
+	return false, errNotSupported
 }
 
 type DeviceService struct{}
