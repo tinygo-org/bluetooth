@@ -8,7 +8,7 @@ require (
 	github.com/saltosystems/winrt-go v0.0.0-20260317170058-9c2fec580d96
 	github.com/soypat/cyw43439 v0.1.0
 	github.com/tinygo-org/cbgo v0.0.5-0.20260404133704-78b73a9c8e7e
-	golang.org/x/crypto v0.12.0
+	golang.org/x/crypto v0.26.0
 	tinygo.org/x/drivers v0.33.0
 	tinygo.org/x/tinyfont v0.6.0
 	tinygo.org/x/tinyterm v0.5.0
