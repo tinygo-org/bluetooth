@@ -35,6 +35,11 @@ func (ad Address) String() string {
 // be retrieved when connecting after a scan.
 var jsDeviceMap = map[string]js.Value{}
 
+// jsDisconnectListenerMap stores gattserverdisconnected listeners keyed by
+// device ID so listeners can be replaced on reconnect and released on
+// disconnect.
+var jsDisconnectListenerMap = map[string]js.Func{}
+
 var _ GAPDevice = Device{}
 
 // Device is a connection to a remote peripheral via WebBluetooth.
@@ -132,9 +137,38 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		server:  server,
 	}
 
+	a.setDisconnectHandler(d)
 	a.connectHandler(d, true)
 
 	return d, nil
+}
+
+func (a *Adapter) setDisconnectHandler(d Device) {
+	deviceID := d.Address.ID
+	if listener, ok := jsDisconnectListenerMap[deviceID]; ok {
+		d.device.Call("removeEventListener", "gattserverdisconnected", listener)
+		listener.Release()
+		delete(jsDisconnectListenerMap, deviceID)
+	}
+
+	var listener js.Func
+	listener = js.FuncOf(func(this js.Value, args []js.Value) any {
+		device := Device{
+			Address: d.Address,
+			device:  d.device,
+			server:  d.device.Get("gatt"),
+		}
+
+		d.device.Call("removeEventListener", "gattserverdisconnected", listener)
+		listener.Release()
+		delete(jsDisconnectListenerMap, deviceID)
+
+		a.connectHandler(device, false)
+		return nil
+	})
+
+	jsDisconnectListenerMap[deviceID] = listener
+	d.device.Call("addEventListener", "gattserverdisconnected", listener)
 }
 
 // Disconnect from the BLE device.
