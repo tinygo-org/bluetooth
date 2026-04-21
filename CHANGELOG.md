@@ -1,3 +1,38 @@
+0.15.0
+---
+* **core**
+  - gap: add `Device.Connected()` method to check connection status (#426)
+  - gap: add `GAPDevice` as a base interface (#429)
+  - gattc: add `GATTCService` and `GATTCCharacteristic` common interfaces (#432)
+  - adapter: add `BLEAdapter` common interface (#431)
+  - errors: add attribute protocol error definitions (#421)
+  - gap: add PHY type definitions (#424)
+  - uuid: make UUID API safer
+  - gap: remove service/stop advertising support (#407)
+* **darwin**
+  - fix: ensure ordered notification delivery
+  - fix: `WriteWithoutResponse` checks `CanSendWriteWithoutResponse` before sending (#386, #435)
+  - fix: add `DidFailToConnectPeripheral` handler (#430)
+  - fix: add `DidUpdateNotificationState` callback when enabling notifications (#433)
+  - fix: `Device.DiscoverServices()` now correctly filters discovered services (#428)
+  - fix: preserve services ordering in `DiscoverServices` (#417)
+  - fix: allow disabling notifications by passing nil as the callback argument
+* **windows**
+  - fix: add missing service UUIDs in scan results (#427)
+  - fix: preserve services ordering in `DiscoverServices` (#415)
+  - fix: preserve characteristic ordering in `DiscoverCharacteristics` (#410)
+  - feat: add error code from async operation result
+  - feat: add WinRT handler for Bluetooth LE connection status changes
+* **linux**
+  - feat: add `Write` method to write characteristic value with response (#389)
+* **hci**
+  - fix: remove superfluous debug print in gap_hci
+* **modules**
+  - update to cyw43439 v0.1.0 release
+* **build**
+  - update CI to use latest minimum and current Go versions
+
+
 0.14.0
 ---
 * **core**
