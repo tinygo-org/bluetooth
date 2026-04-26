@@ -26,7 +26,7 @@ type Adapter struct {
 var DefaultAdapter = &Adapter{
 	hciAdapter: hciAdapter{
 		isDefault: true,
-		connectHandler: func(device Device, connected bool) {
+		connectHandler: func(device Device, connected bool, err error) {
 			return
 		},
 		connectedDevices: make([]Device, 0, maxConnections),

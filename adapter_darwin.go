@@ -26,7 +26,7 @@ type Adapter struct {
 	// used to allow multiple callers to call Connect concurrently.
 	connectMap sync.Map
 
-	connectHandler func(device Device, connected bool)
+	connectHandler func(device Device, connected bool, err error)
 }
 
 // DefaultAdapter is the default adapter on the system.
@@ -37,7 +37,7 @@ var DefaultAdapter = &Adapter{
 	pm:         cbgo.NewPeripheralManager(nil),
 	connectMap: sync.Map{},
 
-	connectHandler: func(device Device, connected bool) {
+	connectHandler: func(device Device, connected bool, err error) {
 		return
 	},
 }
@@ -108,7 +108,7 @@ func (cmd *centralManagerDelegate) DidDisconnectPeripheral(cmgr cbgo.CentralMana
 	addr := Address{}
 	uuid, _ := ParseUUID(id)
 	addr.UUID = uuid
-	cmd.a.connectHandler(Device{Address: addr}, false)
+	cmd.a.connectHandler(Device{Address: addr}, false, err)
 
 	// like with DidConnectPeripheral, check if we have a chan allocated for this and send through the peripheral
 	// this will only be true if the receiving side is still waiting for a connection to complete

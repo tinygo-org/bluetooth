@@ -420,7 +420,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		}
 
 		if a.connectHandler != nil {
-			a.connectHandler(device, status == bluetooth.BluetoothConnectionStatusConnected)
+			a.connectHandler(device, status == bluetooth.BluetoothConnectionStatusConnected, err)
 		}
 	})
 

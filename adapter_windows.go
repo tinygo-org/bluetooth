@@ -17,7 +17,7 @@ var _ BLEAdapter = (*Adapter)(nil)
 type Adapter struct {
 	watcher *advertisement.BluetoothLEAdvertisementWatcher
 
-	connectHandler func(device Device, connected bool)
+	connectHandler func(device Device, connected bool, err error)
 
 	defaultAdvertisement *Advertisement
 }
@@ -26,7 +26,7 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
-	connectHandler: func(device Device, connected bool) {
+	connectHandler: func(device Device, connected bool, err error) {
 		return
 	},
 }

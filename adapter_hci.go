@@ -17,7 +17,7 @@ type hciAdapter struct {
 	isDefault bool
 	scanning  bool
 
-	connectHandler func(device Device, connected bool)
+	connectHandler func(device Device, connected bool, err error)
 
 	connectedDevices     []Device
 	notificationsStarted bool

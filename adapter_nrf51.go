@@ -48,7 +48,7 @@ func handleEvent() {
 				Address:          Address{makeMACAddress(connectEvent.peer_addr)},
 				connectionHandle: gapEvent.conn_handle,
 			}
-			DefaultAdapter.connectHandler(device, true)
+			DefaultAdapter.connectHandler(device, true, nil)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if defaultAdvertisement.isAdvertising.Get() != 0 {
 				// The advertisement was running but was automatically stopped
@@ -63,7 +63,7 @@ func handleEvent() {
 			device := Device{
 				connectionHandle: gapEvent.conn_handle,
 			}
-			DefaultAdapter.connectHandler(device, false)
+			DefaultAdapter.connectHandler(device, false, nil)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
 			// Respond with the default PPCP connection parameters by passing
 			// nil:

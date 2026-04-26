@@ -25,7 +25,7 @@ type Adapter struct {
 	address              string
 	defaultAdvertisement *Advertisement
 
-	connectHandler func(device Device, connected bool)
+	connectHandler func(device Device, connected bool, err error)
 }
 
 // NewAdapter creates a new Adapter with the given ID.
@@ -34,7 +34,7 @@ type Adapter struct {
 func NewAdapter(id string) *Adapter {
 	return &Adapter{
 		id:             id,
-		connectHandler: func(device Device, connected bool) {},
+		connectHandler: func(device Device, connected bool, err error) {},
 	}
 }
 

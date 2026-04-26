@@ -33,7 +33,7 @@ func handleEvent() {
 				Address:          Address{makeMACAddress(connectEvent.peer_addr)},
 				connectionHandle: gapEvent.conn_handle,
 			}
-			DefaultAdapter.connectHandler(device, true)
+			DefaultAdapter.connectHandler(device, true, nil)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
 				println("evt: disconnected")
@@ -52,7 +52,7 @@ func handleEvent() {
 			device := Device{
 				connectionHandle: gapEvent.conn_handle,
 			}
-			DefaultAdapter.connectHandler(device, false)
+			DefaultAdapter.connectHandler(device, false, nil)
 		case C.BLE_GAP_EVT_DATA_LENGTH_UPDATE_REQUEST:
 			// We need to respond with sd_ble_gap_data_length_update. Setting
 			// both parameters to nil will make sure we send the default values.

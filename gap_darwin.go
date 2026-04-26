@@ -153,7 +153,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			d.delegate = &peripheralDelegate{d: d}
 			p.SetDelegate(d.delegate)
 
-			a.connectHandler(d, true)
+			a.connectHandler(d, true, nil)
 
 			return d, nil
 

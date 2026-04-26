@@ -239,7 +239,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			a.addConnection(d)
 
 			if a.connectHandler != nil {
-				a.connectHandler(d, true)
+				a.connectHandler(d, true, nil)
 			}
 
 			return d, nil
@@ -499,7 +499,7 @@ func (a *Advertisement) Start() error {
 				a.adapter.addConnection(d)
 
 				if a.adapter.connectHandler != nil {
-					a.adapter.connectHandler(d, true)
+					a.adapter.connectHandler(d, true, nil)
 				}
 
 				a.adapter.hci.clearConnectData()
@@ -513,7 +513,7 @@ func (a *Advertisement) Start() error {
 				a.adapter.removeConnection(d)
 
 				if a.adapter.connectHandler != nil {
-					a.adapter.connectHandler(d, false)
+					a.adapter.connectHandler(d, false, nil)
 				}
 
 				a.adapter.hci.clearConnectData()

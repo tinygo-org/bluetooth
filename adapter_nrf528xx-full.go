@@ -35,14 +35,14 @@ func handleEvent() {
 					println("evt: connected in peripheral role")
 				}
 				currentConnection.handle.Reg = uint16(gapEvent.conn_handle)
-				DefaultAdapter.connectHandler(device, true)
+				DefaultAdapter.connectHandler(device, true, nil)
 			case C.BLE_GAP_ROLE_CENTRAL:
 				if debug {
 					println("evt: connected in central role")
 				}
 				connectionAttempt.connectionHandle = gapEvent.conn_handle
 				connectionAttempt.state.Set(2) // connection was successful
-				DefaultAdapter.connectHandler(device, true)
+				DefaultAdapter.connectHandler(device, true, nil)
 			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
@@ -68,7 +68,7 @@ func handleEvent() {
 			device := Device{
 				connectionHandle: gapEvent.conn_handle,
 			}
-			DefaultAdapter.connectHandler(device, false)
+			DefaultAdapter.connectHandler(device, false, nil)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE:
 			if debug {
 				// Print connection parameters for easy debugging.
