@@ -120,6 +120,10 @@ func (cmd *centralManagerDelegate) DidDisconnectPeripheral(cmgr cbgo.CentralMana
 // DidConnectPeripheral when peripheral is connected.
 func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral) {
 	id := prph.Identifier().String()
+	addr := Address{}
+	uuid, _ := ParseUUID(id)
+	addr.UUID = uuid
+	cmd.a.connectHandler(Device{Address: addr}, true, nil)
 
 	// Check if we have a chan allocated for this peripheral, and remove it
 	// from the map if so (it's single-use, will be garbage collected after
@@ -136,6 +140,10 @@ func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager
 // DidFailToConnectPeripheral when peripheral connection fails.
 func (cmd *centralManagerDelegate) DidFailToConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral, err error) {
 	id := prph.Identifier().String()
+	addr := Address{}
+	uuid, _ := ParseUUID(id)
+	addr.UUID = uuid
+	cmd.a.connectHandler(Device{Address: addr}, false, err)
 
 	// Send the peripheral through so Connect can check its state
 	// and return the appropriate error.
