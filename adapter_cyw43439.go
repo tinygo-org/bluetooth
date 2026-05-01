@@ -71,6 +71,11 @@ func (a *Adapter) Enable() error {
 	return nil
 }
 
+// Reset is a no-op on CYW43439. Provided for interface symmetry.
+func (a *Adapter) Reset() error {
+	return nil
+}
+
 type hciSPI struct {
 	dev *cyw43439.Device
 }

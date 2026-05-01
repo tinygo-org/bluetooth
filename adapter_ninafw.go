@@ -68,6 +68,11 @@ func (a *Adapter) Enable() error {
 	return a.enable()
 }
 
+// Reset is a no-op on NINA. Provided for interface symmetry.
+func (a *Adapter) Reset() error {
+	return nil
+}
+
 func resetNINA() {
 	machine.NINA_RESETN.Configure(machine.PinConfig{Mode: machine.PinOutput})
 

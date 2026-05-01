@@ -44,6 +44,9 @@ var DefaultAdapter = &Adapter{
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
+//
+// poweredChan is cleared on both success and timeout paths so
+// a subsequent Enable() on the same Adapter can run again.
 func (a *Adapter) Enable() error {
 	if a.poweredChan != nil {
 		return errors.New("already calling Enable function")
@@ -51,8 +54,8 @@ func (a *Adapter) Enable() error {
 
 	a.poweredChan = make(chan error, 1)
 
-	// Set the delegate before checking State so we don't miss an
-	// async DidUpdateState that fires between construction and now.
+	// Set delegate before checking state — a fresh CBCentralManager
+	// can fire DidUpdateState before SetDelegate, losing the event.
 	a.cmd = &centralManagerDelegate{a: a}
 	a.cm.SetDelegate(a.cmd)
 
@@ -82,6 +85,42 @@ func (a *Adapter) Enable() error {
 	return nil
 }
 
+// Reset tears down CoreBluetooth managers so a subsequent Enable()
+// rebuilds them from scratch. Useful for recovering from stale
+// CBPeripheral handles, adapter switching, and test cleanup.
+//
+// Caller must ensure no Scan/Connect/DiscoverServices is in flight.
+// After Reset, call Enable() to create fresh managers.
+//
+// Note: process-level CoreBluetooth state (e.g. the advertisement
+// deduplication table) survives Reset — only process exit clears it.
+func (a *Adapter) Reset() error {
+	if a.scanChan != nil {
+		_ = a.StopScan()
+	}
+
+	// Unblock goroutines parked in Connect — closing the chan
+	// yields a zero Peripheral so Connect returns an error.
+	a.connectMap.Range(func(key, value any) bool {
+		a.connectMap.Delete(key)
+		if ch, ok := value.(chan cbgo.Peripheral); ok {
+			defer func() { _ = recover() }()
+			close(ch)
+		}
+		return true
+	})
+
+	a.cm = cbgo.NewCentralManager(nil)
+	a.pm = cbgo.NewPeripheralManager(nil)
+	a.cmd = nil
+	a.pmd = nil
+	a.poweredChan = nil
+	a.scanChan = nil
+	a.peripheralFoundHandler = nil
+
+	return nil
+}
+
 // CentralManager delegate functions
 
 type centralManagerDelegate struct {
@@ -103,12 +142,10 @@ func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.Centra
 	case cbgo.ManagerStateUnauthorized:
 		event = errors.New("bluetooth is not authorized for this app")
 	default:
-		// Unknown / Resetting are intermediate; wait for the next update.
 		return
 	}
-	// Non-blocking; select handles a nil poweredChan correctly (the
-	// case is never ready, default fires) so a late or repeated
-	// update never parks the delegate goroutine.
+	// Non-blocking send: poweredChan may be nil after Enable
+	// completes, or already buffered.
 	select {
 	case cmd.a.poweredChan <- event:
 	default:
