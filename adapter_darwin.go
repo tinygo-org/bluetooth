@@ -44,17 +44,6 @@ var DefaultAdapter = &Adapter{
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
-//
-// poweredChan doubles as the "Enable currently in flight" sentinel
-// (the upfront non-nil check guards against re-entry) and the
-// channel the central-manager delegate signals on once
-// CoreBluetooth reports powered-on. It is cleared on every exit
-// path — success and timeout — so a subsequent call can run again.
-// Previously the channel was set at the start of Enable and never
-// cleared, so any second Enable on the same Adapter (e.g. from a
-// recovery flow that re-Enables after an error) returned "already
-// calling Enable function" even though no Enable was actually in
-// flight.
 func (a *Adapter) Enable() error {
 	if a.poweredChan != nil {
 		return errors.New("already calling Enable function")
@@ -62,20 +51,18 @@ func (a *Adapter) Enable() error {
 
 	a.poweredChan = make(chan error, 1)
 
-	// Attach the central-manager delegate BEFORE checking
-	// cm.State(): a freshly-constructed CBCentralManager fires
-	// DidUpdateState asynchronously, and if SetDelegate happens
-	// after the callback runs we miss the powered-on event entirely
-	// and wait the full 10s timeout for a callback that already
-	// fired. Setting the delegate first guarantees the callback
-	// path is wired before the manager has had a chance to update
-	// state.
+	// Set the delegate before checking State so we don't miss an
+	// async DidUpdateState that fires between construction and now.
 	a.cmd = &centralManagerDelegate{a: a}
 	a.cm.SetDelegate(a.cmd)
 
 	if a.cm.State() != cbgo.ManagerStatePoweredOn {
 		select {
-		case <-a.poweredChan:
+		case err := <-a.poweredChan:
+			if err != nil {
+				a.poweredChan = nil
+				return err
+			}
 		case <-time.NewTimer(10 * time.Second).C:
 			a.poweredChan = nil
 			return errors.New("timeout enabling CentralManager")
@@ -105,23 +92,27 @@ type centralManagerDelegate struct {
 
 // CentralManagerDidUpdateState when central manager state updated.
 func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
-	if cmgr.State() == cbgo.ManagerStatePoweredOn {
-		// Guard against poweredChan being nil — Enable clears it
-		// once the adapter is powered on, so a late or repeated
-		// state update (CoreBluetooth occasionally fires multiple
-		// times during startup, or after a state-toggle event)
-		// would otherwise block forever on a nil-channel send.
-		// Non-blocking send so we never park the delegate goroutine
-		// even if the channel is set but already buffered full.
-		if cmd.a.poweredChan != nil {
-			select {
-			case cmd.a.poweredChan <- nil:
-			default:
-			}
-		}
+	var event error
+	switch cmgr.State() {
+	case cbgo.ManagerStatePoweredOn:
+		event = nil
+	case cbgo.ManagerStatePoweredOff:
+		event = errors.New("bluetooth is powered off")
+	case cbgo.ManagerStateUnsupported:
+		event = errors.New("bluetooth is not supported on this device")
+	case cbgo.ManagerStateUnauthorized:
+		event = errors.New("bluetooth is not authorized for this app")
+	default:
+		// Unknown / Resetting are intermediate; wait for the next update.
+		return
 	}
-
-	// TODO: handle other state changes.
+	// Non-blocking; select handles a nil poweredChan correctly (the
+	// case is never ready, default fires) so a late or repeated
+	// update never parks the delegate goroutine.
+	select {
+	case cmd.a.poweredChan <- event:
+	default:
+	}
 }
 
 // DidDiscoverPeripheral when peripheral is discovered.
