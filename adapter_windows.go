@@ -3,6 +3,7 @@ package bluetooth
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"syscall"
 	"unsafe"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/saltosystems/winrt-go"
 	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/advertisement"
 	"github.com/saltosystems/winrt-go/windows/foundation"
+	"golang.org/x/sys/windows"
 )
 
 var _ BLEAdapter = (*Adapter)(nil)
@@ -105,6 +107,23 @@ func hresultToError(hr uint32) error {
 
 	if facility == 0x65 { // FACILITY_BLUETOOTH_ATT
 		return fmt.Errorf("Bluetooth ATT error (code 0x%04X)", code)
+	}
+
+	// For FACILITY_WIN32 the lower 16 bits are a plain Win32 error code that
+	// FormatMessage understands; for other facilities try the full HRESULT.
+	errCode := hr
+	if facility == 0x7 { // FACILITY_WIN32
+		errCode = code
+	}
+
+	buf := make([]uint16, 512)
+	n, err := windows.FormatMessage(
+		windows.FORMAT_MESSAGE_FROM_SYSTEM|windows.FORMAT_MESSAGE_IGNORE_INSERTS,
+		0, errCode, 0, buf, nil,
+	)
+	if err == nil && n > 0 {
+		msg := strings.TrimRight(windows.UTF16ToString(buf[:n]), " \r\n")
+		return fmt.Errorf("HRESULT 0x%08X: %s", hr, msg)
 	}
 
 	return fmt.Errorf("HRESULT 0x%08X", hr)
