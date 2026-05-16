@@ -49,16 +49,22 @@ func (a *Adapter) Enable() error {
 		return errors.New("already calling Enable function")
 	}
 
-	// wait until powered
 	a.poweredChan = make(chan error, 1)
 
+	// Set the delegate before checking State so we don't miss an
+	// async DidUpdateState that fires between construction and now.
 	a.cmd = &centralManagerDelegate{a: a}
 	a.cm.SetDelegate(a.cmd)
 
 	if a.cm.State() != cbgo.ManagerStatePoweredOn {
 		select {
-		case <-a.poweredChan:
+		case err := <-a.poweredChan:
+			if err != nil {
+				a.poweredChan = nil
+				return err
+			}
 		case <-time.NewTimer(10 * time.Second).C:
+			a.poweredChan = nil
 			return errors.New("timeout enabling CentralManager")
 		}
 	}
@@ -68,9 +74,10 @@ func (a *Adapter) Enable() error {
 		<-a.poweredChan
 	}
 
-	// wait until powered?
 	a.pmd = &peripheralManagerDelegate{a: a}
 	a.pm.SetDelegate(a.pmd)
+
+	a.poweredChan = nil
 
 	return nil
 }
@@ -85,12 +92,27 @@ type centralManagerDelegate struct {
 
 // CentralManagerDidUpdateState when central manager state updated.
 func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
-	// powered on?
-	if cmgr.State() == cbgo.ManagerStatePoweredOn {
-		cmd.a.poweredChan <- nil
+	var event error
+	switch cmgr.State() {
+	case cbgo.ManagerStatePoweredOn:
+		event = nil
+	case cbgo.ManagerStatePoweredOff:
+		event = errors.New("bluetooth is powered off")
+	case cbgo.ManagerStateUnsupported:
+		event = errors.New("bluetooth is not supported on this device")
+	case cbgo.ManagerStateUnauthorized:
+		event = errors.New("bluetooth is not authorized for this app")
+	default:
+		// Unknown / Resetting are intermediate; wait for the next update.
+		return
 	}
-
-	// TODO: handle other state changes.
+	// Non-blocking; select handles a nil poweredChan correctly (the
+	// case is never ready, default fires) so a late or repeated
+	// update never parks the delegate goroutine.
+	select {
+	case cmd.a.poweredChan <- event:
+	default:
+	}
 }
 
 // DidDiscoverPeripheral when peripheral is discovered.
