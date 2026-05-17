@@ -66,6 +66,17 @@ func (a *Adapter) Enable() (err error) {
 	return nil
 }
 
+// Reset clears BlueZ state so a subsequent Enable() rebuilds it.
+// Mostly a no-op on Linux; provided for interface symmetry.
+func (a *Adapter) Reset() error {
+	a.bus = nil
+	a.bluez = nil
+	a.adapter = nil
+	a.address = ""
+	a.scanCancelChan = nil
+	return nil
+}
+
 func (a *Adapter) Address() (MACAddress, error) {
 	if a.address == "" {
 		return MACAddress{}, errors.New("adapter not enabled")

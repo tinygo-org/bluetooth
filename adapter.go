@@ -4,6 +4,7 @@ package bluetooth
 type BLEAdapter interface {
 	Connect(address Address, params ConnectionParams) (Device, error)
 	Enable() error
+	Reset() error
 	Scan(callback func(*Adapter, ScanResult)) (err error)
 	SetConnectHandler(c func(device Device, connected bool))
 	StopScan() error

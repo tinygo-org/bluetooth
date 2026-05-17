@@ -71,6 +71,11 @@ func (a *Adapter) Enable() error {
 	return nil
 }
 
+// Reset is a no-op on HCI UART. Provided for interface symmetry.
+func (a *Adapter) Reset() error {
+	return nil
+}
+
 type hciUART struct {
 	uart *machine.UART
 

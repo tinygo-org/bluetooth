@@ -114,6 +114,11 @@ func (a *Adapter) Enable() error {
 	return makeError(errCode)
 }
 
+// Reset is a no-op on SoftDevice. Provided for interface symmetry.
+func (a *Adapter) Reset() error {
+	return nil
+}
+
 // DisableInterrupts must be used instead of disabling interrupts directly, to
 // play well with the SoftDevice. Restore interrupts to the previous state with
 // RestoreInterrupts.

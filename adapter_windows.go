@@ -37,6 +37,11 @@ func (a *Adapter) Enable() error {
 	return ole.RoInitialize(1) // initialize with multithreading enabled
 }
 
+// Reset is a no-op on Windows. Provided for interface symmetry.
+func (a *Adapter) Reset() error {
+	return nil
+}
+
 func awaitAsyncOperation(asyncOperation *foundation.IAsyncOperation, genericParamSignature string) error {
 	var status foundation.AsyncStatus
 
