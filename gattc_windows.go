@@ -423,6 +423,10 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, err
 	}
 
+	if bufferlen == 0 {
+		return 0, nil
+	}
+
 	readBuffer, err := datareader.ReadBytes(bufferlen)
 	if err != nil {
 		return 0, err
