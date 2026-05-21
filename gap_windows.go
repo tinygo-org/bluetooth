@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -73,35 +74,47 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	if err != nil {
 		return err
 	}
+	defer vec.Release()
 
 	for _, optManData := range options.ManufacturerData {
-		writer, err := streams.NewDataWriter()
-		if err != nil {
-			return err
-		}
-		defer writer.Release()
-
-		err = writer.WriteBytes(uint32(len(optManData.Data)), optManData.Data)
-		if err != nil {
-			return err
-		}
-
-		buf, err := writer.DetachBuffer()
-		if err != nil {
-			return err
-		}
-
-		manData, err := advertisement.BluetoothLEManufacturerDataCreate(optManData.CompanyID, buf)
-		if err != nil {
-			return err
-		}
-
-		if err = vec.Append(unsafe.Pointer(&manData.IUnknown.RawVTable)); err != nil {
+		if err := appendManufacturerData(vec, optManData); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// appendManufacturerData writes one ManufacturerDataElement into the given
+// WinRT vector, releasing every intermediate WinRT object on the way out so
+// they are not leaked per advertisement entry.
+func appendManufacturerData(vec interface {
+	Append(unsafe.Pointer) error
+}, optManData ManufacturerDataElement) error {
+	writer, err := streams.NewDataWriter()
+	if err != nil {
+		return err
+	}
+	// Release the writer at end of *this iteration*, not at end of function.
+	defer writer.Release()
+
+	if err := writer.WriteBytes(uint32(len(optManData.Data)), optManData.Data); err != nil {
+		return err
+	}
+
+	buf, err := writer.DetachBuffer()
+	if err != nil {
+		return err
+	}
+	defer buf.Release()
+
+	manData, err := advertisement.BluetoothLEManufacturerDataCreate(optManData.CompanyID, buf)
+	if err != nil {
+		return err
+	}
+	defer manData.Release()
+
+	return vec.Append(unsafe.Pointer(&manData.IUnknown.RawVTable))
 }
 
 // Start advertisement. May only be called after it has been configured.
@@ -226,40 +239,51 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 	}
 
 	winAdv, err := args.GetAdvertisement()
-	if err != nil {
+	if err != nil || winAdv == nil {
 		return result
 	}
 	defer winAdv.Release()
 
 	var manufacturerData []ManufacturerDataElement
 	var serviceUUIDs []UUID
-	if winAdv, err := args.GetAdvertisement(); err == nil && winAdv != nil {
-		// Extract manufacturer data
-		vector, _ := winAdv.GetManufacturerData()
-		size, _ := vector.GetSize()
+
+	// Extract manufacturer data
+	if manVec, err := winAdv.GetManufacturerData(); err == nil && manVec != nil {
+		size, _ := manVec.GetSize()
 		for i := uint32(0); i < size; i++ {
-			element, _ := vector.GetAt(i)
+			element, err := manVec.GetAt(i)
+			if err != nil || element == nil {
+				continue
+			}
 			manData := (*advertisement.BluetoothLEManufacturerData)(element)
 
 			companyID, _ := manData.GetCompanyId()
-			buffer, _ := manData.GetData()
-			manufacturerData = append(manufacturerData, ManufacturerDataElement{
-				CompanyID: companyID,
-				Data:      bufferToSlice(buffer),
-			})
+			if buffer, err := manData.GetData(); err == nil && buffer != nil {
+				manufacturerData = append(manufacturerData, ManufacturerDataElement{
+					CompanyID: companyID,
+					Data:      bufferToSlice(buffer),
+				})
+			}
+			manData.Release()
 		}
+		manVec.Release()
+	}
 
-		// Extract service UUIDs
-		vector, _ = winAdv.GetServiceUuids()
-		size, _ = vector.GetSize()
+	// Extract service UUIDs
+	if uuidVec, err := winAdv.GetServiceUuids(); err == nil && uuidVec != nil {
+		size, _ := uuidVec.GetSize()
 		for i := uint32(0); i < size; i++ {
-			element, _ := vector.GetAt(i)
+			element, err := uuidVec.GetAt(i)
+			if err != nil {
+				continue
+			}
 			// element is not a pointer, but a GUID struct. But we cannot convert
 			// unsafe.Pointer to a non-pointer type, so instead we are doing this:
 			serviceGUID := (*syscall.GUID)(unsafe.Pointer(&element))
 			uuid := GUIDToUUID(*serviceGUID)
 			serviceUUIDs = append(serviceUUIDs, uuid)
 		}
+		uuidVec.Release()
 	}
 
 	// Note: the IsRandom bit is never set.
@@ -292,9 +316,21 @@ func GUIDToUUID(guid syscall.GUID) UUID {
 	})
 }
 
+// bufferToSlice reads the contents of buffer into a Go slice and releases the
+// IBuffer (so callers do not need to). The DataReader created here is also
+// released before returning.
 func bufferToSlice(buffer *streams.IBuffer) []byte {
-	dataReader, _ := streams.DataReaderFromBuffer(buffer)
+	if buffer == nil {
+		return nil
+	}
+	defer buffer.Release()
+
+	dataReader, err := streams.DataReaderFromBuffer(buffer)
+	if err != nil || dataReader == nil {
+		return nil
+	}
 	defer dataReader.Release()
+
 	bufferSize, _ := buffer.GetLength()
 	if bufferSize == 0 {
 		return nil
@@ -317,15 +353,28 @@ var _ GAPDevice = Device{}
 
 // Device is a connection to a remote peripheral.
 type Device struct {
-	ctx    context.Context
-	cancel context.CancelFunc
+	// All mutable / releasable state lives behind a pointer so that the
+	// value-receiver methods (Connected, Disconnect, ...) share the same
+	// underlying lifecycle. This is also what makes Disconnect safe to call
+	// multiple times: closeOnce guarantees we only release the COM objects
+	// once even if the ConnectionStatusChanged callback also calls
+	// Disconnect().
+	*deviceState
 
 	Address Address // the MAC address of the device
+}
+
+type deviceState struct {
+	ctx    context.Context
+	cancel context.CancelFunc
 
 	device                        *bluetooth.BluetoothLEDevice
 	session                       *genericattributeprofile.GattSession
 	connectionStatusListenerToken foundation.EventRegistrationToken
 	connectionStatusListener      *foundation.TypedEventHandler
+
+	closeOnce sync.Once
+	closeErr  error
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -342,6 +391,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	if err != nil {
 		return Device{}, err
 	}
+	defer bleDeviceOp.Release()
 
 	// We need to pass the signature of the parameter returned by the async operation:
 	// IAsyncOperation<BluetoothLEDevice>
@@ -365,41 +415,50 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	// To initiate a connection, we need to set GattSession.MaintainConnection to true.
 	dID, err := bleDevice.GetBluetoothDeviceId()
 	if err != nil {
+		bleDevice.Release()
 		return Device{}, err
 	}
+	defer dID.Release()
 
 	// Windows does not support explicitly connecting to a device.
 	// Instead it has the concept of a GATT session that is owned
 	// by the calling program.
 	gattSessionOp, err := genericattributeprofile.GattSessionFromDeviceIdAsync(dID) // IAsyncOperation<GattSession>
 	if err != nil {
+		bleDevice.Release()
 		return Device{}, err
 	}
+	defer gattSessionOp.Release()
 
 	if err := awaitAsyncOperation(gattSessionOp, genericattributeprofile.SignatureGattSession); err != nil {
+		bleDevice.Release()
 		return Device{}, fmt.Errorf("error getting gatt session: %w", err)
 	}
 
 	gattRes, err := gattSessionOp.GetResults()
 	if err != nil {
+		bleDevice.Release()
 		return Device{}, err
 	}
 	newSession := (*genericattributeprofile.GattSession)(gattRes)
 	// This keeps the device connected until we set maintain_connection = False.
 	if err := newSession.SetMaintainConnection(true); err != nil {
+		newSession.Release()
+		bleDevice.Release()
 		return Device{}, err
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	device := Device{
-		ctx:    ctx,
-		cancel: cancel,
-
-		Address: address,
-
+	state := &deviceState{
+		ctx:     ctx,
+		cancel:  cancel,
 		device:  bleDevice,
 		session: newSession,
+	}
+	device := Device{
+		deviceState: state,
+		Address:     address,
 	}
 
 	// https://learn.microsoft.com/es-es/uwp/api/windows.devices.bluetooth.bluetoothledevice.connectionstatuschanged?view=winrt-26100
@@ -424,46 +483,71 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		}
 	})
 
-	token, err := device.device.AddConnectionStatusChanged(handler)
-
-	device.connectionStatusListenerToken = token
-	device.connectionStatusListener = handler
-
+	token, err := state.device.AddConnectionStatusChanged(handler)
 	if err != nil {
-		_ = handler.Release()
-		return device, err
+		handler.Release()
+		_ = newSession.Close()
+		newSession.Release()
+		_ = bleDevice.Close()
+		bleDevice.Release()
+		cancel()
+		return Device{}, err
 	}
+	state.connectionStatusListenerToken = token
+	state.connectionStatusListener = handler
 
 	return device, nil
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
 // wait until the connection is fully gone.
+//
+// Disconnect is safe to call multiple times: subsequent calls are no-ops and
+// return the original disconnect error (if any).
 func (d Device) Disconnect() error {
-	defer d.device.Release()
-	defer d.session.Release()
-	if d.connectionStatusListener != nil {
-		defer d.connectionStatusListener.Release()
+	if d.deviceState == nil {
+		return nil
+	}
+	d.closeOnce.Do(func() {
+		d.closeErr = d.shutdown()
+	})
+	return d.closeErr
+}
+
+func (s *deviceState) shutdown() error {
+	s.cancel()
+
+	var firstErr error
+	if s.session != nil {
+		if err := s.session.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+		s.session.Release()
+		s.session = nil
 	}
 
-	d.cancel()
-
-	if err := d.session.Close(); err != nil {
-		return err
+	if s.device != nil {
+		if s.connectionStatusListener != nil {
+			_ = s.device.RemoveConnectionStatusChanged(s.connectionStatusListenerToken)
+		}
+		if err := s.device.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+		s.device.Release()
+		s.device = nil
 	}
 
-	_ = d.device.RemoveConnectionStatusChanged(d.connectionStatusListenerToken)
-
-	if err := d.device.Close(); err != nil {
-		return err
+	if s.connectionStatusListener != nil {
+		s.connectionStatusListener.Release()
+		s.connectionStatusListener = nil
 	}
 
-	return nil
+	return firstErr
 }
 
 // Connected returns whether the device is currently connected.
 func (d Device) Connected() (bool, error) {
-	if d.device == nil {
+	if d.deviceState == nil || d.device == nil {
 		return false, nil
 	}
 	status, err := d.device.GetConnectionStatus()
