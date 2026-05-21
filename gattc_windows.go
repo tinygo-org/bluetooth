@@ -53,6 +53,7 @@ func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer getServicesOperation.Release()
 
 	if err := awaitAsyncOperation(getServicesOperation, genericattributeprofile.SignatureGattDeviceServicesResult); err != nil {
 		return nil, err
@@ -64,6 +65,7 @@ func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 	}
 
 	servicesResult := (*genericattributeprofile.GattDeviceServicesResult)(res)
+	defer servicesResult.Release()
 
 	status, err := servicesResult.GetStatus()
 	if err != nil {
@@ -77,6 +79,7 @@ func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer servicesVector.Release()
 
 	// Convert services vector to array
 	servicesSize, err := servicesVector.GetSize()
@@ -197,6 +200,7 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 	if err != nil {
 		return nil, err
 	}
+	defer getCharacteristicsOp.Release()
 
 	// IAsyncOperation<GattCharacteristicsResult>
 	if err := awaitAsyncOperation(getCharacteristicsOp, genericattributeprofile.SignatureGattCharacteristicsResult); err != nil {
@@ -209,12 +213,14 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 	}
 
 	gattCharResult := (*genericattributeprofile.GattCharacteristicsResult)(res)
+	defer gattCharResult.Release()
 
 	// IVectorView<GattCharacteristic>
 	charVector, err := gattCharResult.GetCharacteristics()
 	if err != nil {
 		return nil, err
 	}
+	defer charVector.Release()
 
 	// Convert characteristics vector to array
 	characteristicsSize, err := charVector.GetSize()
@@ -361,9 +367,14 @@ func (c DeviceCharacteristic) write(p []byte, mode genericattributeprofile.GattW
 	if err != nil {
 		return 0, err
 	}
+	defer value.Release()
 
 	// IAsyncOperation<GattCommunicationStatus>
 	asyncOp, err := c.characteristic.WriteValueWithOptionAsync(value, mode)
+	if err != nil {
+		return 0, err
+	}
+	defer asyncOp.Release()
 
 	if err := awaitAsyncOperation(asyncOp, genericattributeprofile.SignatureGattCommunicationStatus); err != nil {
 		return 0, err
@@ -395,6 +406,7 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	defer readOp.Release()
 
 	// IAsyncOperation<GattReadResult>
 	if err := awaitAsyncOperation(readOp, genericattributeprofile.SignatureGattReadResult); err != nil {
@@ -407,16 +419,19 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	}
 
 	result := (*genericattributeprofile.GattReadResult)(res)
+	defer result.Release()
 
 	buffer, err := result.GetValue()
 	if err != nil {
 		return 0, err
 	}
+	defer buffer.Release()
 
 	datareader, err := streams.DataReaderFromBuffer(buffer)
 	if err != nil {
 		return 0, err
 	}
+	defer datareader.Release()
 
 	bufferlen, err := buffer.GetLength()
 	if err != nil {
@@ -500,6 +515,7 @@ func (c DeviceCharacteristic) EnableNotificationsWithMode(mode NotificationMode,
 			if err != nil {
 				return
 			}
+			defer buf.Release()
 
 			reader, err := streams.DataReaderFromBuffer(buf)
 			if err != nil {
@@ -531,6 +547,7 @@ func (c DeviceCharacteristic) EnableNotificationsWithMode(mode NotificationMode,
 	if err != nil {
 		return err
 	}
+	defer writeOp.Release()
 
 	// IAsyncOperation<GattCommunicationStatus>
 	if err := awaitAsyncOperation(writeOp, genericattributeprofile.SignatureGattCommunicationStatus); err != nil {

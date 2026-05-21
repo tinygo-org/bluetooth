@@ -73,6 +73,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	if err != nil {
 		return err
 	}
+	defer vec.Release()
 
 	for _, optManData := range options.ManufacturerData {
 		writer, err := streams.NewDataWriter()
@@ -90,11 +91,13 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		if err != nil {
 			return err
 		}
+		defer buf.Release()
 
 		manData, err := advertisement.BluetoothLEManufacturerDataCreate(optManData.CompanyID, buf)
 		if err != nil {
 			return err
 		}
+		defer manData.Release()
 
 		if err = vec.Append(unsafe.Pointer(&manData.IUnknown.RawVTable)); err != nil {
 			return err
@@ -233,27 +236,36 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 
 	var manufacturerData []ManufacturerDataElement
 	var serviceUUIDs []UUID
-	if winAdv, err := args.GetAdvertisement(); err == nil && winAdv != nil {
-		// Extract manufacturer data
-		vector, _ := winAdv.GetManufacturerData()
-		size, _ := vector.GetSize()
+
+	// Extract manufacturer data
+	manDataVector, _ := winAdv.GetManufacturerData()
+	if manDataVector != nil {
+		defer manDataVector.Release()
+		size, _ := manDataVector.GetSize()
 		for i := uint32(0); i < size; i++ {
-			element, _ := vector.GetAt(i)
+			element, _ := manDataVector.GetAt(i)
 			manData := (*advertisement.BluetoothLEManufacturerData)(element)
 
 			companyID, _ := manData.GetCompanyId()
 			buffer, _ := manData.GetData()
-			manufacturerData = append(manufacturerData, ManufacturerDataElement{
-				CompanyID: companyID,
-				Data:      bufferToSlice(buffer),
-			})
+			if buffer != nil {
+				manufacturerData = append(manufacturerData, ManufacturerDataElement{
+					CompanyID: companyID,
+					Data:      bufferToSlice(buffer),
+				})
+				buffer.Release()
+			}
+			manData.Release()
 		}
+	}
 
-		// Extract service UUIDs
-		vector, _ = winAdv.GetServiceUuids()
-		size, _ = vector.GetSize()
+	// Extract service UUIDs
+	serviceUuidsVector, _ := winAdv.GetServiceUuids()
+	if serviceUuidsVector != nil {
+		defer serviceUuidsVector.Release()
+		size, _ := serviceUuidsVector.GetSize()
 		for i := uint32(0); i < size; i++ {
-			element, _ := vector.GetAt(i)
+			element, _ := serviceUuidsVector.GetAt(i)
 			// element is not a pointer, but a GUID struct. But we cannot convert
 			// unsafe.Pointer to a non-pointer type, so instead we are doing this:
 			serviceGUID := (*syscall.GUID)(unsafe.Pointer(&element))
@@ -342,6 +354,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	if err != nil {
 		return Device{}, err
 	}
+	defer bleDeviceOp.Release()
 
 	// We need to pass the signature of the parameter returned by the async operation:
 	// IAsyncOperation<BluetoothLEDevice>
@@ -367,6 +380,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	if err != nil {
 		return Device{}, err
 	}
+	defer dID.Release()
 
 	// Windows does not support explicitly connecting to a device.
 	// Instead it has the concept of a GATT session that is owned
@@ -375,6 +389,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	if err != nil {
 		return Device{}, err
 	}
+	defer gattSessionOp.Release()
 
 	if err := awaitAsyncOperation(gattSessionOp, genericattributeprofile.SignatureGattSession); err != nil {
 		return Device{}, fmt.Errorf("error getting gatt session: %w", err)
