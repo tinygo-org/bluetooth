@@ -86,7 +86,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 // Start advertisement. May only be called after it has been configured.
 func (a *Advertisement) Start() error {
 	a.isAdvertising.Set(1)
-	errCode := C.sd_ble_gap_adv_start(a.handle, C.BLE_CONN_CFG_TAG_DEFAULT)
+	errCode := C.sd_ble_gap_adv_start(a.handle, connCfgTag)
 	return makeError(errCode)
 }
 

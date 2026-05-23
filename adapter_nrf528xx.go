@@ -31,6 +31,8 @@ var clockConfigXtal C.nrf_clock_lf_cfg_t = C.nrf_clock_lf_cfg_t{
 	accuracy:     C.NRF_CLOCK_LF_ACCURACY_250_PPM,
 }
 
+const connCfgTag uint8 = 1
+
 //go:extern __app_ram_base
 var appRAMBase [0]uint32
 
@@ -47,6 +49,37 @@ func (a *Adapter) enable() error {
 
 	// Enable the BLE stack.
 	appRAMBase := C.uint32_t(uintptr(unsafe.Pointer(&appRAMBase)))
+
+	bleCfg := C.ble_cfg_t{}
+
+	connCfg := bleCfg.unionfield_conn_cfg()
+	connCfg.conn_cfg_tag = connCfgTag
+
+	if a.cfg.Gap.EventLength == 0 {
+		a.cfg.Gap.EventLength = 2
+	}
+
+	gapCfg := connCfg.params.unionfield_gap_conn_cfg()
+	gapCfg.conn_count = 1
+	gapCfg.event_length = a.cfg.Gap.EventLength
+
+	errCode = C.sd_ble_cfg_set(C.uint32_t(C.BLE_CONN_CFG_GAP), &bleCfg, appRAMBase)
+	if errCode != 0 {
+		return Error(errCode)
+	}
+
+	if a.cfg.Gatt.AttMtu == 0 {
+		a.cfg.Gatt.AttMtu = 23
+	}
+
+	gattCfg := connCfg.params.unionfield_gatt_conn_cfg()
+	gattCfg.att_mtu = a.cfg.Gatt.AttMtu
+
+	errCode = C.sd_ble_cfg_set(C.uint32_t(C.BLE_CONN_CFG_GATT), &bleCfg, appRAMBase)
+	if errCode != 0 {
+		return Error(errCode)
+	}
+
 	errCode = C.sd_ble_enable(&appRAMBase)
 	return makeError(errCode)
 }

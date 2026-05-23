@@ -12,6 +12,7 @@ import (
 
 /*
 #include "ble_gap.h"
+#include "ble_gattc.h"
 */
 import "C"
 
@@ -106,6 +107,11 @@ var connectionAttempt struct {
 	connectionHandle C.uint16_t
 }
 
+var mtuExchangeAttempt struct {
+	state        volatile.Register8 // 0 means unused, 1 means in progress, 2 means exchanged, 3 means timeout
+	effectiveMtu uint16
+}
+
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // Limitations on Nordic SoftDevices inclue that you cannot do more than one
@@ -169,7 +175,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	connectionAttempt.state.Set(1)
 
 	// Start the connection attempt. We'll get a signal in the event handler.
-	errCode := C.sd_ble_gap_connect(&addr, &scanParams, &connectionParams, C.BLE_CONN_CFG_TAG_DEFAULT)
+	errCode := C.sd_ble_gap_connect(&addr, &scanParams, &connectionParams, connCfgTag)
 	if errCode != 0 {
 		connectionAttempt.state.Set(0)
 		return Device{}, Error(errCode)
@@ -182,6 +188,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			// Successfully connected.
 			connectionAttempt.state.Set(0)
 			connectionHandle := connectionAttempt.connectionHandle
+
 			return Device{
 				connectionHandle: connectionHandle,
 			}, nil
@@ -189,6 +196,41 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			// Timeout while connecting.
 			connectionAttempt.state.Set(0)
 			return Device{}, errConnectionTimeout
+		} else {
+			// TODO: use some sort of condition variable once the scheduler
+			// supports them.
+			arm.Asm("wfe")
+		}
+	}
+}
+
+// ExchangeMTU starts an MTU exchange request procedure. The effective MTU
+// (the maximum value supported by both parties) is returned.
+func (d Device) ExchangeMTU(mtu uint16) (uint16, error) {
+	if mtuExchangeAttempt.state.Get() == 2 {
+		return 0, errors.New("mtu already exchanged")
+	}
+
+	if mtuExchangeAttempt.state.Get() == 1 {
+		return 0, errors.New("mtu exchange in progress")
+	}
+
+	mtuExchangeAttempt.state.Set(1)
+
+	errCode := C.sd_ble_gattc_exchange_mtu_request(d.connectionHandle, C.uint16_t(mtu))
+	if errCode != 0 {
+		mtuExchangeAttempt.state.Set(0)
+		return 0, Error(errCode)
+	}
+
+	for {
+		state := mtuExchangeAttempt.state.Get()
+		if state == 2 {
+			return mtuExchangeAttempt.effectiveMtu, nil
+		} else if state == 3 {
+			// Timeout while exchanging mtu
+			mtuExchangeAttempt.state.Set(0)
+			return 0, errors.New("mtu exchange timeout")
 		} else {
 			// TODO: use some sort of condition variable once the scheduler
 			// supports them.

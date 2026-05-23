@@ -33,7 +33,7 @@ var currentConnection = volatileHandle{handle: volatile.Register16{C.BLE_CONN_HA
 // Globally allocated buffer for incoming SoftDevice events.
 var eventBuf struct {
 	C.ble_evt_t
-	buf [23]byte
+	buf [244]byte
 }
 
 func init() {
@@ -51,6 +51,8 @@ type Adapter struct {
 	charWriteHandlers []charWriteHandler
 
 	connectHandler func(device Device, connected bool)
+
+	cfg Config
 }
 
 // DefaultAdapter is the default adapter on the current system. On Nordic chips,
@@ -63,6 +65,42 @@ var DefaultAdapter = &Adapter{isDefault: true,
 	}}
 
 var eventBufLen C.uint16_t
+
+// Config represents the settings that will be configured to the connection
+// '1' of the SoftDevice.
+type Config struct {
+	Gap  GapConfig
+	Gatt GattConfig
+}
+
+type GapConfig struct {
+	// EventLength is the time set aside for this connection on every
+	// connection interval in 1.25 ms units. The minimum value is 2.
+	EventLength uint16
+}
+
+type GattConfig struct {
+	// AttMtu is the maximum size of ATT packet the SoftDevice can send or
+	// receive. The default and minimum value is 23. The maximum value is 247.
+	// Using ATT_MTU sizes that are multiples of 23 is ideal.
+	AttMtu uint16
+}
+
+// Configure sets the configuration for this adapter.
+// The configuration will be applied when the adapter is enabled.
+func (a *Adapter) Configure(cfg Config) error {
+	if cfg.Gap.EventLength != 0 && cfg.Gap.EventLength < 2 {
+		return errors.New("invalid event length")
+	}
+
+	if cfg.Gatt.AttMtu != 0 && (cfg.Gatt.AttMtu < 23 || cfg.Gatt.AttMtu > 247) {
+		return errors.New("invalid ATT MTU")
+	}
+
+	a.cfg = cfg
+
+	return nil
+}
 
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
