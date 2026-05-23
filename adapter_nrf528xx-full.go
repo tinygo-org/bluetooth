@@ -96,14 +96,16 @@ func handleEvent() {
 			// report has been processed.
 			gotScanReport.Set(1)
 		case C.BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
-			// Respond with the default PPCP connection parameters by passing
-			// nil:
-			// > If NULL is provided on a peripheral role, the parameters in the
-			// > PPCP characteristic of the GAP service will be used instead. If
-			// > NULL is provided on a central role and in response to a
-			// > BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST, the peripheral request
-			// > will be rejected
-			C.sd_ble_gap_conn_param_update(gapEvent.conn_handle, nil)
+			request := gapEvent.params.unionfield_conn_param_update_request()
+			if debug {
+				interval_min_ms := request.conn_params.min_conn_interval * 125 / 100
+				interval_max_ms := request.conn_params.max_conn_interval * 125 / 100
+				timeout_ms := request.conn_params.conn_sup_timeout * 10
+				print("evt: gap connection param update request min=", interval_min_ms, "ms max=", interval_max_ms, "ms latency=", request.conn_params.slave_latency, " timeout=", timeout_ms, "ms\r\n")
+			}
+			// Accept the requested connection parameter update (some
+			// peripherals don't like it when their requests get rejected).
+			C.sd_ble_gap_conn_param_update(gapEvent.conn_handle, &request.conn_params)
 		case C.BLE_GAP_EVT_DATA_LENGTH_UPDATE_REQUEST:
 			// We need to respond with sd_ble_gap_data_length_update. Setting
 			// both parameters to nil will make sure we send the default values.
