@@ -5,6 +5,7 @@ package bluetooth
 import (
 	"device/arm"
 	"errors"
+	"runtime"
 	"runtime/volatile"
 	"time"
 	"unsafe"
@@ -58,8 +59,8 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	for {
 		// Wait for the next advertisement packet to arrive.
 		// TODO: use some sort of condition variable once the scheduler supports
-		// them.
-		arm.Asm("wfe")
+		// them. Using Gosched() here as a stopgap to let other goroutines run.
+		runtime.Gosched()
 		if gotScanReport.Get() == 0 {
 			// Spurious event. Continue waiting.
 			continue
