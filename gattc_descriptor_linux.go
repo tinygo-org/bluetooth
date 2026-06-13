@@ -4,7 +4,7 @@ package bluetooth
 
 import (
 	"errors"
-	"sort"
+	"slices"
 	"strings"
 
 	"github.com/godbus/dbus/v5"
@@ -44,7 +44,7 @@ func (c DeviceCharacteristic) DiscoverDescriptors(uuids []UUID) ([]DeviceDescrip
 	for objectPath := range list {
 		objects = append(objects, string(objectPath))
 	}
-	sort.Strings(objects)
+	slices.Sort(objects)
 	for _, objectPath := range objects {
 		if !strings.HasPrefix(objectPath, charPath+"/desc") {
 			continue
