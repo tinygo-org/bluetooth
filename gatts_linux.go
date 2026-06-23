@@ -108,6 +108,26 @@ func (a *Adapter) AddService(s *Service) error {
 				flags = append(flags, bluezCharFlags[i])
 			}
 		}
+		if char.ReadSecurity == SecurityEncrypted {
+			flags = append(flags, "encrypt-read")
+		} else if char.ReadSecurity == SecurityEncryptedAuthenticated {
+			flags = append(flags, "encrypt-authenticated-read")
+		}
+		if char.WriteSecurity == SecurityEncrypted {
+			flags = append(flags, "encrypt-write")
+		} else if char.WriteSecurity == SecurityEncryptedAuthenticated {
+			flags = append(flags, "encrypt-authenticated-write")
+		}
+		if char.NotifySecurity == SecurityEncrypted {
+			flags = append(flags, "encrypt-notify")
+		} else if char.NotifySecurity == SecurityEncryptedAuthenticated {
+			flags = append(flags, "encrypt-authenticated-notify")
+		}
+		if char.IndicateSecurity == SecurityEncrypted {
+			flags = append(flags, "encrypt-indicate")
+		} else if char.IndicateSecurity == SecurityEncryptedAuthenticated {
+			flags = append(flags, "encrypt-authenticated-indicate")
+		}
 
 		// Export the properties of this characteristic.
 		charPath := path + dbus.ObjectPath("/char"+strconv.Itoa(i))

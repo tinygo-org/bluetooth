@@ -10,6 +10,16 @@ type Service struct {
 
 type WriteEvent = func(client Connection, offset int, value []byte)
 
+// SecurityLevel specifies the security required for a characteristic operation.
+// Settings other than the default (SecurityNone) may result in the peer initiating a pairing operation.
+type SecurityLevel uint8
+
+const (
+	SecurityNone                   SecurityLevel = iota // encryption not required
+	SecurityEncrypted                                   // encryption required
+	SecurityEncryptedAuthenticated                      // encryption and authentication (MITM protection) required
+)
+
 // CharacteristicConfig contains some parameters for the configuration of a
 // single characteristic.
 //
@@ -18,9 +28,13 @@ type WriteEvent = func(client Connection, offset int, value []byte)
 type CharacteristicConfig struct {
 	Handle *Characteristic
 	UUID
-	Value      []byte
-	Flags      CharacteristicPermissions
-	WriteEvent WriteEvent
+	Value            []byte
+	Flags            CharacteristicPermissions
+	WriteEvent       WriteEvent
+	ReadSecurity     SecurityLevel
+	WriteSecurity    SecurityLevel
+	NotifySecurity   SecurityLevel
+	IndicateSecurity SecurityLevel
 }
 
 // CharacteristicPermissions lists a number of basic permissions/capabilities
