@@ -51,7 +51,7 @@ func handleEvent() {
 			}
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
-				println("evt: disconnected")
+				println("evt: disconnected, reason", gapEvent.params.unionfield_disconnected().reason)
 			}
 			secOnDisconnect(gapEvent.conn_handle)
 			// Clean up state for this connection.

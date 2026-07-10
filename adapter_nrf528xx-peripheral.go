@@ -37,7 +37,7 @@ func handleEvent() {
 			DefaultAdapter.connectHandler(device, true)
 		case C.BLE_GAP_EVT_DISCONNECTED:
 			if debug {
-				println("evt: disconnected")
+				println("evt: disconnected, reason", gapEvent.params.unionfield_disconnected().reason)
 			}
 			secOnDisconnect(gapEvent.conn_handle)
 			currentConnection.handle.Reg = C.BLE_CONN_HANDLE_INVALID
