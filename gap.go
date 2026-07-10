@@ -91,6 +91,13 @@ type AdvertisementOptions struct {
 
 	// ServiceData stores Advertising Data.
 	ServiceData []ServiceDataElement
+
+	// Appearance is the Appearance value (defined in the Bluetooth assigned
+	// numbers, for example 961 for a keyboard) added to the advertisement.
+	// On Nordic SoftDevices it is also set as the GAP Appearance
+	// characteristic, which hosts use to recognize device types such as HID
+	// keyboards. The zero value omits it.
+	Appearance uint16
 }
 
 // Manufacturer data that's part of an advertisement packet.
@@ -441,6 +448,11 @@ func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions)
 			return false
 		}
 	}
+	if options.Appearance != 0 {
+		if !buf.addAppearance(options.Appearance) {
+			return false
+		}
+	}
 	// TODO: if there are multiple 16-bit UUIDs, they should be listed in
 	// one field.
 	// This is not possible for 128-bit service UUIDs (at least not in
@@ -464,6 +476,21 @@ func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions)
 		}
 	}
 
+	return true
+}
+
+// addAppearance adds an Appearance field to the advertisement buffer. It
+// returns true on success (the appearance can be added) and false on failure.
+func (buf *rawAdvertisementPayload) addAppearance(appearance uint16) (ok bool) {
+	if int(buf.len)+4 > len(buf.data) {
+		return false // appearance doesn't fit
+	}
+
+	buf.data[buf.len+0] = 3                     // length of field (including type)
+	buf.data[buf.len+1] = 0x19                  // type, 0x19 means Appearance
+	buf.data[buf.len+2] = byte(appearance)      // low byte
+	buf.data[buf.len+3] = byte(appearance >> 8) // high byte
+	buf.len += 4
 	return true
 }
 
