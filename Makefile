@@ -23,6 +23,16 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/nusserver
 	@md5sum test.hex
+	# Both pairing examples link in crypto/ecdh for LE Secure Connections,
+	# whose P-256 tables need more RAM than the nRF52832 has.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/pairing-justworks
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/pairing-justworks
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/pairing-passkey
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/pairing-passkey
+	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/scanner
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/stop-advertisement
