@@ -60,8 +60,14 @@ var (
 	passkeyBuf       [6]C.uint8_t
 	authStatusCode   volatile.Register8
 	authStatusBonded volatile.Register8
-	secInfoMasterID  C.ble_gap_master_id_t
-	secInfoEncReq    volatile.Register8
+	// authStatusLESC reports whether the pairing procedure used LE Secure
+	// Connections, as opposed to legacy pairing. This is independent of
+	// authStatusBonded: legacy pairing can bond too, and the CONN_SEC_UPDATE
+	// security level alone doesn't distinguish LESC Just Works (level 2)
+	// from legacy Just Works (also level 2). Only used for the debug log.
+	authStatusLESC  volatile.Register8
+	secInfoMasterID C.ble_gap_master_id_t
+	secInfoEncReq   volatile.Register8
 
 	// RAM-only bond storage: the LTK from the last bonding procedure. It is
 	// lost on reset, after which the central has to delete the bond and pair
@@ -391,6 +397,7 @@ func secOnAuthStatus(connHandle C.uint16_t, evt *C.ble_gap_evt_auth_status_t) {
 	}
 	authStatusCode.Set(uint8(evt.auth_status))
 	authStatusBonded.Set(uint8(evt.bitfield_bonded()))
+	authStatusLESC.Set(uint8(evt.bitfield_lesc()))
 	secEventConn.Set(connHandle)
 	secSetFlag(flagAuthStatus)
 }
@@ -449,6 +456,9 @@ func securityWorker() {
 			var err error
 			if code := authStatusCode.Get(); code != C.BLE_GAP_SEC_STATUS_SUCCESS {
 				err = PairingError(code)
+			}
+			if debug {
+				println("evt: gap auth status: bonded", authStatusBonded.Get() != 0, "lesc", authStatusLESC.Get() != 0)
 			}
 			bondValid = err == nil && authStatusBonded.Get() != 0
 			if bondValid {
