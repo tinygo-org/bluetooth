@@ -556,11 +556,17 @@ func lescComputeAndReply(connHandle C.uint16_t) {
 	peerKey, err := ecdh.P256().NewPublicKey(raw[:])
 	if err != nil {
 		// Invalid peer public key (not a point on the curve): abort pairing.
+		if debug {
+			println("lesc dhkey: invalid peer public key:", err.Error())
+		}
 		C.sd_ble_gap_disconnect(connHandle, C.BLE_HCI_AUTHENTICATION_FAILURE)
 		return
 	}
 	shared, err := lescPrivateKey.ECDH(peerKey)
 	if err != nil {
+		if debug {
+			println("lesc dhkey: ECDH failed:", err.Error())
+		}
 		C.sd_ble_gap_disconnect(connHandle, C.BLE_HCI_AUTHENTICATION_FAILURE)
 		return
 	}
