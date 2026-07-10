@@ -28,6 +28,24 @@ type CharacteristicConfig struct {
 	// SoftDevices; other backends ignore them.
 	ReadSecurity  SecurityLevel
 	WriteSecurity SecurityLevel
+
+	// Descriptors are extra descriptors added to the characteristic, in
+	// addition to the ones the stack manages itself (like the CCCD). They are
+	// needed by some profiles, for example the Report Reference descriptor of
+	// HID. Descriptors are currently only supported on Nordic SoftDevices;
+	// other backends ignore them.
+	Descriptors []DescriptorConfig
+}
+
+// DescriptorConfig describes a static, read-only GATT descriptor attached to
+// a characteristic.
+type DescriptorConfig struct {
+	UUID
+	Value []byte
+
+	// ReadSecurity sets the security level needed to read the descriptor
+	// value. The zero value (SecurityOpen) requires no pairing.
+	ReadSecurity SecurityLevel
 }
 
 // SecurityLevel is the link security needed to access a characteristic value.
