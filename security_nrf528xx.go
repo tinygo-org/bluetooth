@@ -77,6 +77,12 @@ var (
 	sysAttrBuf [64]C.uint8_t
 	sysAttrLen volatile.Register16
 	peerBonded volatile.Register8
+	// bondDirty is set (from interrupt context) whenever the RAM copy of the
+	// bond (sys attrs) changes and needs to be written back to flash. It is
+	// consumed by the bond storage worker: flash writes block for tens of
+	// milliseconds, so they must not run in interrupt context nor hold up
+	// the security worker's handling of pairing events.
+	bondDirty volatile.Register8
 	// Static because taking the address of a local variable for a C call
 	// would heap-allocate, which is not allowed in interrupt context.
 	sysAttrGetLen C.uint16_t
@@ -87,9 +93,9 @@ var (
 // central connects. Without it, incoming pairing requests are rejected with
 // "pairing not supported".
 //
-// Bonding keys are kept in RAM only: a bonded central can re-encrypt the link
-// on reconnection without pairing again, but after a reset of this device the
-// central has to delete the bond and pair again.
+// The bond is persisted to flash, so a bonded central can re-encrypt the link
+// on reconnection without pairing again, even after a reset of this device.
+// Only a single bond is kept: pairing with a new central overwrites it.
 func (a *Adapter) EnablePairing(params PairingParams) error {
 	if params.StaticPasskey != "" {
 		if !isValidPasskey(params.StaticPasskey) {
@@ -111,8 +117,7 @@ func (a *Adapter) EnablePairing(params PairingParams) error {
 		max_key_size: 16,
 	}
 	// Advertise bonding support: common centrals (Windows, iOS) do not
-	// complete their pairing flow without a bond. The keys are only kept in
-	// RAM: after a reset the central has to delete the bond and pair again.
+	// complete their pairing flow without a bond.
 	secParamsReply.set_bitfield_bond(1)
 	secParamsReply.kdist_own.set_bitfield_enc(1)
 	if params.MITM {
@@ -140,10 +145,17 @@ func (a *Adapter) EnablePairing(params PairingParams) error {
 		}
 	}
 
+	if !workerStarted {
+		// Load a bond persisted by a previous run, if any, before the first
+		// connection can arrive.
+		loadBondFromFlash()
+	}
+
 	pairingConfig = params
 	if !workerStarted {
 		workerStarted = true
 		go securityWorker()
+		go bondStorageWorker()
 	}
 	pairingEnabled.Set(1)
 	return nil
@@ -247,6 +259,10 @@ func secSaveSysAttrs(connHandle C.uint16_t) {
 	errCode := C.sd_ble_gatts_sys_attr_get(connHandle, &sysAttrBuf[0], &sysAttrGetLen, 0)
 	if errCode == 0 {
 		sysAttrLen.Set(uint16(sysAttrGetLen))
+		// The central's subscriptions are part of the persisted bond, so a
+		// bonded central does not have to subscribe again after a reset of
+		// this device. Persisting is deferred to the security worker.
+		bondDirty.Set(1)
 	}
 	if debug {
 		println("sys attr save:", errCode, "len:", uint16(sysAttrGetLen))
@@ -403,6 +419,7 @@ func securityWorker() {
 				peerBonded.Set(1)
 				// A new bond invalidates CCCD state saved for an old one.
 				sysAttrLen.Set(0)
+				bondDirty.Set(1)
 			}
 			if handler := pairingConfig.PairingCompleteHandler; handler != nil {
 				handler(device, err)
