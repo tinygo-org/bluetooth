@@ -21,7 +21,31 @@ type CharacteristicConfig struct {
 	Value      []byte
 	Flags      CharacteristicPermissions
 	WriteEvent WriteEvent
+
+	// ReadSecurity and WriteSecurity set the security level needed to read
+	// and write the characteristic value. The zero value (SecurityOpen)
+	// requires no pairing. They are currently only supported on Nordic
+	// SoftDevices; other backends ignore them.
+	ReadSecurity  SecurityLevel
+	WriteSecurity SecurityLevel
 }
+
+// SecurityLevel is the link security needed to access a characteristic value.
+type SecurityLevel uint8
+
+const (
+	// SecurityOpen requires no encryption (the default).
+	SecurityOpen SecurityLevel = iota
+	// SecurityEncrypted requires an encrypted link, but no MITM protection
+	// (Just Works pairing is enough).
+	SecurityEncrypted
+	// SecurityAuthenticated requires an encrypted link with MITM protection
+	// (passkey or numeric comparison pairing).
+	SecurityAuthenticated
+	// SecurityLESCAuthenticated requires a LE Secure Connections encrypted
+	// link with MITM protection.
+	SecurityLESCAuthenticated
+)
 
 // CharacteristicPermissions lists a number of basic permissions/capabilities
 // that clients have regarding this characteristic. For example, if you want to

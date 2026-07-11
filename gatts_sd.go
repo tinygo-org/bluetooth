@@ -34,6 +34,24 @@ type Characteristic struct {
 	permissions CharacteristicPermissions
 }
 
+// secMode converts a SecurityLevel to a SoftDevice connection security mode
+// (security mode 1 with the matching level).
+func secMode(level SecurityLevel) C.ble_gap_conn_sec_mode_t {
+	var mode C.ble_gap_conn_sec_mode_t
+	mode.set_bitfield_sm(1)
+	switch level {
+	case SecurityEncrypted:
+		mode.set_bitfield_lv(2)
+	case SecurityAuthenticated:
+		mode.set_bitfield_lv(3)
+	case SecurityLESCAuthenticated:
+		mode.set_bitfield_lv(4)
+	default:
+		mode.set_bitfield_lv(1) // open link, no security needed
+	}
+	return mode
+}
+
 // AddService creates a new service with the characteristics listed in the
 // Service struct.
 func (a *Adapter) AddService(service *Service) error {
@@ -61,8 +79,8 @@ func (a *Adapter) AddService(service *Service) error {
 		value := C.ble_gatts_attr_t{
 			p_uuid: &charUUID,
 			p_attr_md: &C.ble_gatts_attr_md_t{
-				read_perm:  secModeOpen,
-				write_perm: secModeOpen,
+				read_perm:  secMode(char.ReadSecurity),
+				write_perm: secMode(char.WriteSecurity),
 			},
 			init_len:  C.uint16_t(len(char.Value)),
 			init_offs: 0,

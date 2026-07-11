@@ -148,6 +148,41 @@ func handleEvent() {
 					println("gap timeout: other")
 				}
 			}
+		case C.BLE_GAP_EVT_SEC_PARAMS_REQUEST:
+			if debug {
+				println("evt: gap security parameters request")
+			}
+			secOnSecParamsRequest(gapEvent.conn_handle)
+		case C.BLE_GAP_EVT_SEC_INFO_REQUEST:
+			if debug {
+				println("evt: gap security info request")
+			}
+			secOnSecInfoRequest(gapEvent.conn_handle, gapEvent.params.unionfield_sec_info_request())
+		case C.BLE_GAP_EVT_PASSKEY_DISPLAY:
+			if debug {
+				println("evt: gap passkey display")
+			}
+			secOnPasskeyDisplay(gapEvent.conn_handle, gapEvent.params.unionfield_passkey_display())
+		case C.BLE_GAP_EVT_AUTH_KEY_REQUEST:
+			if debug {
+				println("evt: gap auth key request")
+			}
+			secOnAuthKeyRequest(gapEvent.conn_handle)
+		case C.BLE_GAP_EVT_LESC_DHKEY_REQUEST:
+			if debug {
+				println("evt: gap lesc dhkey request")
+			}
+			secOnLESCDHKeyRequest(gapEvent.conn_handle)
+		case C.BLE_GAP_EVT_CONN_SEC_UPDATE:
+			if debug {
+				connSec := gapEvent.params.unionfield_conn_sec_update().conn_sec
+				println("evt: gap connection security update, mode", connSec.sec_mode.bitfield_sm(), "level", connSec.sec_mode.bitfield_lv())
+			}
+		case C.BLE_GAP_EVT_AUTH_STATUS:
+			if debug {
+				println("evt: gap auth status:", gapEvent.params.unionfield_auth_status().auth_status)
+			}
+			secOnAuthStatus(gapEvent.conn_handle, gapEvent.params.unionfield_auth_status())
 		default:
 			if debug {
 				println("unknown GAP event:", id)
