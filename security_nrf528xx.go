@@ -12,6 +12,7 @@ import (
 /*
 #include "ble.h"
 #include "ble_gap.h"
+#include "ble_gatts.h"
 #include "nrf_soc.h"
 */
 import "C"
@@ -67,6 +68,18 @@ var (
 	// again. bondValid is only accessed by the security worker.
 	ownEncKey C.ble_gap_enc_key_t
 	bondValid bool
+
+	// System attributes (CCCD values) of the bonded central, saved at
+	// disconnect. A bonded central expects its notification subscriptions to
+	// persist across reconnections and does not necessarily subscribe again.
+	// peerBonded reports whether the currently connected central is the one
+	// we share the bond with.
+	sysAttrBuf [64]C.uint8_t
+	sysAttrLen volatile.Register16
+	peerBonded volatile.Register8
+	// Static because taking the address of a local variable for a C call
+	// would heap-allocate, which is not allowed in interrupt context.
+	sysAttrGetLen C.uint16_t
 )
 
 // EnablePairing configures the adapter to accept pairing and bonding requests
@@ -219,6 +232,59 @@ func secClearFlag(flag uint8) {
 	RestoreInterrupts(mask)
 }
 
+func secOnConnect() {
+	peerBonded.Set(0)
+}
+
+// secSaveSysAttrs saves the CCCD state of the bonded central so it can be
+// restored when it reconnects. It is called on every GATT server write (which
+// includes subscription changes) and at disconnect.
+func secSaveSysAttrs(connHandle C.uint16_t) {
+	if peerBonded.Get() == 0 || pairingEnabled.Get() == 0 {
+		return
+	}
+	sysAttrGetLen = C.uint16_t(len(sysAttrBuf))
+	errCode := C.sd_ble_gatts_sys_attr_get(connHandle, &sysAttrBuf[0], &sysAttrGetLen, 0)
+	if errCode == 0 {
+		sysAttrLen.Set(uint16(sysAttrGetLen))
+	}
+	if debug {
+		println("sys attr save:", errCode, "len:", uint16(sysAttrGetLen))
+	}
+}
+
+func secOnDisconnect(connHandle C.uint16_t) {
+	secSaveSysAttrs(connHandle)
+}
+
+// secRestoreSysAttrs restores the saved CCCD state of the bonded central, and
+// reports whether it did.
+func secRestoreSysAttrs(connHandle C.uint16_t) bool {
+	if peerBonded.Get() == 0 || sysAttrLen.Get() == 0 {
+		return false
+	}
+	errCode := C.sd_ble_gatts_sys_attr_set(connHandle, &sysAttrBuf[0], C.uint16_t(sysAttrLen.Get()), 0)
+	if debug {
+		println("sys attr restore:", errCode)
+	}
+	return errCode == 0
+}
+
+// secOnConnSecUpdate is called when the link encryption changed. When the
+// bonded central re-encrypted the link, its saved CCCD state is restored
+// right away: the central expects its subscriptions to persist, so waiting
+// for a BLE_GATTS_EVT_SYS_ATTR_MISSING event is not enough (sending a
+// notification does not generate that event, it just fails).
+func secOnConnSecUpdate(connHandle C.uint16_t) {
+	secRestoreSysAttrs(connHandle)
+}
+
+func secOnSysAttrMissing(connHandle C.uint16_t) {
+	if !secRestoreSysAttrs(connHandle) {
+		C.sd_ble_gatts_sys_attr_set(connHandle, nil, 0, 0)
+	}
+}
+
 func secOnSecParamsRequest(connHandle C.uint16_t) {
 	if pairingEnabled.Get() == 0 {
 		// Pairing is not configured: politely reject instead of letting the
@@ -333,6 +399,11 @@ func securityWorker() {
 				err = PairingError(code)
 			}
 			bondValid = err == nil && authStatusBonded.Get() != 0
+			if bondValid {
+				peerBonded.Set(1)
+				// A new bond invalidates CCCD state saved for an old one.
+				sysAttrLen.Set(0)
+			}
 			if handler := pairingConfig.PairingCompleteHandler; handler != nil {
 				handler(device, err)
 			}
@@ -347,6 +418,7 @@ func securityWorker() {
 				secInfoMasterID.ediv == ownEncKey.master_id.ediv &&
 				secInfoMasterID.rand == ownEncKey.master_id.rand {
 				encInfo = &ownEncKey.enc_info
+				peerBonded.Set(1)
 			}
 			errCode := C.sd_ble_gap_sec_info_reply(connHandle, encInfo, nil, nil)
 			if debug && errCode != 0 {
