@@ -11,9 +11,8 @@ import (
 )
 
 // #include "ble.h"
-// #ifdef NRF51
-//   #include "nrf_soc.h"
-// #else
+// #include "nrf_soc.h"
+// #ifndef NRF51
 //   #include "nrf_nvic.h"
 // #endif
 import "C"
@@ -64,6 +63,18 @@ var DefaultAdapter = &Adapter{isDefault: true,
 
 var eventBufLen C.uint16_t
 
+// flashOpResult is set from the SWI2 interrupt handler when an asynchronous
+// sd_flash_write/sd_flash_page_erase command completes. It is a SoC event,
+// which is a separate event queue from the BLE events handled by
+// handleEvent, but delivered through the same interrupt (SD_EVT_IRQn is
+// SWI2_IRQn). 0 means no result yet, 1 success, 2 error. Consumed by bond
+// storage code where available.
+var flashOpResult volatile.Register8
+
+// Static because taking the address of a local variable for a C call would
+// heap-allocate, which is not allowed in interrupt context.
+var socEvtID C.uint32_t
+
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
 func (a *Adapter) Enable() error {
@@ -87,6 +98,23 @@ func (a *Adapter) Enable() error {
 				break
 			}
 			handleEvent()
+		}
+
+		// Drain pending SoC events. Currently only flash operation
+		// completion is of interest, but any pending event must still be
+		// pulled out of the queue or the SoftDevice will stop delivering new
+		// ones.
+		for {
+			errCode := C.sd_evt_get(&socEvtID)
+			if errCode != 0 {
+				break
+			}
+			switch socEvtID {
+			case C.NRF_EVT_FLASH_OPERATION_SUCCESS:
+				flashOpResult.Set(1)
+			case C.NRF_EVT_FLASH_OPERATION_ERROR:
+				flashOpResult.Set(2)
+			}
 		}
 	})
 	intr.Enable()
