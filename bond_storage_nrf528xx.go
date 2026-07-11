@@ -10,6 +10,7 @@ import "C"
 import (
 	"errors"
 	"machine"
+	"runtime/volatile"
 	"time"
 	"unsafe"
 )
@@ -99,14 +100,47 @@ func saveBondToFlash() error {
 	return nil
 }
 
-// bondStorageWorker runs all bond flash operations: it saves the bond
-// whenever the RAM copy has changed (bondDirty, set from interrupt context).
-// Routing every flash operation through this one goroutine serializes access
-// to the flash and to flashOpResult, and keeps the security worker
-// responsive to pairing events while a flash operation (up to tens of
-// milliseconds) is in progress.
+// eraseBondFromFlash erases the persisted bond record. It must only be
+// called from the bond storage worker (see bondStorageWorker), so that flash
+// operations never run concurrently.
+func eraseBondFromFlash() error {
+	flashOpResult.Set(0)
+	errCode := C.sd_flash_page_erase(C.uint32_t(uint32(bondFlashAddr()) / bondFlashPageSize))
+	if errCode != 0 {
+		return makeError(errCode)
+	}
+	if !waitFlashOp() {
+		return errFlashOpFailed
+	}
+	return nil
+}
+
+// Erase-request handshake between RemoveBond (application goroutine context)
+// and the bond storage worker, in the same volatile-flag style used for all
+// other cross-goroutine signalling in this backend. RemoveBond clears
+// bondEraseDone, sets bondEraseRequested and then polls bondEraseDone;
+// bondEraseErr is only valid once bondEraseDone is set. Only one erase can
+// be outstanding at a time (RemoveBond blocks until completion).
+var (
+	bondEraseRequested volatile.Register8
+	bondEraseDone      volatile.Register8
+	bondEraseErr       error
+)
+
+// bondStorageWorker runs all bond flash operations: deferred saves whenever
+// the RAM copy of the bond has changed (bondDirty, set from interrupt
+// context) and erase requests from RemoveBond. Routing every flash operation
+// through this one goroutine serializes access to the flash and to
+// flashOpResult, and keeps the security worker responsive to pairing events
+// while a flash operation (up to tens of milliseconds) is in progress.
 func bondStorageWorker() {
 	for {
+		if bondEraseRequested.Get() != 0 {
+			bondEraseRequested.Set(0)
+			bondEraseErr = eraseBondFromFlash()
+			bondEraseDone.Set(1)
+			continue
+		}
 		if bondDirty.Get() != 0 {
 			bondDirty.Set(0)
 			if err := saveBondToFlash(); debug && err != nil {

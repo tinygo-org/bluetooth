@@ -161,6 +161,42 @@ func (a *Adapter) EnablePairing(params PairingParams) error {
 	return nil
 }
 
+// RemoveBond deletes the stored bond, both the RAM copy and the flash
+// record, and disconnects the currently connected central (if any). This is
+// the "unpair" action of a typical single-bond device: the next central to
+// connect can pair fresh.
+//
+// It must be called from goroutine context (it blocks until the flash erase
+// has completed), never from an interrupt.
+func (a *Adapter) RemoveBond() error {
+	bondValid = false
+	bondDirty.Set(0)
+	sysAttrLen.Set(0)
+	ownEncKey = C.ble_gap_enc_key_t{}
+	for i := range sysAttrBuf {
+		sysAttrBuf[i] = 0
+	}
+
+	connHandle := currentConnection.Get()
+	if connHandle != C.BLE_CONN_HANDLE_INVALID {
+		C.sd_ble_gap_disconnect(connHandle, C.BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION)
+	}
+
+	if !workerStarted {
+		// EnablePairing was never called, so the bond storage worker isn't
+		// running and no other goroutine can touch the flash: erase directly.
+		return eraseBondFromFlash()
+	}
+	// Hand the erase to the bond storage worker, which owns all bond flash
+	// operations, so it cannot race with a save that may be in progress.
+	bondEraseDone.Set(0)
+	bondEraseRequested.Set(1)
+	for bondEraseDone.Get() == 0 {
+		time.Sleep(time.Millisecond)
+	}
+	return bondEraseErr
+}
+
 // RequestPairing sends a security request to the connected central, asking it
 // to initiate pairing. The central may ignore the request. EnablePairing must
 // have been called first.
