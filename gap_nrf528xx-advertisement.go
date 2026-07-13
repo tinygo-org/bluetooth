@@ -51,7 +51,9 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	if options.Appearance != 0 {
 		// Also expose the appearance through the GAP service. Hosts use it to
 		// recognize device types, for example HID keyboards.
-		C.sd_ble_gap_appearance_set(C.uint16_t(options.Appearance))
+		if err := makeError(C.sd_ble_gap_appearance_set(C.uint16_t(options.Appearance))); err != nil {
+			return err
+		}
 	}
 
 	// Construct payload.
