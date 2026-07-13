@@ -103,6 +103,11 @@ var (
 // on reconnection without pairing again, even after a reset of this device.
 // Only a single bond is kept: pairing with a new central overwrites it.
 func (a *Adapter) EnablePairing(params PairingParams) error {
+	// Always set BLE_GAP_OPT_PASSKEY, even when StaticPasskey is empty:
+	// passing a NULL p_passkey tells the SoftDevice to go back to generating a
+	// random passkey. Without this, a static passkey configured by an earlier
+	// EnablePairing call would stay active.
+	var passkeyPtr *C.uint8_t
 	if params.StaticPasskey != "" {
 		if !isValidPasskey(params.StaticPasskey) {
 			return errInvalidPasskey
@@ -110,12 +115,13 @@ func (a *Adapter) EnablePairing(params PairingParams) error {
 		for i := 0; i < 6; i++ {
 			staticPasskey[i] = C.uint8_t(params.StaticPasskey[i])
 		}
-		var opt C.ble_opt_t
-		opt.unionfield_gap_opt().unionfield_passkey().p_passkey = &staticPasskey[0]
-		errCode := C.sd_ble_opt_set(C.BLE_GAP_OPT_PASSKEY, &opt)
-		if errCode != 0 {
-			return Error(errCode)
-		}
+		passkeyPtr = &staticPasskey[0]
+	}
+	var opt C.ble_opt_t
+	opt.unionfield_gap_opt().unionfield_passkey().p_passkey = passkeyPtr
+	errCode := C.sd_ble_opt_set(C.BLE_GAP_OPT_PASSKEY, &opt)
+	if errCode != 0 {
+		return Error(errCode)
 	}
 
 	secParamsReply = C.ble_gap_sec_params_t{
