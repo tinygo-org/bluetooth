@@ -53,7 +53,7 @@ func loadBondFromFlash() {
 	offset += 4
 	copy(unsafe.Slice((*byte)(unsafe.Pointer(&sysAttrBuf[0])), len(sysAttrBuf)), unsafe.Slice((*byte)(unsafe.Pointer(offset)), len(sysAttrBuf)))
 
-	bondValid = true
+	bondValid.Set(1)
 	if length <= uint32(len(sysAttrBuf)) {
 		sysAttrLen.Set(uint16(length))
 	}

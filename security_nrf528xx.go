@@ -71,9 +71,12 @@ var (
 
 	// RAM-only bond storage: the LTK from the last bonding procedure. It is
 	// lost on reset, after which the central has to delete the bond and pair
-	// again. bondValid is only accessed by the security worker.
+	// again. bondValid is written by the security worker, by RemoveBond
+	// (application goroutine), and by loadBondFromFlash (called from
+	// EnablePairing), and read by the security worker, so it must be a
+	// volatile type like the other cross-context flags in this file.
 	ownEncKey C.ble_gap_enc_key_t
-	bondValid bool
+	bondValid volatile.Register8
 
 	// System attributes (CCCD values) of the bonded central, saved at
 	// disconnect. A bonded central expects its notification subscriptions to
@@ -181,7 +184,7 @@ func (a *Adapter) EnablePairing(params PairingParams) error {
 // It must be called from goroutine context (it blocks until the flash erase
 // has completed), never from an interrupt.
 func (a *Adapter) RemoveBond() error {
-	bondValid = false
+	bondValid.Set(0)
 	// peerBonded must be cleared too: sd_ble_gap_disconnect below is
 	// asynchronous, so the actual disconnect event can still arrive after
 	// this function returns. If peerBonded were left set, secOnDisconnect
@@ -475,8 +478,12 @@ func securityWorker() {
 			if debug {
 				println("evt: gap auth status: bonded", authStatusBonded.Get() != 0, "lesc", authStatusLESC.Get() != 0)
 			}
-			bondValid = err == nil && authStatusBonded.Get() != 0
-			if bondValid {
+			if err == nil && authStatusBonded.Get() != 0 {
+				bondValid.Set(1)
+			} else {
+				bondValid.Set(0)
+			}
+			if bondValid.Get() != 0 {
 				peerBonded.Set(1)
 				// A new bond invalidates CCCD state saved for an old one.
 				sysAttrLen.Set(0)
@@ -492,7 +499,7 @@ func securityWorker() {
 			// Without a matching key, reply that the keys are lost so the
 			// central can re-pair.
 			var encInfo *C.ble_gap_enc_info_t
-			if bondValid && secInfoEncReq.Get() != 0 &&
+			if bondValid.Get() != 0 && secInfoEncReq.Get() != 0 &&
 				secInfoMasterID.ediv == ownEncKey.master_id.ediv &&
 				secInfoMasterID.rand == ownEncKey.master_id.rand {
 				encInfo = &ownEncKey.enc_info
