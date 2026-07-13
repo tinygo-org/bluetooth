@@ -32,6 +32,13 @@ func TestCreateAdvertisementPayload(t *testing.T) {
 		},
 		{
 			raw: "\x02\x01\x06" + // flags
+				"\x03\x19\xc1\x03", // appearance (961, HID Keyboard, little-endian)
+			parsed: AdvertisementOptions{
+				Appearance: 961,
+			},
+		},
+		{
+			raw: "\x02\x01\x06" + // flags
 				"\x0b\x09Heart rate" + // local name
 				"\x03\x03\x0d\x18", // service UUID
 			parsed: AdvertisementOptions{
