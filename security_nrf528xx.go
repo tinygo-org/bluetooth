@@ -176,6 +176,13 @@ func (a *Adapter) EnablePairing(params PairingParams) error {
 // has completed), never from an interrupt.
 func (a *Adapter) RemoveBond() error {
 	bondValid = false
+	// peerBonded must be cleared too: sd_ble_gap_disconnect below is
+	// asynchronous, so the actual disconnect event can still arrive after
+	// this function returns. If peerBonded were left set, secOnDisconnect
+	// would save the (already-cleared, but re-readable from the SoftDevice)
+	// CCCD state again and the bond storage worker would write a bond
+	// record back to flash right after this function erased it.
+	peerBonded.Set(0)
 	bondDirty.Set(0)
 	sysAttrLen.Set(0)
 	ownEncKey = C.ble_gap_enc_key_t{}
@@ -185,7 +192,9 @@ func (a *Adapter) RemoveBond() error {
 
 	connHandle := currentConnection.Get()
 	if connHandle != C.BLE_CONN_HANDLE_INVALID {
-		C.sd_ble_gap_disconnect(connHandle, C.BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION)
+		if err := makeError(C.sd_ble_gap_disconnect(connHandle, C.BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION)); err != nil {
+			return err
+		}
 	}
 
 	if !workerStarted {
