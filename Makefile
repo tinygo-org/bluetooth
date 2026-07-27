@@ -58,6 +58,14 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=badger2040-w	./examples/advertisement
 	@md5sum test.hex
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3	./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3	./examples/discover
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3	./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3	./examples/discover
+	@md5sum test.bin
 
 smoketest-linux:
 	# Test on Linux.

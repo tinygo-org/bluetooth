@@ -1,4 +1,4 @@
-//go:build ninafw || hci || cyw43439
+//go:build ninafw || hci || cyw43439 || espradio
 
 package bluetooth
 
