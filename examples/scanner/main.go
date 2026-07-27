@@ -1,12 +1,17 @@
 package main
 
 import (
+	"time"
+
 	"tinygo.org/x/bluetooth"
 )
 
 var adapter = bluetooth.DefaultAdapter
 
 func main() {
+	time.Sleep(time.Second) // wait for the system to initialize
+	println("Starting BLE")
+
 	// Enable BLE interface.
 	must("enable BLE stack", adapter.Enable())
 
