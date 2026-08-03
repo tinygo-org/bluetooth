@@ -151,10 +151,18 @@ type hci struct {
 	pendingPkt        uint16
 }
 
+// hciReadBufSize is the size of the packet read buffer. It must be large
+// enough for the largest packet that can legitimately be received, otherwise
+// such a packet can never be assembled: an HCI event carries a single byte
+// parameter length, so the largest one is the packet type byte, the event code,
+// the length byte and 255 parameter bytes. This also covers the largest ACL
+// packet that can arrive given maximumMTU.
+const hciReadBufSize = hciEvtLenPos + 255 + 1
+
 func newHCI(t hciTransport) *hci {
 	return &hci{
 		transport: t,
-		buf:       make([]byte, 256),
+		buf:       make([]byte, hciReadBufSize),
 		writebuf:  make([]byte, 256),
 	}
 }
@@ -202,8 +210,15 @@ func (h *hci) poll() error {
 				available = len(h.buf) - h.end
 			}
 
-			// read in 4 byte aligned chunks
+			// Read in 4 byte aligned chunks. Rounding up may push the read
+			// past the end of the buffer, so clamp it back down: transports
+			// read up to the length of the slice, so a short read is fine but
+			// an out of bounds slice is not.
 			aligned := available + (4-(available%4))%4
+			if h.end+aligned > len(h.buf) {
+				aligned = len(h.buf) - h.end
+			}
+
 			n, err := h.transport.Read(h.buf[h.end : h.end+aligned])
 			if err != nil {
 				return err
@@ -263,16 +278,25 @@ func (h *hci) processPacket() (bool, error) {
 	case hciACLDataPkt:
 		if h.pos > hciACLLenPos {
 			pktlen := int(binary.LittleEndian.Uint16(h.buf[3:5]))
+
+			// Total size of the packet, including the leading packet type
+			// byte. The length comes off the wire, so it may be larger than
+			// the read buffer can ever hold.
+			pktTotal := hciACLLenPos + pktlen + 1
+			if pktTotal > len(h.buf) {
+				return true, ErrHCIInvalidPacket
+			}
+
 			switch {
-			case h.end < hciACLLenPos+pktlen:
+			case h.end < pktTotal:
 				// need to read more data
 				return false, nil
-			case h.pos >= hciACLLenPos+pktlen:
+			case h.pos >= pktTotal:
 				if debug {
-					println("hci acl data recv:", h.pos, hex.EncodeToString(h.buf[:hciACLLenPos+pktlen+1]))
+					println("hci acl data recv:", h.pos, hex.EncodeToString(h.buf[:pktTotal]))
 				}
 
-				h.pos = hciACLLenPos + pktlen + 1
+				h.pos = pktTotal
 				return true, h.handleACLData(h.buf[1:h.pos])
 			}
 		}
@@ -281,16 +305,21 @@ func (h *hci) processPacket() (bool, error) {
 		if h.pos > hciEvtLenPos {
 			pktlen := int(h.buf[hciEvtLenPos])
 
+			pktTotal := hciEvtLenPos + pktlen + 1
+			if pktTotal > len(h.buf) {
+				return true, ErrHCIInvalidPacket
+			}
+
 			switch {
-			case h.end < hciEvtLenPos+pktlen:
+			case h.end < pktTotal:
 				// need to read more data
 				return false, nil
-			case h.pos >= hciEvtLenPos+pktlen:
+			case h.pos >= pktTotal:
 				if debug {
-					println("hci event data recv:", h.pos, hex.EncodeToString(h.buf[:hciEvtLenPos+pktlen+1]))
+					println("hci event data recv:", h.pos, hex.EncodeToString(h.buf[:pktTotal]))
 				}
 
-				h.pos = hciEvtLenPos + pktlen + 1
+				h.pos = pktTotal
 				return true, h.handleEventData(h.buf[1:h.pos])
 			}
 		}
@@ -322,6 +351,10 @@ func (h *hci) processPacket() (bool, error) {
 func (h *hci) readBdAddr() error {
 	if err := h.sendCommand(ogfInfoParam<<ogfCommandPos | ocfReadBDAddr); err != nil {
 		return err
+	}
+
+	if len(h.cmdResponse) < 7 {
+		return ErrHCIInvalidPacket
 	}
 
 	copy(h.address.MAC[:], h.cmdResponse[:7])
@@ -567,6 +600,11 @@ type aclDataHeader struct {
 }
 
 func (h *hci) handleACLData(buf []byte) error {
+	// The ACL header is 4 bytes, followed by a 4 byte L2CAP header.
+	if len(buf) < 8 {
+		return ErrHCIInvalidPacket
+	}
+
 	aclHdr := aclDataHeader{
 		handle: binary.LittleEndian.Uint16(buf[0:]),
 		dlen:   binary.LittleEndian.Uint16(buf[2:]),
@@ -575,8 +613,19 @@ func (h *hci) handleACLData(buf []byte) error {
 	}
 
 	aclFlags := (aclHdr.handle & 0xf000) >> 12
-	if aclHdr.dlen-4 != aclHdr.len {
+	if aclHdr.dlen < 4 || aclHdr.dlen-4 != aclHdr.len {
 		return errors.New("fragmented packet")
+	}
+
+	// The L2CAP length comes off the wire, so check the payload is really
+	// present rather than trusting it. Computed as an int, since the uint16
+	// arithmetic would wrap around.
+	end := 8 + int(aclHdr.len)
+	if end > len(buf) {
+		if debug {
+			println("invalid acl payload length", aclHdr.len, len(buf))
+		}
+		return ErrHCIInvalidPacket
 	}
 
 	switch aclHdr.cid {
@@ -586,16 +635,16 @@ func (h *hci) handleACLData(buf []byte) error {
 			if debug {
 				println("WARNING: att.handleACLData needs buffered packet")
 			}
-			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:aclHdr.len+8])
+			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:end])
 		} else {
-			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:aclHdr.len+8])
+			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:end])
 		}
 	case signalingCID:
 		if debug {
 			println("signaling cid", aclHdr.cid, hex.EncodeToString(buf))
 		}
 
-		return h.l2cap.handleData(aclHdr.handle&0x0fff, buf[8:aclHdr.len+8])
+		return h.l2cap.handleData(aclHdr.handle&0x0fff, buf[8:end])
 
 	default:
 		if debug {
@@ -607,6 +656,11 @@ func (h *hci) handleACLData(buf []byte) error {
 }
 
 func (h *hci) handleEventData(buf []byte) error {
+	// Every event has at least an event code and a parameter length byte.
+	if len(buf) < 2 {
+		return ErrHCIInvalidPacket
+	}
+
 	evt := buf[0]
 	plen := buf[1]
 
@@ -614,6 +668,10 @@ func (h *hci) handleEventData(buf []byte) error {
 	case evtDisconnComplete:
 		if debug {
 			println("evtDisconnComplete")
+		}
+
+		if len(buf) < 5 {
+			return ErrHCIInvalidPacket
 		}
 
 		handle := binary.LittleEndian.Uint16(buf[3:])
@@ -631,6 +689,10 @@ func (h *hci) handleEventData(buf []byte) error {
 		}
 
 	case evtCmdComplete:
+		if len(buf) < 6 || int(plen)+2 > len(buf) {
+			return ErrHCIInvalidPacket
+		}
+
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[3:])
 		h.cmdCompleteStatus = buf[5]
 		if plen > 0 {
@@ -646,6 +708,10 @@ func (h *hci) handleEventData(buf []byte) error {
 		return nil
 
 	case evtCmdStatus:
+		if len(buf) < 6 {
+			return ErrHCIInvalidPacket
+		}
+
 		h.cmdCompleteStatus = buf[2]
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[4:])
 		if debug {
@@ -660,12 +726,22 @@ func (h *hci) handleEventData(buf []byte) error {
 		if debug {
 			println("evtNumCompPkts", hex.EncodeToString(buf))
 		}
+		if len(buf) < 3 {
+			return ErrHCIInvalidPacket
+		}
+
 		// count of handles
 		c := buf[2]
 		pkts := uint16(0)
 
+		// The handle count comes off the wire, so make sure the event is
+		// actually long enough to hold that many entries.
+		if 5+(int(c)-1)*4+2 > len(buf) {
+			return ErrHCIInvalidPacket
+		}
+
 		for i := byte(0); i < c; i++ {
-			pkts += binary.LittleEndian.Uint16(buf[5+i*4:])
+			pkts += binary.LittleEndian.Uint16(buf[5+int(i)*4:])
 		}
 
 		if pkts > 0 && h.pendingPkt > pkts {
@@ -685,6 +761,11 @@ func (h *hci) handleEventData(buf []byte) error {
 			println("evtLEMetaEvent")
 		}
 
+		// An LE meta event has at least a subevent code.
+		if len(buf) < 3 {
+			return ErrHCIInvalidPacket
+		}
+
 		switch buf[2] {
 		case leMetaEventConnComplete, leMetaEventEnhancedConnectionComplete:
 			if debug {
@@ -695,12 +776,25 @@ func (h *hci) handleEventData(buf []byte) error {
 				}
 			}
 
+			// The enhanced variant carries two extra addresses before the
+			// connection interval, so it needs a longer event.
+			minLen := 20
+			if buf[2] == leMetaEventEnhancedConnectionComplete {
+				minLen = 32
+			}
+			if len(buf) < minLen {
+				if debug {
+					println("invalid connection complete length", len(buf))
+				}
+				return ErrHCIInvalidPacket
+			}
+
 			h.connectData.connected = true
 			h.connectData.status = buf[3]
 			h.connectData.handle = binary.LittleEndian.Uint16(buf[4:])
 			h.connectData.role = buf[6]
 			h.connectData.peerBdaddrType = buf[7]
-			copy(h.connectData.peerBdaddr[0:], buf[8:])
+			copy(h.connectData.peerBdaddr[0:], buf[8:14])
 
 			switch buf[2] {
 			case leMetaEventConnComplete:
@@ -720,29 +814,46 @@ func (h *hci) handleEventData(buf []byte) error {
 			return h.leSetAdvertiseEnable(false)
 
 		case leMetaEventAdvertisingReport:
+			// Validate the whole report before touching h.advData, so a
+			// truncated one cannot leave a half filled report behind marked as
+			// reported. The fixed part is 13 bytes (up to and including the
+			// data length), followed by the advertisement data and one RSSI
+			// byte.
+			if len(buf) < 13 {
+				if debug {
+					println("invalid advertising report length", len(buf))
+				}
+				return ErrHCIInvalidPacket
+			}
+
+			eirLength := buf[12]
+
+			// Note: the length must be computed as an int. Doing the
+			// arithmetic on the uint8 eirLength would wrap around.
+			if eirLength > 31 || 13+int(eirLength)+1 > len(buf) {
+				if debug {
+					println("invalid packet length", eirLength, len(buf))
+				}
+				return ErrHCIInvalidPacket
+			}
+
 			h.advData.reported = true
 			h.advData.numReports = buf[3]
 			h.advData.typ = buf[4]
 			h.advData.peerBdaddrType = buf[5]
-			copy(h.advData.peerBdaddr[0:], buf[6:])
-			h.advData.eirLength = buf[12]
+			copy(h.advData.peerBdaddr[0:], buf[6:12])
+			h.advData.eirLength = eirLength
 			h.advData.rssi = 0
 			if debug {
 				println("leMetaEventAdvertisingReport", plen, h.advData.numReports,
 					h.advData.typ, h.advData.peerBdaddrType, h.advData.eirLength)
 			}
 
-			if int(13+h.advData.eirLength+1) > len(buf) || h.advData.eirLength > 31 {
-				if debug {
-					println("invalid packet length", h.advData.eirLength, len(buf))
-				}
-				return ErrHCIInvalidPacket
-			}
-			copy(h.advData.eirData[0:h.advData.eirLength], buf[13:13+h.advData.eirLength])
+			copy(h.advData.eirData[0:eirLength], buf[13:13+eirLength])
 
 			// TODO: handle multiple reports
 			if h.advData.numReports == 0x01 {
-				h.advData.rssi = int8(buf[int(13+h.advData.eirLength)])
+				h.advData.rssi = int8(buf[13+int(eirLength)])
 			}
 
 			return nil
@@ -755,6 +866,10 @@ func (h *hci) handleEventData(buf []byte) error {
 		case leMetaEventRemoteConnParamReq:
 			if debug {
 				println("leMetaEventRemoteConnParamReq")
+			}
+
+			if len(buf) < 13 {
+				return ErrHCIInvalidPacket
 			}
 
 			connectionHandle := binary.LittleEndian.Uint16(buf[3:])

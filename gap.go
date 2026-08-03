@@ -276,24 +276,42 @@ func (buf *rawAdvertisementPayload) Bytes() []byte {
 	return buf.data[:buf.len]
 }
 
-// findField returns the data of a specific field in the advertisement packet.
+// nextADField splits the first AD field off the front of an advertisement
+// payload. It returns the field type, the field data (excluding the length and
+// type bytes) and the remainder of the payload. It returns ok=false once there
+// are no more usable fields, which includes malformed input: advertisement data
+// comes straight off the air, so a field length that runs past the end of the
+// buffer must not be trusted.
 //
 // See this list of field types:
 // https://www.bluetooth.com/specifications/assigned-numbers/generic-access-profile/
+func nextADField(data []byte) (fieldType byte, field, rest []byte, ok bool) {
+	if len(data) < 2 {
+		return 0, nil, nil, false
+	}
+	fieldLength := int(data[0])
+	if fieldLength < 1 || fieldLength+1 > len(data) {
+		// A zero length marks the end of the significant part of the payload,
+		// and a length beyond the end of the buffer means it is malformed.
+		// Either way, stop here.
+		return 0, nil, nil, false
+	}
+	return data[1], data[2 : fieldLength+1], data[fieldLength+1:], true
+}
+
+// findField returns the data of a specific field in the advertisement packet.
 func (buf *rawAdvertisementPayload) findField(fieldType byte) []byte {
 	data := buf.Bytes()
-	for len(data) >= 2 {
-		fieldLength := data[0]
-		if int(fieldLength)+1 > len(data) {
-			// Invalid field length.
+	for {
+		typ, field, rest, ok := nextADField(data)
+		if !ok {
 			return nil
 		}
-		if fieldType == data[1] {
-			return data[2 : fieldLength+1]
+		if typ == fieldType {
+			return field
 		}
-		data = data[fieldLength+1:]
+		data = rest
 	}
-	return nil
 }
 
 // LocalName returns the local name (complete or shortened) in the advertisement
@@ -376,19 +394,24 @@ func (buf *rawAdvertisementPayload) ServiceUUIDs() []UUID {
 // ManufacturerData returns the manufacturer data in the advertisement payload.
 func (buf *rawAdvertisementPayload) ManufacturerData() []ManufacturerDataElement {
 	var manufacturerData []ManufacturerDataElement
-	for index := 0; index < int(buf.len); index += int(buf.data[index]) + 1 {
-		fieldLength := int(buf.data[index+0])
-		if fieldLength < 3 {
-			continue
+	data := buf.Bytes()
+	for {
+		fieldType, field, rest, ok := nextADField(data)
+		if !ok {
+			break
 		}
-		fieldType := buf.data[index+1]
+		data = rest
+
 		if fieldType != 0xff {
 			continue
 		}
-		key := uint16(buf.data[index+2]) | uint16(buf.data[index+3])<<8
+		if len(field) < 2 { // no room for the company ID
+			continue
+		}
+		key := uint16(field[0]) | uint16(field[1])<<8
 		manufacturerData = append(manufacturerData, ManufacturerDataElement{
 			CompanyID: key,
-			Data:      buf.data[index+4 : index+fieldLength+1],
+			Data:      field[2:],
 		})
 	}
 	return manufacturerData
@@ -397,32 +420,41 @@ func (buf *rawAdvertisementPayload) ManufacturerData() []ManufacturerDataElement
 // ServiceData returns the service data in the advertisment payload
 func (buf *rawAdvertisementPayload) ServiceData() []ServiceDataElement {
 	var serviceData []ServiceDataElement
-	for index := 0; index < int(buf.len); index += int(buf.data[index]) + 1 {
-		fieldLength := int(buf.data[index+0])
-		if fieldLength < 3 { // field has only length and type and no data
-			continue
+	data := buf.Bytes()
+	for {
+		fieldType, field, rest, ok := nextADField(data)
+		if !ok {
+			break
 		}
-		fieldType := buf.data[index+1]
+		data = rest
+
 		switch fieldType {
 		case 0x16: // 16-bit uuid
+			if len(field) < 2 {
+				continue
+			}
 			serviceData = append(serviceData, ServiceDataElement{
-				UUID: New16BitUUID(uint16(buf.data[index+2]) + (uint16(buf.data[index+3]) << 8)),
-				Data: buf.data[index+4 : index+fieldLength+1],
+				UUID: New16BitUUID(uint16(field[0]) + (uint16(field[1]) << 8)),
+				Data: field[2:],
 			})
 		case 0x20: // 32-bit uuid
+			if len(field) < 4 {
+				continue
+			}
 			serviceData = append(serviceData, ServiceDataElement{
-				UUID: New32BitUUID(uint32(buf.data[index+2]) + (uint32(buf.data[index+3]) << 8) + (uint32(buf.data[index+4]) << 16) + (uint32(buf.data[index+5]) << 24)),
-				Data: buf.data[index+6 : index+fieldLength+1],
+				UUID: New32BitUUID(uint32(field[0]) + (uint32(field[1]) << 8) + (uint32(field[2]) << 16) + (uint32(field[3]) << 24)),
+				Data: field[4:],
 			})
 		case 0x21: // 128-bit uuid
+			if len(field) < 16 {
+				continue
+			}
 			var uuidArray [16]byte
-			copy(uuidArray[:], buf.data[index+2:index+18])
+			copy(uuidArray[:], field[:16])
 			serviceData = append(serviceData, ServiceDataElement{
 				UUID: NewUUID(uuidArray),
-				Data: buf.data[index+18 : index+fieldLength+1],
+				Data: field[16:],
 			})
-		default:
-			continue
 		}
 	}
 	return serviceData
