@@ -151,13 +151,28 @@ type hci struct {
 	pendingPkt        uint16
 }
 
-// hciReadBufSize is the size of the packet read buffer. It must be large
-// enough for the largest packet that can legitimately be received, otherwise
-// such a packet can never be assembled: an HCI event carries a single byte
-// parameter length, so the largest one is the packet type byte, the event code,
-// the length byte and 255 parameter bytes. This also covers the largest ACL
-// packet that can arrive given maximumMTU.
-const hciReadBufSize = hciEvtLenPos + 255 + 1
+// hciMaxPacketSize is the largest packet that can legitimately be received. An
+// HCI event carries a single byte parameter length, so the largest one is the
+// packet type byte, the event code, the length byte and 255 parameter bytes.
+// This also covers the largest ACL packet that can arrive given maximumMTU.
+const hciMaxPacketSize = hciEvtLenPos + 255 + 1
+
+// hciTransportOverhead is the extra room a transport may need in the
+// destination buffer on top of the bytes it hands back. The CYW43439 copies a
+// whole entry out of its ring buffer before stripping the 3 byte SDIO header,
+// and rounds the copy up to a 4 byte boundary.
+const hciTransportOverhead = 3
+
+// hciReadBufSize is the size of the packet read buffer. It must be large enough
+// for the largest packet that can legitimately be received plus any transport
+// overhead, otherwise such a packet can never be assembled.
+const hciReadBufSize = (hciMaxPacketSize + hciTransportOverhead + 3) &^ 3
+
+// alignUp4 rounds n up to a multiple of 4. Packet oriented transports read in
+// 4 byte units, so the destination has to have room for the rounded up size.
+func alignUp4(n int) int {
+	return (n + 3) &^ 3
+}
 
 func newHCI(t hciTransport) *hci {
 	return &hci{
@@ -171,22 +186,24 @@ func (h *hci) start() error {
 	h.transport.startRead()
 	defer h.transport.endRead()
 
-	var data [32]byte
 	for {
-		if i := h.transport.Buffered(); i > 0 {
-			if i > len(data) {
-				i = len(data)
-			}
-			if _, err := h.transport.Read(data[:i]); err != nil {
-				return err
-			}
-
-			continue
+		available := h.transport.Buffered()
+		if available == 0 {
+			return nil
 		}
-		return nil
-	}
 
-	return nil
+		// Discard whatever is left over. The read goes into the packet buffer
+		// rather than a small scratch buffer because a packet oriented
+		// transport hands back a whole packet at a time and fails the read
+		// outright when it does not fit.
+		aligned := alignUp4(available)
+		if aligned > len(h.buf) {
+			return ErrHCIInvalidPacket
+		}
+		if _, err := h.transport.Read(h.buf[:aligned]); err != nil {
+			return err
+		}
+	}
 }
 
 func (h *hci) stop() error {
@@ -201,33 +218,43 @@ func (h *hci) poll() error {
 	h.transport.startRead()
 	defer h.transport.endRead()
 
-	for h.transport.Buffered() > 0 || h.end > h.pos {
+	for {
+		// noRoom records that data is waiting but does not fit alongside what
+		// is already buffered.
+		noRoom := false
+
 		// perform read only if more data is available
-		available := h.transport.Buffered()
-		if available > 0 {
-			// limit to buffer size
-			if available > len(h.buf)-h.end {
-				available = len(h.buf) - h.end
-			}
+		if available := h.transport.Buffered(); available > 0 {
+			// Read in 4 byte aligned chunks. A packet oriented transport hands
+			// back a whole packet at a time and fails the read outright when it
+			// does not fit, so only read when there is room for all of it and
+			// leave the rest until the buffer has been drained.
+			aligned := alignUp4(available)
+			switch {
+			case h.end+aligned <= len(h.buf):
+				n, err := h.transport.Read(h.buf[h.end : h.end+aligned])
+				if err != nil {
+					return err
+				}
+				h.end += n
+			case h.end == 0:
+				// There is nothing to drain, so this can never be read.
+				if debug {
+					println("hci poll packet too large:", available)
+				}
 
-			// Read in 4 byte aligned chunks. Rounding up may push the read
-			// past the end of the buffer, so clamp it back down: transports
-			// read up to the length of the slice, so a short read is fine but
-			// an out of bounds slice is not.
-			aligned := available + (4-(available%4))%4
-			if h.end+aligned > len(h.buf) {
-				aligned = len(h.buf) - h.end
+				return ErrHCIInvalidPacket
+			default:
+				noRoom = true
 			}
+		}
 
-			n, err := h.transport.Read(h.buf[h.end : h.end+aligned])
-			if err != nil {
-				return err
-			}
-			h.end += n
+		if h.end == 0 {
+			return nil
 		}
 
 		// do processing
-		h.pos += 1
+		h.pos = h.end
 		done, err := h.processPacket()
 		switch {
 		case err == ErrHCIInvalidPacket || err == ErrHCIUnknown || err == ErrHCIUnknownEvent:
@@ -257,7 +284,9 @@ func (h *hci) poll() error {
 
 			h.pos = 0
 			return nil
-		case h.pos > h.end:
+		case noRoom:
+			// The buffer holds an incomplete packet and there is no room left
+			// to read the rest of it, so it can never be completed.
 			if debug {
 				println("hci poll buffer overflow", hex.EncodeToString(h.buf[:h.end]))
 			}
@@ -265,12 +294,12 @@ func (h *hci) poll() error {
 			h.end = 0
 
 			time.Sleep(5 * time.Millisecond)
-		default:
-			time.Sleep(1 * time.Millisecond)
+		case h.transport.Buffered() == 0:
+			// Incomplete packet with nothing more to read for now. Keep it and
+			// pick up where we left off on the next poll.
+			return nil
 		}
 	}
-
-	return nil
 }
 
 func (h *hci) processPacket() (bool, error) {
@@ -283,7 +312,7 @@ func (h *hci) processPacket() (bool, error) {
 			// byte. The length comes off the wire, so it may be larger than
 			// the read buffer can ever hold.
 			pktTotal := hciACLLenPos + pktlen + 1
-			if pktTotal > len(h.buf) {
+			if pktTotal > hciMaxPacketSize {
 				return true, ErrHCIInvalidPacket
 			}
 
@@ -306,7 +335,7 @@ func (h *hci) processPacket() (bool, error) {
 			pktlen := int(h.buf[hciEvtLenPos])
 
 			pktTotal := hciEvtLenPos + pktlen + 1
-			if pktTotal > len(h.buf) {
+			if pktTotal > hciMaxPacketSize {
 				return true, ErrHCIInvalidPacket
 			}
 
