@@ -193,3 +193,95 @@ func TestServiceUUIDs(t *testing.T) {
 		}
 	}
 }
+
+// Advertisement payloads arrive straight off the air and may be truncated or
+// otherwise malformed. Parsing one must never panic, no matter what it claims.
+func TestMalformedAdvertisementPayload(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+	}{
+		{
+			name: "manufacturer data length past end of payload",
+			raw:  "\x02\x01\x06" + "\x0a\xff\x4c\x00\x01",
+		},
+		{
+			name: "manufacturer data field claiming the maximum length",
+			raw:  "\x02\x01\x06" + "\xff\xff\x4c\x00",
+		},
+		{
+			name: "16-bit service data length past end of payload",
+			raw:  "\x02\x01\x06" + "\x0a\x16\xd2\xfc\x40",
+		},
+		{
+			name: "32-bit service data truncated inside the UUID",
+			raw:  "\x02\x01\x06" + "\x04\x20\xd2\xfc",
+		},
+		{
+			name: "128-bit service data truncated inside the UUID",
+			raw:  "\x05\x21\xb8\x6c\x75\x05",
+		},
+		{
+			name: "zero length field followed by a local name type byte",
+			raw:  "\x00\x09foobar",
+		},
+		{
+			name: "trailing zero padding after a valid field",
+			raw:  "\x07\x09foobar" + "\x00\x00\x00",
+		},
+		{
+			name: "truncated local name",
+			raw:  "\x02\x01\x06" + "\x0c\x09foo",
+		},
+		{
+			name: "single dangling length byte",
+			raw:  "\x02\x01\x06" + "\x05",
+		},
+	}
+
+	check := func(t *testing.T, raw string) {
+		t.Helper()
+		var buf rawAdvertisementPayload
+		buf.len = uint8(copy(buf.data[:], raw))
+
+		// None of these may panic. The returned values are not checked: the
+		// input is garbage, so any output is acceptable as long as parsing
+		// stays inside the buffer.
+		buf.LocalName()
+		buf.ManufacturerData()
+		buf.ServiceData()
+		buf.ServiceUUIDs()
+		buf.HasServiceUUID(ServiceUUIDHeartRate)
+		buf.HasServiceUUID(ServiceUUIDAdafruitSound)
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			check(t, tc.raw)
+		})
+	}
+
+	// Exhaustive sweep: place a field of every possible declared length at
+	// every offset of a full-size payload, for each type this code parses.
+	t.Run("every field length at every offset", func(t *testing.T) {
+		for _, fieldType := range []byte{0x08, 0x09, 0x02, 0x03, 0x06, 0x07, 0x16, 0x20, 0x21, 0xff} {
+			for offset := 0; offset < 31; offset++ {
+				for fieldLength := 0; fieldLength <= 255; fieldLength++ {
+					for _, payloadLen := range []int{offset + 2, 31} {
+						if payloadLen > 31 {
+							continue
+						}
+						raw := make([]byte, payloadLen)
+						if offset < len(raw) {
+							raw[offset] = byte(fieldLength)
+						}
+						if offset+1 < len(raw) {
+							raw[offset+1] = fieldType
+						}
+						check(t, string(raw))
+					}
+				}
+			}
+		}
+	})
+}
