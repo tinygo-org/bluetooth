@@ -16,6 +16,7 @@ type hciAdapter struct {
 
 	isDefault bool
 	scanning  bool
+	scanType  ScanType
 
 	connectHandler func(device Device, connected bool)
 
@@ -60,6 +61,34 @@ func (a *hciAdapter) Address() (MACAddress, error) {
 	}
 
 	return a.hci.address, nil
+}
+
+// ScanType selects whether the scanner transmits while scanning.
+type ScanType uint8
+
+const (
+	// ScanTypeActive sends a SCAN_REQ to advertisers that allow it, so scan
+	// response data (usually the complete local name) is reported as well.
+	// This is the default.
+	ScanTypeActive ScanType = iota
+
+	// ScanTypePassive only listens. It uses less power and does not reveal the
+	// scanner's presence, but misses scan response data.
+	ScanTypePassive
+)
+
+// hciValue returns the scan_type field for HCI LE Set Scan Parameters.
+func (t ScanType) hciValue() uint8 {
+	if t == ScanTypePassive {
+		return 0x00
+	}
+	return 0x01
+}
+
+// SetScanType sets the scan type used by Scan. Call it before Scan; changing it
+// during a scan takes effect on the next call to Scan.
+func (a *Adapter) SetScanType(t ScanType) {
+	a.scanType = t
 }
 
 func (a *Adapter) SetRandomAddress(mac MAC) error {
