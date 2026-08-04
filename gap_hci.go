@@ -42,8 +42,15 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		return err
 	}
 
-	// passive scanning, every 40ms, for 30ms
-	if err := a.hci.leSetScanParameters(0x00, 0x0080, 0x0030, 0x00, 0x00); err != nil {
+	// Active scanning transmits, so the controller needs to know which of our
+	// own addresses to put in the SCAN_REQ.
+	localRandom := uint8(0)
+	if a.hci.address.isRandom {
+		localRandom = GAPAddressTypeRandomStatic
+	}
+
+	// scan every 80ms, for 30ms
+	if err := a.hci.leSetScanParameters(a.scanType.hciValue(), 0x0080, 0x0030, localRandom, 0x00); err != nil {
 		return err
 	}
 
