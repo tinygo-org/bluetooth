@@ -3,6 +3,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -438,6 +439,14 @@ type Device struct {
 
 	device  dbus.BusObject // bluez device interface
 	adapter *Adapter       // the adapter that was used to form this device connection
+}
+
+// ConnectWithContext starts a connection attempt to the given peripheral device
+// address, abandoning the attempt if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Connect.
+func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error) {
+	return Device{}, errNotYetImplmented
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
