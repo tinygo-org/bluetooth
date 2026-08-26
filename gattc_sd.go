@@ -331,11 +331,32 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	return characteristics, nil
 }
 
+// DiscoverCharacteristicsWithContext discovers characteristics in this service,
+// abandoning the discovery if ctx is cancelled. Pass a list of characteristic
+// UUIDs you are interested in to this function. Either a list of all requested
+// services is returned, or if some services could not be discovered an error is
+// returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of characteristics.
+//
+// Not yet implemented on this platform; use DiscoverCharacteristics.
+func (s DeviceService) DiscoverCharacteristicsWithContext(ctx context.Context, uuids []UUID) ([]DeviceCharacteristic, error) {
+	return nil, errNotYetImplmented
+}
+
 // Write replaces the characteristic value with a new value.
 //
 // Not yet implemented on SoftDevice.
 func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 	return 0, errNotFound
+}
+
+// WriteWithContext replaces the characteristic value with a new value,
+// abandoning the write if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Write.
+func (c DeviceCharacteristic) WriteWithContext(ctx context.Context, p []byte) (n int, err error) {
+	return 0, errNotYetImplmented
 }
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The
@@ -358,6 +379,15 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 		return 0, Error(errCode)
 	}
 	return len(p), nil
+}
+
+// WriteWithoutResponseWithContext replaces the characteristic value with a new
+// value, abandoning the write if ctx is cancelled. The call will return before
+// all data has been written.
+//
+// Not yet implemented on this platform; use WriteWithoutResponse.
+func (c DeviceCharacteristic) WriteWithoutResponseWithContext(ctx context.Context, p []byte) (n int, err error) {
+	return 0, errNotYetImplmented
 }
 
 type gattcNotificationCallback struct {
@@ -472,6 +502,14 @@ func (c DeviceCharacteristic) Read(data []byte) (n int, err error) {
 	readingCharacteristic.length = 0
 
 	return
+}
+
+// ReadWithContext reads the current characteristic value, abandoning the read
+// if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Read.
+func (c DeviceCharacteristic) ReadWithContext(ctx context.Context, data []byte) (n int, err error) {
+	return 0, errNotYetImplmented
 }
 
 // GetMTU returns the MTU for the characteristic.
