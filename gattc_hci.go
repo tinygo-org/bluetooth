@@ -2,7 +2,10 @@
 
 package bluetooth
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 var (
 	errNotYetImplemented         = errors.New("bluetooth: not yet implemented")
@@ -47,6 +50,19 @@ type DeviceService struct {
 // UUID returns the UUID for this DeviceService.
 func (s DeviceService) UUID() UUID {
 	return s.uuid
+}
+
+// DiscoverServicesWithContext starts a service discovery procedure, abandoning
+// it if ctx is cancelled. Pass a list of service UUIDs you are interested in to
+// this function. Either a slice of all services is returned (of the same length
+// as the requested UUIDs and in the same order), or if some services could not
+// be discovered an error is returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of services.
+//
+// Not yet implemented on this platform; use DiscoverServices.
+func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
+	return nil, errNotYetImplmented
 }
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
