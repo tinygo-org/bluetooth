@@ -133,7 +133,7 @@ func makeMACAddress(addr C.ble_gap_addr_t) MACAddress {
 // ConnectWithContext starts a connection attempt to the given peripheral device
 // address, abandoning the attempt if ctx is cancelled.
 //
-// Not yet implemented on this platform; use Connect.
+// Not yet implemented on the nrf51.
 func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error) {
 	return Device{}, errNotYetImplmented
 }
