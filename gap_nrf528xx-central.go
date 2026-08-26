@@ -3,6 +3,7 @@
 package bluetooth
 
 import (
+	"context"
 	"device/arm"
 	"errors"
 	"runtime"
@@ -105,6 +106,14 @@ func (a *Adapter) StopScan() error {
 var connectionAttempt struct {
 	state            volatile.Register8 // 0 means unused, 1 means connecting, 2 means connected, 3 means timeout
 	connectionHandle C.uint16_t
+}
+
+// ConnectWithContext starts a connection attempt to the given peripheral device
+// address, abandoning the attempt if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Connect.
+func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error) {
+	return Device{}, errNotYetImplmented
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
