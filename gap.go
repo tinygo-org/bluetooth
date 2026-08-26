@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
@@ -116,6 +117,7 @@ type Connection uint16
 type GAPDevice interface {
 	// DiscoverServices returns ErrServiceNotFound if a requested service is not on the device.
 	DiscoverServices(uuids []UUID) ([]DeviceService, error)
+	DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error)
 	RequestConnectionParams(params ConnectionParams) error
 	Connected() (bool, error)
 	Disconnect() error
