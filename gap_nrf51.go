@@ -120,9 +120,9 @@ func (d Device) Disconnect() error {
 // DiscoverServicesWithContext starts a service discovery procedure, abandoning
 // it if ctx is cancelled.
 //
-// s110v8 is a peripheral-only device, so this is not supported.
+// Not yet implemented on the nrf51.
 func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
-	return nil, errNotSupported
+	return nil, errNotYetImplmented
 }
 
 // DiscoverServices starts a service discovery procedure.
