@@ -62,7 +62,7 @@ func (s DeviceService) UUID() UUID {
 //
 // Not yet implemented on this platform; use DiscoverServices.
 func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
-	return nil, errNotYetImplmented
+	return nil, errNotYetImplemented
 }
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
