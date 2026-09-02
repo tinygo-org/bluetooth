@@ -6,6 +6,7 @@
 package main
 
 import (
+	"strconv"
 	"syscall/js"
 
 	"tinygo.org/x/bluetooth"
@@ -36,9 +37,12 @@ func main() {
 
 func run() {
 	logMsg("Enabling BLE adapter...")
-	must("enable BLE stack", adapter.Enable())
+	if err := adapter.Enable(); err != nil {
+		logMsg("Could not enable the BLE stack: " + err.Error())
+		return
+	}
 
-	// WebBluetooth requires listing the services you want to access upfront.
+	// WebBluetooth needs the list of services before the scan.
 	adapter.RequestedServices = []bluetooth.UUID{
 		deviceInfoServiceUUID,
 	}
@@ -50,7 +54,11 @@ func run() {
 		result = r
 		a.StopScan()
 	})
-	must("scan", err)
+	if err != nil {
+		// The user closed the picker, or the browser refused the request.
+		logMsg("No device selected: " + err.Error())
+		return
+	}
 
 	logMsg("Selected device: " + result.LocalName() + " (" + result.Address.String() + ")")
 
@@ -59,14 +67,14 @@ func run() {
 	var device bluetooth.Device
 	const maxRetries = 3
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		logMsg("Connecting (attempt " + itoa(attempt) + "/" + itoa(maxRetries) + ")...")
+		logMsg("Connecting (attempt " + strconv.Itoa(attempt) + "/" + strconv.Itoa(maxRetries) + ")...")
 		device, err = adapter.Connect(result.Address, bluetooth.ConnectionParams{})
 		if err == nil {
 			break
 		}
 		logMsg("Connection failed: " + err.Error())
 		if attempt == maxRetries {
-			logMsg("Could not connect after " + itoa(maxRetries) + " attempts. Make sure the device is awake and in range, then click Connect again.")
+			logMsg("Could not connect. Make sure the device is awake and in range, then click Connect again.")
 			return
 		}
 	}
@@ -74,7 +82,11 @@ func run() {
 
 	logMsg("Discovering Device Information service...")
 	srvcs, err := device.DiscoverServices([]bluetooth.UUID{deviceInfoServiceUUID})
-	must("discover services", err)
+	if err != nil {
+		logMsg("Could not discover the Device Information service: " + err.Error())
+		device.Disconnect()
+		return
+	}
 
 	srvc := srvcs[0]
 	logMsg("Found service: " + srvc.UUID().String())
@@ -119,23 +131,4 @@ func logMsg(msg string) {
 		p.Set("textContent", msg)
 		logEl.Call("appendChild", p)
 	}
-}
-
-func must(action string, err error) {
-	if err != nil {
-		logMsg("FATAL: failed to " + action + ": " + err.Error())
-		panic("failed to " + action + ": " + err.Error())
-	}
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	s := ""
-	for n > 0 {
-		s = string(rune('0'+n%10)) + s
-		n /= 10
-	}
-	return s
 }
