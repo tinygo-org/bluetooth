@@ -31,15 +31,6 @@ func (ad Address) String() string {
 	return ad.ID
 }
 
-// jsDeviceMap stores BluetoothDevice JS objects keyed by device ID so they can
-// be retrieved when connecting after a scan.
-var jsDeviceMap = map[string]js.Value{}
-
-// jsDisconnectListenerMap stores gattserverdisconnected listeners keyed by
-// device ID so listeners can be replaced on reconnect and released on
-// disconnect.
-var jsDisconnectListenerMap = map[string]js.Func{}
-
 var _ GAPDevice = Device{}
 
 // Device is a connection to a remote peripheral via WebBluetooth.
@@ -90,7 +81,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	}
 
 	// Store the JS device object so it can be retrieved during Connect.
-	jsDeviceMap[deviceID] = jsDevice
+	a.devices[deviceID] = jsDevice
 
 	callback(a, ScanResult{
 		Address: Address{ID: deviceID},
@@ -116,7 +107,7 @@ func (a *Adapter) StopScan() error {
 // On WebBluetooth, the device must have been discovered via Scan first, so the
 // BluetoothDevice JS object is available.
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
-	jsDevice, ok := jsDeviceMap[address.ID]
+	jsDevice, ok := a.devices[address.ID]
 	if !ok {
 		return Device{}, errors.New("bluetooth: device not found, must call Scan first on WASM")
 	}
@@ -145,10 +136,10 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 func (a *Adapter) setDisconnectHandler(d Device) {
 	deviceID := d.Address.ID
-	if listener, ok := jsDisconnectListenerMap[deviceID]; ok {
+	if listener, ok := a.disconnectListeners[deviceID]; ok {
 		d.device.Call("removeEventListener", "gattserverdisconnected", listener)
 		listener.Release()
-		delete(jsDisconnectListenerMap, deviceID)
+		delete(a.disconnectListeners, deviceID)
 	}
 
 	var listener js.Func
@@ -161,7 +152,7 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 
 		d.device.Call("removeEventListener", "gattserverdisconnected", listener)
 		listener.Release()
-		delete(jsDisconnectListenerMap, deviceID)
+		delete(a.disconnectListeners, deviceID)
 
 		// A blocked JS callback stops the event loop, and every method in
 		// this package waits for a promise. See syscall/js.FuncOf.
@@ -169,7 +160,7 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 		return nil
 	})
 
-	jsDisconnectListenerMap[deviceID] = listener
+	a.disconnectListeners[deviceID] = listener
 	d.device.Call("addEventListener", "gattserverdisconnected", listener)
 }
 
