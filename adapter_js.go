@@ -57,3 +57,22 @@ func (a *Adapter) Enable() error {
 	}
 	return nil
 }
+
+// Reset clears the state of the adapter so that Enable can run again.
+//
+// The devices from an earlier scan are gone after this, so the user must
+// select a device again.
+func (a *Adapter) Reset() error {
+	for id, listener := range a.disconnectListeners {
+		if device, ok := a.devices[id]; ok {
+			device.Call("removeEventListener", "gattserverdisconnected", listener)
+		}
+		listener.Release()
+	}
+
+	a.bluetooth = js.Undefined()
+	a.devices = nil
+	a.disconnectListeners = nil
+	a.scanning = false
+	return nil
+}
