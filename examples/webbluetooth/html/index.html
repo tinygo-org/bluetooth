@@ -39,11 +39,11 @@
 
     <fieldset>
         <legend>Notifications</legend>
-        <p>Give a service and a characteristic that send notifications. The default is Heart Rate Measurement. The service must be here before you connect, because the browser refuses a service that the page did not ask for.</p>
+        <p>Give a service and a characteristic that send notifications. The default is Battery Level, which <code>examples/battery</code> serves. The service must be here before you connect, because the browser refuses a service that the page did not ask for.</p>
         <label for="notifyService">Service UUID</label>
-        <input id="notifyService" value="0000180d-0000-1000-8000-00805f9b34fb">
+        <input id="notifyService" value="0000180f-0000-1000-8000-00805f9b34fb">
         <label for="notifyChar">Characteristic UUID</label>
-        <input id="notifyChar" value="00002a37-0000-1000-8000-00805f9b34fb">
+        <input id="notifyChar" value="00002a19-0000-1000-8000-00805f9b34fb">
         <p>
             <button id="subscribe" disabled>Subscribe</button>
             <button id="unsubscribe" disabled>Unsubscribe</button>
