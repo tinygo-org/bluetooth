@@ -54,6 +54,13 @@ Open http://localhost:8080 and click **Connect**. The browser shows the device p
 
 Both `wasm.wasm` and `wasm_exec.js` are build output, so git ignores them.
 
+## Test with a peripheral
+
+Run one of these examples on a second machine, because a Bluetooth adapter cannot connect to itself. Linux and Windows can be a peripheral. macOS cannot.
+
+* `go run ./examples/device-information` gives the values that the Device Information panel shows.
+* `go run ./examples/battery` gives the Battery Level notifications that the Notifications panel uses by default.
+
 ## JavaScript API
 
 The module sets `globalThis.ble`, then calls `globalThis.onBleReady` if the page gives that function. Define `onBleReady` before you start the module.
