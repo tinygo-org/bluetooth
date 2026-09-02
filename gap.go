@@ -594,6 +594,61 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 	}
 }
 
+// ConnectionPriority is a coarse description of what a connection should be
+// optimized for.
+//
+// It exists because not every platform accepts the connection parameters from
+// the Bluetooth Core Specification. Some only accept a small fixed set of
+// presets: on Windows, BluetoothLEPreferredConnectionParameters has no public
+// constructor, just the static ThroughputOptimized, Balanced and PowerOptimized
+// sets. A ConnectionPriority is the form of the request that those platforms
+// can honour, and it maps onto the same three-way split that Android
+// (CONNECTION_PRIORITY_HIGH, BALANCED and LOW_POWER) and CoreBluetooth
+// (CBPeripheralManagerConnectionLatency low, medium and high) also use.
+//
+// The constants are named after the trade-off rather than after the resulting
+// latency on purpose: those vendor enumerations do not agree on a direction, so
+// that Apple's "low" and Android's "high" mean the same thing, and a name like
+// "low" would be read backwards by half of the audience. It also keeps the term
+// "connection latency" free, which the Core Specification uses for the number of
+// connection events a peripheral may skip.
+type ConnectionPriority uint8
+
+const (
+	// ConnectionPriorityUnspecified leaves the connection parameters unchanged.
+	// It is the zero value, matching the other ConnectionParams fields, which
+	// also mean "leave alone" when unset.
+	ConnectionPriorityUnspecified ConnectionPriority = iota
+
+	// ConnectionPriorityThroughput optimizes for rapid communication, at the
+	// cost of power usage on both sides and of the number of connections the
+	// adapter can maintain at once. Suitable for a firmware update or another
+	// bulk transfer, and best used only for as long as it is needed.
+	ConnectionPriorityThroughput
+
+	// ConnectionPriorityBalanced balances communication speed against power
+	// usage.
+	ConnectionPriorityBalanced
+
+	// ConnectionPriorityPowerSaving optimizes for power usage and for the number
+	// of simultaneous connections, at the cost of communication speed.
+	ConnectionPriorityPowerSaving
+)
+
+// String returns a lowercase name for the priority, for use in logs.
+func (p ConnectionPriority) String() string {
+	switch p {
+	case ConnectionPriorityThroughput:
+		return "throughput"
+	case ConnectionPriorityBalanced:
+		return "balanced"
+	case ConnectionPriorityPowerSaving:
+		return "power-saving"
+	default:
+		return "unspecified"
+	}
+}
+
 // ConnectionParams are used when connecting to a peripherals or when changing
 // the parameters of an active connection.
 type ConnectionParams struct {
@@ -612,6 +667,19 @@ type ConnectionParams struct {
 	// communication, the connection is considered lost. If no timeout is
 	// specified, the timeout will be unchanged.
 	Timeout Duration
+
+	// Priority is a coarse alternative to the fields above, for platforms that
+	// do not accept explicit connection parameters.
+	//
+	// The two are never mixed: a platform that can program the controller uses
+	// the explicit fields and ignores Priority, and a platform that only accepts
+	// presets uses Priority and ignores the explicit fields. Setting both is
+	// therefore the portable way to make a request, and is what a caller that
+	// runs on more than one platform should do.
+	//
+	// If Priority is unset, a platform that only accepts presets leaves the
+	// connection unchanged.
+	Priority ConnectionPriority
 }
 
 type PHY int
