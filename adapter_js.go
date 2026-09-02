@@ -22,12 +22,11 @@ type Adapter struct {
 
 	scanning bool
 
-	// RequestedServices is the list of service UUIDs that will be passed as
-	// optionalServices to navigator.bluetooth.requestDevice(). WebBluetooth
-	// requires services to be declared upfront — you cannot discover or
-	// access services that are not listed here or matched by a filter.
+	// RequestedServices is the list of service UUIDs to give as
+	// optionalServices to navigator.bluetooth.requestDevice().
 	//
-	// Set this before calling Scan().
+	// The browser refuses access to a service that is not in this list. Set
+	// this before you call Scan.
 	RequestedServices []UUID
 }
 
