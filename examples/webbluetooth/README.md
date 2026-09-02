@@ -11,7 +11,7 @@ WebBluetooth is only available in a secure context. A page on `localhost` counts
 
 ## Build and run
 
-The page needs two build products in the `html` directory: the module `wasm.wasm`, and the JavaScript support file `wasm_exec.js`. TinyGo and the standard Go toolchain each have their own support file. Always take both products from the same toolchain. See [Mixed toolchains](#mixed-toolchains) for the error that a mixed pair gives.
+The page needs two build products in the `html` directory: the module `wasm.wasm`, and the JavaScript support file `wasm_exec.js`. TinyGo and the standard Go toolchain each have their own support file. Always take both products from the same toolchain.
 
 Run all commands from the root of the repository.
 
@@ -49,16 +49,6 @@ go run ./examples/webbluetooth/server/
 Open http://localhost:8080 and click **Connect**. The browser shows the device picker. Select a device to see the result in the page.
 
 Both `wasm.wasm` and `wasm_exec.js` are build output, so git ignores them.
-
-## Mixed toolchains
-
-A module from TinyGo also imports `wasi_snapshot_preview1`, but the support file of the standard Go toolchain only gives `gojs`. The browser then shows this error:
-
-```
-Uncaught (in promise) TypeError: WebAssembly.instantiate(): Import #1 "wasi_snapshot_preview1": module is not an object or function
-```
-
-To repair it, copy the support file of the toolchain that built the module, and reload the page. An old `wasm_exec.js` stays in the `html` directory because git ignores it, so copy the file again after you change toolchain.
 
 ## Limitations of WebBluetooth
 
