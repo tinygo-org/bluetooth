@@ -5,7 +5,7 @@ go 1.22.1
 require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/godbus/dbus/v5 v5.1.0
-	github.com/saltosystems/winrt-go v0.0.0-20240509164145-4f7860a3bd2b
+	github.com/saltosystems/winrt-go v0.0.0-20260513072510-45f10383b2b8
 	github.com/soypat/cyw43439 v0.0.0-20250505012923-830110c8f4af
 	github.com/tinygo-org/cbgo v0.0.4
 	golang.org/x/crypto v0.12.0
