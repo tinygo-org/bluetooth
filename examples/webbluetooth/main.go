@@ -1,19 +1,8 @@
-// This example demonstrates using the Web Bluetooth API via TinyGo WASM.
-// It opens the browser's Bluetooth device picker, connects to any BLE
-// peripheral, and reads the Device Information service (manufacturer name,
-// model number, firmware revision).
+// This example uses the WebBluetooth API from WASM. It opens the device picker
+// of the browser and reads the Device Information service of the device that
+// the user selects.
 //
-// To build:
-//
-//	tinygo build -o ./examples/webbluetooth/html/wasm.wasm -target wasm ./examples/webbluetooth/
-//
-// Then serve the html directory over HTTPS (or localhost). A minimal server is
-// included:
-//
-//	go run ./examples/webbluetooth/server/
-//
-// Open http://localhost:8080 in Chrome/Edge, click the "Connect" button and
-// pick a Bluetooth device from the browser dialog.
+// See the README for the build steps.
 package main
 
 import (
@@ -27,9 +16,9 @@ var adapter = bluetooth.DefaultAdapter
 var (
 	deviceInfoServiceUUID = bluetooth.ServiceUUIDDeviceInformation
 
-	manufacturerNameUUID  = bluetooth.CharacteristicUUIDManufacturerNameString
-	modelNumberUUID       = bluetooth.CharacteristicUUIDModelNumberString
-	firmwareRevisionUUID  = bluetooth.CharacteristicUUIDFirmwareRevisionString
+	manufacturerNameUUID = bluetooth.CharacteristicUUIDManufacturerNameString
+	modelNumberUUID      = bluetooth.CharacteristicUUIDModelNumberString
+	firmwareRevisionUUID = bluetooth.CharacteristicUUIDFirmwareRevisionString
 )
 
 func main() {
