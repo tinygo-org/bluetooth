@@ -163,7 +163,9 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 		listener.Release()
 		delete(jsDisconnectListenerMap, deviceID)
 
-		a.connectHandler(device, false)
+		// A blocked JS callback stops the event loop, and every method in
+		// this package waits for a promise. See syscall/js.FuncOf.
+		go a.connectHandler(device, false)
 		return nil
 	})
 
