@@ -46,6 +46,12 @@ type Device struct {
 //
 // WebBluetooth has no continuous scan. Scan returns after the user selects a
 // device, and returns an error if the user closes the picker.
+//
+// requestDevice gives only the id and the name of the device, so the scan
+// result has an RSSI of 0 and a payload with only the local name.
+//
+// HasServiceUUID and ServiceUUIDs on that payload always give an empty result.
+// Put the services in Adapter.RequestedServices and use DiscoverServices.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	if callback == nil {
 		return errors.New("bluetooth: must provide callback to Scan function")
@@ -84,6 +90,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	// Store the JS device object so it can be retrieved during Connect.
 	a.devices[deviceID] = jsDevice
 
+	// The browser gives no RSSI and no advertisement data.
 	callback(a, ScanResult{
 		Address: Address{ID: deviceID},
 		RSSI:    0,
