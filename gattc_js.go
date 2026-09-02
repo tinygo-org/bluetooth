@@ -256,6 +256,14 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return 512, nil
 }
 
+// jsError converts the reason of a rejected Promise into an error.
+func jsError(reason js.Value) error {
+	if reason.IsUndefined() || reason.IsNull() {
+		return errors.New("bluetooth: promise rejected without a reason")
+	}
+	return errors.New(reason.Call("toString").String())
+}
+
 // uint8Array wraps a DataView in a Uint8Array over the same bytes.
 // A DataView can be a window into a larger ArrayBuffer.
 func uint8Array(view js.Value) js.Value {
@@ -274,7 +282,11 @@ func await(promise js.Value) (js.Value, error) {
 	})
 
 	catchFunc := js.FuncOf(func(this js.Value, args []js.Value) any {
-		errCh <- errors.New(args[0].Call("toString").String())
+		var reason js.Value
+		if len(args) > 0 {
+			reason = args[0]
+		}
+		errCh <- jsError(reason)
 		return nil
 	})
 
