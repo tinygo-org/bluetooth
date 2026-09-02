@@ -627,6 +627,38 @@ func (p ConnectionPriority) String() string {
 	}
 }
 
+// Params returns the connection parameters for the priority. The values obey
+// the guidelines from Apple (section 35.6 Connection Parameters):
+// https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf
+func (p ConnectionPriority) Params() ConnectionParams {
+	switch p {
+	case ConnectionPriorityThroughput:
+		return ConnectionParams{
+			MinInterval: NewDuration(15 * time.Millisecond),
+			MaxInterval: NewDuration(30 * time.Millisecond),
+			Timeout:     NewDuration(2 * time.Second),
+			Priority:    p,
+		}
+	case ConnectionPriorityBalanced:
+		return ConnectionParams{
+			MinInterval: NewDuration(30 * time.Millisecond),
+			MaxInterval: NewDuration(60 * time.Millisecond),
+			Timeout:     NewDuration(4 * time.Second),
+			Priority:    p,
+		}
+	case ConnectionPriorityPowerSaving:
+		return ConnectionParams{
+			MinInterval:       NewDuration(120 * time.Millisecond),
+			MaxInterval:       NewDuration(165 * time.Millisecond),
+			PeripheralLatency: 4,
+			Timeout:           NewDuration(6 * time.Second),
+			Priority:          p,
+		}
+	default:
+		return ConnectionParams{}
+	}
+}
+
 // ConnectionParams are used when connecting to a peripherals or when changing
 // the parameters of an active connection.
 type ConnectionParams struct {
@@ -641,14 +673,41 @@ type ConnectionParams struct {
 	MinInterval Duration
 	MaxInterval Duration
 
+	// The number of connection events that the peripheral can skip. A higher
+	// value saves power on the peripheral. The default value of 0 skips none.
+	PeripheralLatency uint16
+
 	// Connection Supervision Timeout. After this time has passed with no
 	// communication, the connection is considered lost. If no timeout is
 	// specified, the timeout will be unchanged.
 	Timeout Duration
 
 	// Priority is an alternative to the fields above. Platforms that do not
-	// accept explicit parameters use it. Set both to make a portable request.
+	// accept explicit parameters use it. Resolved shows the two together.
 	Priority ConnectionPriority
+}
+
+// Resolved fills each unset field from Priority. Explicit values stay.
+// An unset Priority changes nothing.
+func (p ConnectionParams) Resolved() ConnectionParams {
+	if p.Priority == ConnectionPriorityUnspecified {
+		return p
+	}
+
+	preset := p.Priority.Params()
+	if p.MinInterval == 0 {
+		p.MinInterval = preset.MinInterval
+	}
+	if p.MaxInterval == 0 {
+		p.MaxInterval = preset.MaxInterval
+	}
+	if p.PeripheralLatency == 0 {
+		p.PeripheralLatency = preset.PeripheralLatency
+	}
+	if p.Timeout == 0 {
+		p.Timeout = preset.Timeout
+	}
+	return p
 }
 
 type PHY int
