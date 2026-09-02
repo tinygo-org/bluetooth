@@ -209,17 +209,14 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 // Users may call EnableNotifications with a nil callback to disable notifications.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
 	if callback == nil {
-		// Stop notifications.
-		if c.listening {
-			c.characteristic.Call("removeEventListener", "characteristicvaluechanged", c.listener)
-			c.listener.Release()
-			c.listener = js.Func{}
-			c.listening = false
-		}
+		// Remove the listener first so no event finds a nil callback.
+		c.stopListening()
 		_, err := await(c.characteristic.Call("stopNotifications"))
-		c.callback = nil
 		return err
 	}
+
+	// Replace any listener from a previous call.
+	c.stopListening()
 
 	c.callback = callback
 	c.listener = js.FuncOf(func(this js.Value, args []js.Value) any {
@@ -230,17 +227,26 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 		c.callback(data)
 		return nil
 	})
-
 	c.characteristic.Call("addEventListener", "characteristicvaluechanged", c.listener)
-	_, err := await(c.characteristic.Call("startNotifications"))
-	if err != nil {
-		c.characteristic.Call("removeEventListener", "characteristicvaluechanged", c.listener)
-		c.listener.Release()
-		c.listener = js.Func{}
-		c.callback = nil
+	c.listening = true
+
+	if _, err := await(c.characteristic.Call("startNotifications")); err != nil {
+		c.stopListening()
 		return err
 	}
 	return nil
+}
+
+// stopListening removes the value change listener and releases the JS function.
+func (c *deviceCharacteristic) stopListening() {
+	if !c.listening {
+		return
+	}
+	c.characteristic.Call("removeEventListener", "characteristicvaluechanged", c.listener)
+	c.listener.Release()
+	c.listener = js.Func{}
+	c.listening = false
+	c.callback = nil
 }
 
 // GetMTU returns the MTU for the characteristic.
