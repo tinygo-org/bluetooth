@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"syscall"
 	"unsafe"
 
@@ -335,11 +336,39 @@ type Device struct {
 	session                       *genericattributeprofile.GattSession
 	connectionStatusListenerToken foundation.EventRegistrationToken
 	connectionStatusListener      *foundation.TypedEventHandler
+	connParams                    *connectionParamsState
+}
+
+var errDeviceNotConnected = errors.New("bluetooth: device is not connected")
+
+// connectionParamsState keeps the open connection parameters request.
+// Windows applies the request only while the object is open:
+// https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothledevice.requestpreferredconnectionparameters
+type connectionParamsState struct {
+	mu      sync.Mutex
+	request *bluetooth.BluetoothLEPreferredConnectionParametersRequest
+	closed  bool
+}
+
+// close closes the open request, which restores the system defaults. A request
+// after this gets an error.
+func (s *connectionParamsState) close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.closed = true
+	if s.request != nil {
+		discardConnectionParamsRequest(s.request)
+		s.request = nil
+	}
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // On Linux and Windows, the IsRandom part of the address is ignored.
+//
+// Windows requests params.Priority after the connection, and ignores an error.
+// Call RequestConnectionParams to see the error.
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	var winAddr uint64
 	for i := range address.MAC {
@@ -410,8 +439,9 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 		Address: address,
 
-		device:  bleDevice,
-		session: newSession,
+		device:     bleDevice,
+		session:    newSession,
+		connParams: &connectionParamsState{},
 	}
 
 	// https://learn.microsoft.com/es-es/uwp/api/windows.devices.bluetooth.bluetoothledevice.connectionstatuschanged?view=winrt-26100
@@ -443,6 +473,12 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		return device, err
 	}
 
+	// WinRT has no priority at connection time. The connection stays if this
+	// fails, as on the platforms that have no priority.
+	if params.Priority != ConnectionPriorityUnspecified {
+		_ = device.RequestConnectionParams(params)
+	}
+
 	return device, nil
 }
 
@@ -456,6 +492,11 @@ func (d Device) Disconnect() error {
 	}
 
 	d.cancel()
+
+	// Close the request while the device is still open.
+	if d.connParams != nil {
+		d.connParams.close()
+	}
 
 	if err := d.session.Close(); err != nil {
 		return err
@@ -487,11 +528,110 @@ func (d Device) Connected() (bool, error) {
 // Whether or not the device will actually honor this, depends on the device and
 // on the specific parameters.
 //
-// On Windows, this call doesn't do anything.
+// Windows uses only ConnectionParams.Priority. It ignores MinInterval,
+// MaxInterval and Timeout. It needs Windows 11 build 22000 or later.
 func (d Device) RequestConnectionParams(params ConnectionParams) error {
-	// TODO: implement this using
-	// BluetoothLEDevice.RequestPreferredConnectionParameters.
+	if params.Priority == ConnectionPriorityUnspecified {
+		return nil
+	}
+	if d.device == nil || d.connParams == nil {
+		return errDeviceNotConnected
+	}
+
+	// Disconnect waits for the lock, so the device stays open during the request.
+	d.connParams.mu.Lock()
+	defer d.connParams.mu.Unlock()
+	if d.connParams.closed {
+		return errDeviceNotConnected
+	}
+
+	preferred, err := preferredConnectionParameters(params.Priority)
+	if err != nil {
+		return err
+	}
+	defer preferred.Release()
+
+	request, err := d.device.RequestPreferredConnectionParameters(preferred)
+	if err != nil {
+		return err
+	}
+
+	// The status shows only that the system accepted the request. The agreed
+	// parameters come later, in the ConnectionParametersChanged event.
+	status, err := request.GetStatus()
+	if err != nil {
+		discardConnectionParamsRequest(request)
+		return err
+	}
+	if status != bluetooth.BluetoothLEPreferredConnectionParametersRequestStatusSuccess {
+		discardConnectionParamsRequest(request)
+		return fmt.Errorf("bluetooth: connection parameters request was not accepted: %s",
+			connectionParamsRequestStatusString(status))
+	}
+
+	// Keep the request and close the previous one. Windows applies a request
+	// only while the object is open.
+	if d.connParams.request != nil {
+		discardConnectionParamsRequest(d.connParams.request)
+	}
+	d.connParams.request = request
+
 	return nil
+}
+
+// preferredConnectionParameters returns the Windows preset for the priority.
+// The caller must release the result.
+func preferredConnectionParameters(priority ConnectionPriority) (*bluetooth.BluetoothLEPreferredConnectionParameters, error) {
+	var (
+		preferred *bluetooth.BluetoothLEPreferredConnectionParameters
+		err       error
+	)
+	switch priority {
+	case ConnectionPriorityThroughput:
+		preferred, err = bluetooth.BluetoothLEPreferredConnectionParametersGetThroughputOptimized()
+	case ConnectionPriorityBalanced:
+		preferred, err = bluetooth.BluetoothLEPreferredConnectionParametersGetBalanced()
+	case ConnectionPriorityPowerSaving:
+		preferred, err = bluetooth.BluetoothLEPreferredConnectionParametersGetPowerOptimized()
+	default:
+		return nil, fmt.Errorf("bluetooth: unknown connection priority %d", priority)
+	}
+	if isClassNotRegistered(err) {
+		// Windows 10 does not have the activation factory for these presets.
+		return nil, fmt.Errorf("bluetooth: connection priorities need Windows 11 build 22000 or later: %w", err)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return preferred, nil
+}
+
+// isClassNotRegistered reports whether err is REGDB_E_CLASSNOTREG (0x80040154).
+// https://learn.microsoft.com/en-us/windows/win32/com/com-error-codes-1
+func isClassNotRegistered(err error) bool {
+	var oleErr *ole.OleError
+	return errors.As(err, &oleErr) && uint32(oleErr.Code()) == 0x80040154
+}
+
+// discardConnectionParamsRequest closes a request that the device does not keep.
+func discardConnectionParamsRequest(request *bluetooth.BluetoothLEPreferredConnectionParametersRequest) {
+	_ = request.Close()
+	request.Release()
+}
+
+func connectionParamsRequestStatusString(status bluetooth.BluetoothLEPreferredConnectionParametersRequestStatus) string {
+	switch status {
+	case bluetooth.BluetoothLEPreferredConnectionParametersRequestStatusSuccess:
+		return "success"
+	case bluetooth.BluetoothLEPreferredConnectionParametersRequestStatusDeviceNotAvailable:
+		return "device not available"
+	case bluetooth.BluetoothLEPreferredConnectionParametersRequestStatusAccessDenied:
+		return "access denied"
+	case bluetooth.BluetoothLEPreferredConnectionParametersRequestStatusUnspecified:
+		return "unspecified"
+	default:
+		return fmt.Sprintf("BluetoothLEPreferredConnectionParametersRequestStatus(%d)", status)
+	}
 }
 
 // SetRandomAddress sets the random address to be used for advertising.
