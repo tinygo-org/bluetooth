@@ -22,10 +22,7 @@ type uuidWrapper = UUID
 // Passing a nil slice of UUIDs will return a complete list of
 // services.
 //
-// Note: WebBluetooth's getPrimaryServices() without arguments requires that
-// optionalServices were specified during requestDevice. When using
-// acceptAllDevices, no services are known upfront. Prefer passing specific
-// UUIDs.
+// The browser only returns a service that is in Adapter.RequestedServices.
 func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if d.server.IsUndefined() {
 		return nil, errors.New("bluetooth: not connected")
@@ -255,9 +252,8 @@ func (c *deviceCharacteristic) stopListening() {
 
 // GetMTU returns the MTU for the characteristic.
 //
-// WebBluetooth does not expose the negotiated MTU. This returns a default
-// value of 512 (the maximum ATT MTU) so callers can size buffers accordingly.
-// The browser itself handles fragmentation transparently.
+// WebBluetooth does not give the negotiated MTU. This returns 512, the
+// maximum ATT MTU, because the browser does the fragmentation.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return 512, nil
 }

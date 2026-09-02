@@ -56,13 +56,11 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	a.scanning = true
 	defer func() { a.scanning = false }()
 
-	// WebBluetooth requires requestDevice which shows a picker.
 	options := js.Global().Get("Object").New()
 	options.Set("acceptAllDevices", true)
 
-	// Pass requested services as optionalServices so they can be accessed
-	// after connecting. Without this, DiscoverServices will fail with a
-	// SecurityError.
+	// Without optionalServices the browser gives a SecurityError for every
+	// service after the connection.
 	if len(a.RequestedServices) > 0 {
 		svcs := js.Global().Get("Array").New(len(a.RequestedServices))
 		for i, uuid := range a.RequestedServices {
