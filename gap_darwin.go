@@ -188,10 +188,9 @@ func (d Device) Connected() (bool, error) {
 // Whether or not the device will actually honor this, depends on the device and
 // on the specific parameters.
 //
-// This call has not yet been implemented on macOS.
+// On macOS, this call does nothing. CoreBluetooth has no API for a central to
+// change the connection parameters.
 func (d Device) RequestConnectionParams(params ConnectionParams) error {
-	// TODO: implement this using setDesiredConnectionLatency, see:
-	// https://developer.apple.com/documentation/corebluetooth/cbperipheralmanager/1393277-setdesiredconnectionlatency
 	return nil
 }
 
