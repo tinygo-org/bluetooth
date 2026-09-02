@@ -29,3 +29,5 @@ jobs:
         run: make smoketest-linux
       - name: "Run Windows cross-compiled smoke tests"
         run: make smoketest-windows
+      - name: "Run WASM smoke tests"
+        run: make smoketest-wasm
