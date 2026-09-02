@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"slices"
@@ -39,6 +40,19 @@ const (
 	NotificationModeNotify   NotificationMode = genericattributeprofile.GattCharacteristicPropertiesNotify
 	NotificationModeIndicate NotificationMode = genericattributeprofile.GattCharacteristicPropertiesIndicate
 )
+
+// DiscoverServicesWithContext starts a service discovery procedure, abandoning
+// it if ctx is cancelled. Pass a list of service UUIDs you are interested in to
+// this function. Either a slice of all services is returned (of the same length
+// as the requested UUIDs and in the same order), or if some services could not
+// be discovered an error is returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of services.
+//
+// Not yet implemented on this platform; use DiscoverServices.
+func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
+	return nil, errNotYetImplmented
+}
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
 // UUIDs you are interested in to this function. Either a slice of all services
@@ -284,6 +298,19 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 	return characteristics, nil
 }
 
+// DiscoverCharacteristicsWithContext discovers characteristics in this service,
+// abandoning the discovery if ctx is cancelled. Pass a list of characteristic
+// UUIDs you are interested in to this function. Either a list of all requested
+// services is returned, or if some services could not be discovered an error is
+// returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of characteristics.
+//
+// Not yet implemented on this platform; use DiscoverCharacteristics.
+func (s DeviceService) DiscoverCharacteristicsWithContext(ctx context.Context, uuids []UUID) ([]DeviceCharacteristic, error) {
+	return nil, errNotYetImplmented
+}
+
 // Small helper to create a DeviceCharacteristic object.
 func (s DeviceService) makeCharacteristic(uuid UUID, characteristic *genericattributeprofile.GattCharacteristic, properties genericattributeprofile.GattCharacteristicProperties) DeviceCharacteristic {
 	char := DeviceCharacteristic{
@@ -339,6 +366,14 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 	return c.write(p, genericattributeprofile.GattWriteOptionWriteWithResponse)
 }
 
+// WriteWithContext replaces the characteristic value with a new value,
+// abandoning the write if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Write.
+func (c DeviceCharacteristic) WriteWithContext(ctx context.Context, p []byte) (n int, err error) {
+	return 0, errNotYetImplmented
+}
+
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time. This call is also known as a
@@ -348,6 +383,15 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 		return 0, errNoWriteWithoutResponse
 	}
 	return c.write(p, genericattributeprofile.GattWriteOptionWriteWithoutResponse)
+}
+
+// WriteWithoutResponseWithContext replaces the characteristic value with a new
+// value, abandoning the write if ctx is cancelled. The call will return before
+// all data has been written.
+//
+// Not yet implemented on this platform; use WriteWithoutResponse.
+func (c DeviceCharacteristic) WriteWithoutResponseWithContext(ctx context.Context, p []byte) (n int, err error) {
+	return 0, errNotYetImplmented
 }
 
 func (c DeviceCharacteristic) write(p []byte, mode genericattributeprofile.GattWriteOption) (n int, err error) {
@@ -449,6 +493,14 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 
 	copy(data, readBuffer)
 	return len(readBuffer), nil
+}
+
+// ReadWithContext reads the current characteristic value, abandoning the read
+// if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Read.
+func (c DeviceCharacteristic) ReadWithContext(ctx context.Context, data []byte) (n int, err error) {
+	return 0, errNotYetImplmented
 }
 
 // EnableNotifications enables notifications or indicate in the Client Characteristic

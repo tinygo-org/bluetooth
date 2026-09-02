@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"time"
 )
@@ -141,6 +142,7 @@ type Connection uint16
 // GAPDevice is the shared interface that all platform-specific Device types must implement.
 type GAPDevice interface {
 	DiscoverServices(uuids []UUID) ([]DeviceService, error)
+	DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error)
 	RequestConnectionParams(params ConnectionParams) error
 	Connected() (bool, error)
 	Disconnect() error

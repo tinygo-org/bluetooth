@@ -13,6 +13,7 @@ static inline uint32_t sd_ble_gap_adv_start_noescape(ble_gap_adv_params_t const 
 import "C"
 
 import (
+	"context"
 	"runtime/volatile"
 	"time"
 	"unsafe"
@@ -114,6 +115,14 @@ func (a *Adapter) SetRandomAddress(mac MAC) error {
 // Not yet implemented on the nrf51.
 func (d Device) Disconnect() error {
 	return errNotYetImplmented
+}
+
+// DiscoverServicesWithContext starts a service discovery procedure, abandoning
+// it if ctx is cancelled.
+//
+// Not yet implemented on the nrf51.
+func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
+	return nil, errNotYetImplmented
 }
 
 // DiscoverServices starts a service discovery procedure.

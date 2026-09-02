@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"time"
@@ -17,6 +18,19 @@ var (
 	_ GATTCService        = (*DeviceService)(nil)
 	_ GATTCCharacteristic = (*DeviceCharacteristic)(nil)
 )
+
+// DiscoverServicesWithContext starts a service discovery procedure, abandoning
+// it if ctx is cancelled. Pass a list of service UUIDs you are interested in to
+// this function. Either a slice of all services is returned (of the same length
+// as the requested UUIDs and in the same order), or if some services could not
+// be discovered an error is returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of services.
+//
+// Not yet implemented on this platform; use DiscoverServices.
+func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
+	return nil, errNotYetImplmented
+}
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
 // UUIDs you are interested in to this function. Either a slice of all services
@@ -183,6 +197,19 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	}
 }
 
+// DiscoverCharacteristicsWithContext discovers characteristics in this service,
+// abandoning the discovery if ctx is cancelled. Pass a list of characteristic
+// UUIDs you are interested in to this function. Either a list of all requested
+// services is returned, or if some services could not be discovered an error is
+// returned.
+//
+// Passing a nil slice of UUIDs will return a complete list of characteristics.
+//
+// Not yet implemented on this platform; use DiscoverCharacteristics.
+func (s DeviceService) DiscoverCharacteristicsWithContext(ctx context.Context, uuids []UUID) ([]DeviceCharacteristic, error) {
+	return nil, errNotYetImplmented
+}
+
 // Small helper to create a DeviceCharacteristic object.
 func (s DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic) DeviceCharacteristic {
 	char := DeviceCharacteristic{
@@ -240,6 +267,14 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 	return len(p), nil
 }
 
+// WriteWithContext replaces the characteristic value with a new value,
+// abandoning the write if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Write.
+func (c DeviceCharacteristic) WriteWithContext(ctx context.Context, p []byte) (n int, err error) {
+	return 0, errNotYetImplmented
+}
+
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written. A limited number of such
 // writes can be in flight at any given time.
@@ -260,6 +295,15 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 	dev.prph.WriteCharacteristic(p, c.characteristic, false)
 
 	return len(p), nil
+}
+
+// WriteWithoutResponseWithContext replaces the characteristic value with a new
+// value, abandoning the write if ctx is cancelled. The call will return before
+// all data has been written.
+//
+// Not yet implemented on this platform; use WriteWithoutResponse.
+func (c DeviceCharacteristic) WriteWithoutResponseWithContext(ctx context.Context, p []byte) (n int, err error) {
+	return 0, errNotYetImplmented
 }
 
 // EnableNotifications enables notifications in the Client Characteristic
@@ -324,4 +368,12 @@ func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
 
 	copy(data, c.characteristic.Value())
 	return len(c.characteristic.Value()), nil
+}
+
+// ReadWithContext reads the current characteristic value, abandoning the read
+// if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Read.
+func (c *deviceCharacteristic) ReadWithContext(ctx context.Context, data []byte) (n int, err error) {
+	return 0, errNotYetImplmented
 }
