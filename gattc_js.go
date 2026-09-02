@@ -150,7 +150,6 @@ type deviceCharacteristic struct {
 
 	service        DeviceService
 	characteristic js.Value // BluetoothRemoteGATTCharacteristic
-	callback       func(buf []byte)
 	listener       js.Func
 	listening      bool
 }
@@ -218,13 +217,15 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	// Replace any listener from a previous call.
 	c.stopListening()
 
-	c.callback = callback
 	c.listener = js.FuncOf(func(this js.Value, args []js.Value) any {
 		value := args[0].Get("target").Get("value") // DataView
 		buf := js.Global().Get("Uint8Array").New(value.Get("buffer"))
 		data := make([]byte, buf.Get("length").Int())
 		js.CopyBytesToGo(data, buf)
-		c.callback(data)
+
+		// A blocked JS callback stops the event loop, and every method in
+		// this package waits for a promise. See syscall/js.FuncOf.
+		go callback(data)
 		return nil
 	})
 	c.characteristic.Call("addEventListener", "characteristicvaluechanged", c.listener)
@@ -246,7 +247,6 @@ func (c *deviceCharacteristic) stopListening() {
 	c.listener.Release()
 	c.listener = js.Func{}
 	c.listening = false
-	c.callback = nil
 }
 
 // GetMTU returns the MTU for the characteristic.
