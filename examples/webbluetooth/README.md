@@ -4,8 +4,6 @@ This example gives the WebBluetooth backend to a web page as a small JavaScript 
 
 The WASM module only holds the binding. The page in `html/index.html` does all of the display work.
 
-![WebBluetooth Device Information Service](image.png)
-
 ## Requirements
 
 * [TinyGo](https://tinygo.org/getting-started/install/), or the standard Go toolchain.
