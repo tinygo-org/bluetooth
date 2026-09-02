@@ -654,6 +654,39 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 	}
 }
 
+// ConnectionPriority tells the platform how to optimize a connection.
+// Windows accepts only these presets and not explicit parameters:
+// https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothlepreferredconnectionparameters
+type ConnectionPriority uint8
+
+const (
+	// ConnectionPriorityUnspecified does not change the connection parameters.
+	ConnectionPriorityUnspecified ConnectionPriority = iota
+
+	// ConnectionPriorityThroughput gives fast data transfer and high power use.
+	ConnectionPriorityThroughput
+
+	// ConnectionPriorityBalanced gives a balance of speed and power use.
+	ConnectionPriorityBalanced
+
+	// ConnectionPriorityPowerSaving gives low power use and slow data transfer.
+	ConnectionPriorityPowerSaving
+)
+
+// String returns the name of the priority.
+func (p ConnectionPriority) String() string {
+	switch p {
+	case ConnectionPriorityThroughput:
+		return "throughput"
+	case ConnectionPriorityBalanced:
+		return "balanced"
+	case ConnectionPriorityPowerSaving:
+		return "power-saving"
+	default:
+		return "unspecified"
+	}
+}
+
 // ConnectionParams are used when connecting to a peripherals or when changing
 // the parameters of an active connection.
 type ConnectionParams struct {
@@ -672,6 +705,10 @@ type ConnectionParams struct {
 	// communication, the connection is considered lost. If no timeout is
 	// specified, the timeout will be unchanged.
 	Timeout Duration
+
+	// Priority is an alternative to the fields above. Platforms that do not
+	// accept explicit parameters use it. Set both to make a portable request.
+	Priority ConnectionPriority
 }
 
 type PHY int
