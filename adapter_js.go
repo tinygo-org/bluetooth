@@ -20,6 +20,8 @@ type Adapter struct {
 	// by device ID.
 	disconnectListeners map[string]js.Func
 
+	scanning bool
+
 	// RequestedServices is the list of service UUIDs that will be passed as
 	// optionalServices to navigator.bluetooth.requestDevice(). WebBluetooth
 	// requires services to be declared upfront — you cannot discover or

@@ -41,17 +41,20 @@ type Device struct {
 	server js.Value // BluetoothRemoteGATTServer
 }
 
-// Scan starts a BLE scan by opening the browser's device request dialog.
+// Scan opens the device picker of the browser and calls the callback one time
+// with the device that the user selects.
 //
-// Note: WebBluetooth does not support continuous background scanning.
-// This opens a browser-level device picker. The callback is called once
-// for the selected device. Call StopScan from the callback to finish scanning.
-//
-// The function blocks until StopScan is called or a device is selected.
+// WebBluetooth has no continuous scan. Scan returns after the user selects a
+// device, and returns an error if the user closes the picker.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	if callback == nil {
 		return errors.New("bluetooth: must provide callback to Scan function")
 	}
+	if a.scanning {
+		return errScanning
+	}
+	a.scanning = true
+	defer func() { a.scanning = false }()
 
 	// WebBluetooth requires requestDevice which shows a picker.
 	options := js.Global().Get("Object").New()
@@ -96,9 +99,15 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	return nil
 }
 
-// StopScan stops any in-progress scan. For WebBluetooth this is a no-op
-// since requestDevice completes after the user selects a device.
+// StopScan stops any in-progress scan.
+//
+// The picker of the browser closes by itself, so this only clears the scan
+// state.
 func (a *Adapter) StopScan() error {
+	if !a.scanning {
+		return errNotScanning
+	}
+	a.scanning = false
 	return nil
 }
 
