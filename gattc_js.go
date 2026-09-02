@@ -14,6 +14,16 @@ var (
 // struct method of the same name.
 type uuidWrapper = UUID
 
+// maxAttributeValueLength is the maximum length of an attribute value.
+//
+// The writeValue method of the Web Bluetooth specification rejects a longer
+// value: https://webbluetoothcg.github.io/web-bluetooth/#writecharacteristicvalue
+//
+//	If bytes is more than 512 bytes long (the maximum length of an attribute value,
+//	per Long Attribute Values) return a promise rejected with an "InvalidModificationError"
+//	DOMException and abort these steps.
+const maxAttributeValueLength = 512
+
 // DiscoverServices starts a service discovery procedure. Pass a list of service
 // UUIDs you are interested in to this function. Either a slice of all services
 // is returned (of the same length as the requested UUIDs and in the same
@@ -180,6 +190,9 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 
 // Write replaces the characteristic value with a new value. The
 // call will return after all data has been written.
+//
+// The browser uses a long write for a value that does not fit the MTU. A value
+// longer than maxAttributeValueLength gives an error.
 func (c DeviceCharacteristic) Write(p []byte) (int, error) {
 	jsArray := js.Global().Get("Uint8Array").New(len(p))
 	js.CopyBytesToJS(jsArray, p)
@@ -192,6 +205,9 @@ func (c DeviceCharacteristic) Write(p []byte) (int, error) {
 
 // WriteWithoutResponse replaces the characteristic value with a new value. The
 // call will return before all data has been written.
+//
+// ATT sends a write without response in one packet, so the value must fit the
+// negotiated MTU. WebBluetooth does not give that value. See GetMTU.
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (int, error) {
 	jsArray := js.Global().Get("Uint8Array").New(len(p))
 	js.CopyBytesToJS(jsArray, p)
@@ -252,14 +268,13 @@ func (c *deviceCharacteristic) stopListening() {
 
 // GetMTU returns the MTU for the characteristic.
 //
-// WebBluetooth has no method for the negotiated MTU, so this returns 512, the
-// maximum length of an attribute value. The browser does the fragmentation.
+// WebBluetooth has no method for the negotiated MTU, so this returns
+// maxAttributeValueLength. The browser does the fragmentation for Write.
 //
-// The writeValue method of the Web Bluetooth specification rejects a longer
-// value: https://webbluetoothcg.github.io/web-bluetooth/
-// See also Bluetooth Core Specification, Vol 3, Part F, section 3.2.9.
+// Do not use this value to size the data for WriteWithoutResponse, because that
+// value must fit the negotiated MTU, which is much smaller.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
-	return 512, nil
+	return maxAttributeValueLength, nil
 }
 
 // jsError converts the reason of a rejected Promise into an error.
