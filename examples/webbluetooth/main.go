@@ -1,12 +1,11 @@
-// This example uses the WebBluetooth API from WASM. It opens the device picker
-// of the browser and reads the Device Information service of the device that
-// the user selects.
+// This example gives the WebBluetooth backend to the page as a small
+// JavaScript API. The page in html/index.html does all of the display work.
 //
 // See the README for the build steps.
 package main
 
 import (
-	"strconv"
+	"errors"
 	"syscall/js"
 
 	"tinygo.org/x/bluetooth"
@@ -15,120 +14,275 @@ import (
 var adapter = bluetooth.DefaultAdapter
 
 var (
-	deviceInfoServiceUUID = bluetooth.ServiceUUIDDeviceInformation
+	device bluetooth.Device
 
-	manufacturerNameUUID = bluetooth.CharacteristicUUIDManufacturerNameString
-	modelNumberUUID      = bluetooth.CharacteristicUUIDModelNumberString
-	firmwareRevisionUUID = bluetooth.CharacteristicUUIDFirmwareRevisionString
+	// discovery is slow, so keep each service and characteristic. Subscribe
+	// and unsubscribe must also use the same characteristic value.
+	services        = map[string]bluetooth.DeviceService{}
+	characteristics = map[string]bluetooth.DeviceCharacteristic{}
 )
 
 func main() {
-	// Export a function that the HTML page calls when the user clicks Connect.
-	js.Global().Set("btConnect", js.FuncOf(func(this js.Value, args []js.Value) any {
-		go run()
-		return nil
-	}))
+	ble := js.Global().Get("Object").New()
+	ble.Set("enable", js.FuncOf(enable))
+	ble.Set("requestDevice", js.FuncOf(requestDevice))
+	ble.Set("connect", js.FuncOf(connect))
+	ble.Set("disconnect", js.FuncOf(disconnect))
+	ble.Set("read", js.FuncOf(read))
+	ble.Set("readString", js.FuncOf(readString))
+	ble.Set("subscribe", js.FuncOf(subscribe))
+	ble.Set("unsubscribe", js.FuncOf(unsubscribe))
+	ble.Set("onConnectionChange", js.FuncOf(onConnectionChange))
+	js.Global().Set("ble", ble)
 
-	logMsg("WebBluetooth example loaded. Click 'Connect' to start.")
+	// Tell the page that the API is ready.
+	if hook := js.Global().Get("onBleReady"); hook.Type() == js.TypeFunction {
+		hook.Invoke()
+	}
 
 	// Keep the Go program alive.
 	select {}
 }
 
-func run() {
-	logMsg("Enabling BLE adapter...")
-	if err := adapter.Enable(); err != nil {
-		logMsg("Could not enable the BLE stack: " + err.Error())
-		return
-	}
-
-	// WebBluetooth needs the list of services before the scan.
-	adapter.RequestedServices = []bluetooth.UUID{
-		deviceInfoServiceUUID,
-	}
-
-	logMsg("Opening device picker...")
-
-	var result bluetooth.ScanResult
-	err := adapter.Scan(func(a *bluetooth.Adapter, r bluetooth.ScanResult) {
-		result = r
-		a.StopScan()
+// enable prepares the adapter. It returns a Promise.
+func enable(this js.Value, args []js.Value) any {
+	return promise(func() (any, error) {
+		return nil, adapter.Enable()
 	})
-	if err != nil {
-		// The user closed the picker, or the browser refused the request.
-		logMsg("No device selected: " + err.Error())
-		return
-	}
-
-	logMsg("Selected device: " + result.LocalName() + " (" + result.Address.String() + ")")
-
-	// Connection can fail if the device is asleep or out of range. Retry a
-	// few times before giving up.
-	var device bluetooth.Device
-	const maxRetries = 3
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		logMsg("Connecting (attempt " + strconv.Itoa(attempt) + "/" + strconv.Itoa(maxRetries) + ")...")
-		device, err = adapter.Connect(result.Address, bluetooth.ConnectionParams{})
-		if err == nil {
-			break
-		}
-		logMsg("Connection failed: " + err.Error())
-		if attempt == maxRetries {
-			logMsg("Could not connect. Make sure the device is awake and in range, then click Connect again.")
-			return
-		}
-	}
-	logMsg("Connected!")
-
-	logMsg("Discovering Device Information service...")
-	srvcs, err := device.DiscoverServices([]bluetooth.UUID{deviceInfoServiceUUID})
-	if err != nil {
-		logMsg("Could not discover the Device Information service: " + err.Error())
-		device.Disconnect()
-		return
-	}
-
-	srvc := srvcs[0]
-	logMsg("Found service: " + srvc.UUID().String())
-
-	// Read each Device Information characteristic. Not all devices expose
-	// every characteristic, so we read them individually and tolerate errors.
-	buf := make([]byte, 128)
-
-	for _, item := range []struct {
-		name string
-		uuid bluetooth.UUID
-	}{
-		{"Manufacturer Name", manufacturerNameUUID},
-		{"Model Number", modelNumberUUID},
-		{"Firmware Revision", firmwareRevisionUUID},
-	} {
-		chars, err := srvc.DiscoverCharacteristics([]bluetooth.UUID{item.uuid})
-		if err != nil {
-			logMsg("  " + item.name + ": not available")
-			continue
-		}
-		n, err := chars[0].Read(buf)
-		if err != nil {
-			logMsg("  " + item.name + ": read error: " + err.Error())
-			continue
-		}
-		logMsg("  " + item.name + ": " + string(buf[:n]))
-	}
-
-	logMsg("Disconnecting...")
-	device.Disconnect()
-	logMsg("Done.")
 }
 
-// logMsg writes a message to the browser console and appends it to the #log element.
-func logMsg(msg string) {
-	js.Global().Get("console").Call("log", msg)
-	doc := js.Global().Get("document")
-	logEl := doc.Call("getElementById", "log")
-	if !logEl.IsNull() {
-		p := doc.Call("createElement", "p")
-		p.Set("textContent", msg)
-		logEl.Call("appendChild", p)
+// requestDevice opens the device picker and returns a Promise for an object
+// with the id and the name of the device that the user selects.
+func requestDevice(this js.Value, args []js.Value) any {
+	var wanted []string
+	if list := arg(args, 0); list.Type() == js.TypeObject {
+		for i := 0; i < list.Length(); i++ {
+			wanted = append(wanted, list.Index(i).String())
+		}
 	}
+
+	return promise(func() (any, error) {
+		uuids := make([]bluetooth.UUID, len(wanted))
+		for i, s := range wanted {
+			uuid, err := bluetooth.ParseUUID(s)
+			if err != nil {
+				return nil, err
+			}
+			uuids[i] = uuid
+		}
+
+		// The browser refuses access to a service that is not in this list.
+		adapter.RequestedServices = uuids
+
+		var result bluetooth.ScanResult
+		err := adapter.Scan(func(a *bluetooth.Adapter, r bluetooth.ScanResult) {
+			result = r
+			a.StopScan()
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		found := js.Global().Get("Object").New()
+		found.Set("id", result.Address.String())
+		found.Set("name", result.LocalName())
+		return found, nil
+	})
+}
+
+// connect connects to the device with the given id. It returns a Promise.
+func connect(this js.Value, args []js.Value) any {
+	id := arg(args, 0).String()
+
+	return promise(func() (any, error) {
+		var address bluetooth.Address
+		address.Set(id)
+
+		d, err := adapter.Connect(address, bluetooth.ConnectionParams{})
+		if err != nil {
+			return nil, err
+		}
+		device = d
+		clearCache()
+		return nil, nil
+	})
+}
+
+// disconnect closes the connection. It returns a Promise.
+func disconnect(this js.Value, args []js.Value) any {
+	return promise(func() (any, error) {
+		err := device.Disconnect()
+		clearCache()
+		return nil, err
+	})
+}
+
+// read returns a Promise for the value of a characteristic as a Uint8Array.
+func read(this js.Value, args []js.Value) any {
+	serviceUUID, charUUID := arg(args, 0).String(), arg(args, 1).String()
+
+	return promise(func() (any, error) {
+		buf, err := readValue(serviceUUID, charUUID)
+		if err != nil {
+			return nil, err
+		}
+		value := js.Global().Get("Uint8Array").New(len(buf))
+		js.CopyBytesToJS(value, buf)
+		return value, nil
+	})
+}
+
+// readString returns a Promise for the value of a characteristic as a string.
+func readString(this js.Value, args []js.Value) any {
+	serviceUUID, charUUID := arg(args, 0).String(), arg(args, 1).String()
+
+	return promise(func() (any, error) {
+		buf, err := readValue(serviceUUID, charUUID)
+		if err != nil {
+			return nil, err
+		}
+		return string(buf), nil
+	})
+}
+
+// subscribe starts notifications and calls the callback with a Uint8Array for
+// each new value. It returns a Promise.
+func subscribe(this js.Value, args []js.Value) any {
+	serviceUUID, charUUID := arg(args, 0).String(), arg(args, 1).String()
+	callback := arg(args, 2)
+
+	return promise(func() (any, error) {
+		if callback.Type() != js.TypeFunction {
+			return nil, errors.New("subscribe needs a callback function")
+		}
+		char, err := characteristic(serviceUUID, charUUID)
+		if err != nil {
+			return nil, err
+		}
+		return nil, char.EnableNotifications(func(buf []byte) {
+			value := js.Global().Get("Uint8Array").New(len(buf))
+			js.CopyBytesToJS(value, buf)
+			callback.Invoke(value)
+		})
+	})
+}
+
+// unsubscribe stops notifications. It returns a Promise.
+func unsubscribe(this js.Value, args []js.Value) any {
+	serviceUUID, charUUID := arg(args, 0).String(), arg(args, 1).String()
+
+	return promise(func() (any, error) {
+		char, err := characteristic(serviceUUID, charUUID)
+		if err != nil {
+			return nil, err
+		}
+		return nil, char.EnableNotifications(nil)
+	})
+}
+
+// onConnectionChange calls the callback with a boolean on each connection and
+// disconnection. Call it before connect.
+func onConnectionChange(this js.Value, args []js.Value) any {
+	callback := arg(args, 0)
+	if callback.Type() != js.TypeFunction {
+		return nil
+	}
+
+	adapter.SetConnectHandler(func(d bluetooth.Device, connected bool) {
+		callback.Invoke(connected)
+	})
+	return nil
+}
+
+// readValue reads a characteristic into a buffer of the maximum ATT MTU.
+func readValue(serviceUUID, charUUID string) ([]byte, error) {
+	char, err := characteristic(serviceUUID, charUUID)
+	if err != nil {
+		return nil, err
+	}
+	buf := make([]byte, 512)
+	n, err := char.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf[:n], nil
+}
+
+// characteristic finds a characteristic and keeps it for the next call.
+func characteristic(serviceUUID, charUUID string) (bluetooth.DeviceCharacteristic, error) {
+	key := serviceUUID + "/" + charUUID
+	if char, ok := characteristics[key]; ok {
+		return char, nil
+	}
+
+	svc, err := service(serviceUUID)
+	if err != nil {
+		return bluetooth.DeviceCharacteristic{}, err
+	}
+	uuid, err := bluetooth.ParseUUID(charUUID)
+	if err != nil {
+		return bluetooth.DeviceCharacteristic{}, err
+	}
+	found, err := svc.DiscoverCharacteristics([]bluetooth.UUID{uuid})
+	if err != nil {
+		return bluetooth.DeviceCharacteristic{}, err
+	}
+
+	characteristics[key] = found[0]
+	return found[0], nil
+}
+
+// service finds a service and keeps it for the next call.
+func service(serviceUUID string) (bluetooth.DeviceService, error) {
+	if svc, ok := services[serviceUUID]; ok {
+		return svc, nil
+	}
+
+	uuid, err := bluetooth.ParseUUID(serviceUUID)
+	if err != nil {
+		return bluetooth.DeviceService{}, err
+	}
+	found, err := device.DiscoverServices([]bluetooth.UUID{uuid})
+	if err != nil {
+		return bluetooth.DeviceService{}, err
+	}
+
+	services[serviceUUID] = found[0]
+	return found[0], nil
+}
+
+func clearCache() {
+	services = map[string]bluetooth.DeviceService{}
+	characteristics = map[string]bluetooth.DeviceCharacteristic{}
+}
+
+// arg returns the argument at index i, or undefined.
+func arg(args []js.Value, i int) js.Value {
+	if i < len(args) {
+		return args[i]
+	}
+	return js.Undefined()
+}
+
+// promise runs fn on a new goroutine and settles the Promise that it returns.
+//
+// A function that JavaScript calls must not block, because it holds the event
+// loop until it returns. See syscall/js.FuncOf.
+func promise(fn func() (any, error)) js.Value {
+	executor := js.FuncOf(func(this js.Value, args []js.Value) any {
+		resolve, reject := args[0], args[1]
+		go func() {
+			value, err := fn()
+			if err != nil {
+				reject.Invoke(js.Global().Get("Error").New(err.Error()))
+				return
+			}
+			resolve.Invoke(value)
+		}()
+		return nil
+	})
+
+	// The Promise constructor calls the executor before it returns.
+	defer executor.Release()
+	return js.Global().Get("Promise").New(executor)
 }
