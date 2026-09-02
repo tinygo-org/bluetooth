@@ -252,8 +252,12 @@ func (c *deviceCharacteristic) stopListening() {
 
 // GetMTU returns the MTU for the characteristic.
 //
-// WebBluetooth does not give the negotiated MTU. This returns 512, the
-// maximum ATT MTU, because the browser does the fragmentation.
+// WebBluetooth has no method for the negotiated MTU, so this returns 512, the
+// maximum length of an attribute value. The browser does the fragmentation.
+//
+// The writeValue method of the Web Bluetooth specification rejects a longer
+// value: https://webbluetoothcg.github.io/web-bluetooth/
+// See also Bluetooth Core Specification, Vol 3, Part F, section 3.2.9.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return 512, nil
 }
