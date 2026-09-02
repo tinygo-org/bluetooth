@@ -42,7 +42,10 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		services := make([]DeviceService, length)
 		for i := 0; i < length; i++ {
 			jsSvc := result.Index(i)
-			svcUUID, _ := ParseUUID(jsSvc.Get("uuid").String())
+			svcUUID, err := ParseUUID(jsSvc.Get("uuid").String())
+			if err != nil {
+				return nil, err
+			}
 			services[i] = DeviceService{
 				deviceService: &deviceService{
 					uuidWrapper: svcUUID,
@@ -110,7 +113,10 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		chars := make([]DeviceCharacteristic, length)
 		for i := 0; i < length; i++ {
 			jsChar := result.Index(i)
-			cuuid, _ := ParseUUID(jsChar.Get("uuid").String())
+			cuuid, err := ParseUUID(jsChar.Get("uuid").String())
+			if err != nil {
+				return nil, err
+			}
 			chars[i] = DeviceCharacteristic{
 				deviceCharacteristic: &deviceCharacteristic{
 					uuidWrapper:    cuuid,
@@ -160,7 +166,7 @@ func (c DeviceCharacteristic) UUID() UUID {
 }
 
 // Read reads the current characteristic value.
-func (c *deviceCharacteristic) Read(data []byte) (int, error) {
+func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	result, err := await(c.characteristic.Call("readValue"))
 	if err != nil {
 		return 0, err
