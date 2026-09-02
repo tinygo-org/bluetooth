@@ -166,8 +166,7 @@ func (c *deviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, err
 	}
 
-	// result is a DataView; wrap in Uint8Array to use CopyBytesToGo.
-	buf := js.Global().Get("Uint8Array").New(result.Get("buffer"))
+	buf := uint8Array(result)
 	n := buf.Get("length").Int()
 	if n > len(data) {
 		n = len(data)
@@ -218,8 +217,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	c.stopListening()
 
 	c.listener = js.FuncOf(func(this js.Value, args []js.Value) any {
-		value := args[0].Get("target").Get("value") // DataView
-		buf := js.Global().Get("Uint8Array").New(value.Get("buffer"))
+		buf := uint8Array(args[0].Get("target").Get("value"))
 		data := make([]byte, buf.Get("length").Int())
 		js.CopyBytesToGo(data, buf)
 
@@ -256,6 +254,13 @@ func (c *deviceCharacteristic) stopListening() {
 // The browser itself handles fragmentation transparently.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return 512, nil
+}
+
+// uint8Array wraps a DataView in a Uint8Array over the same bytes.
+// A DataView can be a window into a larger ArrayBuffer.
+func uint8Array(view js.Value) js.Value {
+	return js.Global().Get("Uint8Array").New(
+		view.Get("buffer"), view.Get("byteOffset"), view.Get("byteLength"))
 }
 
 // await blocks on a JavaScript Promise and returns (result, error).
