@@ -1,6 +1,10 @@
 # WebBluetooth example
 
-This example connects to a BLE device from a web page. It opens the device picker of the browser, connects to the device that you select, and reads the manufacturer name, the model number and the firmware revision from the Device Information service.
+This example gives the WebBluetooth backend to a web page as a small JavaScript API. The page opens the device picker of the browser, reads the Device Information service of the device that you select, and can subscribe to a characteristic that sends notifications.
+
+The WASM module only holds the binding. The page in `html/index.html` does all of the display work.
+
+![WebBluetooth Device Information Service](image.png)
 
 ## Requirements
 
@@ -49,6 +53,37 @@ go run ./examples/webbluetooth/server/
 Open http://localhost:8080 and click **Connect**. The browser shows the device picker. Select a device to see the result in the page.
 
 Both `wasm.wasm` and `wasm_exec.js` are build output, so git ignores them.
+
+## JavaScript API
+
+The module sets `globalThis.ble`, then calls `globalThis.onBleReady` if the page gives that function. Define `onBleReady` before you start the module.
+
+Every function returns a Promise. A function that JavaScript calls must not block, because it holds the event loop until it returns, and each call into the Bluetooth package waits for a promise.
+
+| Function | Result |
+| --- | --- |
+| `ble.enable()` | Prepares the adapter. |
+| `ble.requestDevice(serviceUUIDs)` | Opens the device picker. Gives `{id, name}` for the device that the user selects. |
+| `ble.connect(id)` | Connects to the device with that id. |
+| `ble.disconnect()` | Closes the connection. |
+| `ble.read(service, characteristic)` | Gives the value as a `Uint8Array`. |
+| `ble.readString(service, characteristic)` | Gives the value as a string. |
+| `ble.subscribe(service, characteristic, callback)` | Starts notifications. Calls the callback with a `Uint8Array` for each new value. |
+| `ble.unsubscribe(service, characteristic)` | Stops notifications. |
+| `ble.onConnectionChange(callback)` | Calls the callback with a boolean on each connection and disconnection. Call it before `connect`. |
+
+Give every service that the page uses to `requestDevice`. The browser refuses access to a service that the page did not ask for.
+
+```js
+globalThis.onBleReady = async () => {
+	await ble.enable();
+	const device = await ble.requestDevice(["0000180a-0000-1000-8000-00805f9b34fb"]);
+	await ble.connect(device.id);
+	console.log(await ble.readString(
+		"0000180a-0000-1000-8000-00805f9b34fb",
+		"00002a29-0000-1000-8000-00805f9b34fb"));
+};
+```
 
 ## Limitations of WebBluetooth
 
