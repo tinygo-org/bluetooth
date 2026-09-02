@@ -1,3 +1,47 @@
+0.16.0
+---
+* **core**
+  - adapter: add `Adapter.Reset()` for in-process recovery (#446)
+  - gap: add `Appearance` option to advertisements
+  - gatts: support attaching descriptors to characteristics
+* **nordic semi**
+  - sd: add BLE pairing and bonding support (#461)
+  - sd: persist the bond to flash across resets (#461)
+  - sd: restore CCCD subscriptions for bonded centrals across reconnects (#461)
+  - sd: add `RemoveBond` to unpair the current central (#461)
+  - sd: always set `BLE_GAP_OPT_PASSKEY` in `EnablePairing` (#461)
+  - sd: fix `RemoveBond` racing with a concurrent CCCD save (#461)
+  - sd: make `bondValid` a `volatile.Register8` to fix a data race (#461)
+  - sd: log whether pairing used LE Secure Connections with the `bledebug` build tag (#461)
+  - sd: log the disconnect reason and LESC DHKey failures with the `bledebug` build tag (#461)
+  - sd: don't block other goroutines while scanning (#458)
+  - sd: respect connection parameter update request from peripheral (#456)
+  - gap: propagate `sd_ble_gap_appearance_set` errors from `Configure` (#461)
+  - nrf528xx: improve debug logging with the `bledebug` build tag (#457)
+* **espradio**
+  - add ESP32-C3 and ESP32-S3 BLE support using the espradio VHCI transport (#464)
+* **hci**
+  - add `SetScanType` and default to active scanning (#464)
+  - fix: bounds check data received over the air to fix scanning panics (#464)
+  - fix: read buffer growth that broke scanning on CYW43439 (#464)
+* **darwin**
+  - fix: make `Adapter.Enable` callable after the first invocation (#445)
+* **windows**
+  - feat: support disabling characteristic notifications (#438)
+  - fix: close leaked resources (#451, #453)
+  - fix: handle empty GATT response (#449, #450)
+  - fix: add HRESULT error message (#447)
+* **examples**
+  - add BLE pairing examples for Just Works and passkey display (#461)
+* **modules**
+  - update to drivers 0.36 (#469)
+* **docs**
+  - add AGENTS.md with instructions to use ASD-STE-100
+  - README: add information about ESP32-C3 and ESP32-S3 support with espradio
+* **build**
+  - ci: use the go.mod file as the minimum Go version for macOS tests
+
+
 0.15.0
 ---
 * **core**

@@ -8,7 +8,7 @@ Go Bluetooth is a cross-platform package for using [Bluetooth Low Energy](https:
 
 It works on typical operating systems such as [Linux](#linux), [macOS](#macos), and [Windows](#windows). 
 
-By using [TinyGo](https://tinygo.org/), it can also be used running "bare metal" on microcontrollers produced by [Nordic Semiconductor](https://www.nordicsemi.com/), or boards that have a Bluetooth co-processor that uses the [Bluetooth Host Controller Interface (HCI)](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-54/out/en/host-controller-interface/host-controller-interface-functional-specification.html).
+By using [TinyGo](https://tinygo.org/), it can also be used running "bare metal" on microcontrollers produced by [Nordic Semiconductor](https://www.nordicsemi.com/), on the [Espressif](https://www.espressif.com/) ESP32-C3 and ESP32-S3 with their onboard radio, or on boards that have a Bluetooth co-processor that uses the [Bluetooth Host Controller Interface (HCI)](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-54/out/en/host-controller-interface/host-controller-interface-functional-specification.html).
 
 The Go Bluetooth package can be used to create both Bluetooth Low Energy Centrals as well as to create Bluetooth Low Energy Peripherals.
 
@@ -107,17 +107,17 @@ func must(action string, err error) {
 
 ## Current support
 
-|                                  | Linux              | macOS              | Windows            | Nordic Semi        | ESP32 (NINA-FW)    | CYW43439 (RP2040-W) |
-| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ | ------------------- |
-| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         | HCI         	    | HCI                 |
-| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Advertisement                    | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Local services                   | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Local characteristics            | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
-| Send notifications               | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  |
+|                                  | Linux              | macOS              | Windows            | Nordic Semi        | ESP32 (NINA-FW)    | CYW43439 (RP2040-W) | ESP32-C3/S3 (espradio) |
+| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ | ------------------- | ---------------------- |
+| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         | HCI         	    | HCI                 | HCI                    |
+| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Advertisement                    | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Local services                   | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Local characteristics            | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Send notifications               | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
 
 ## Linux
 
@@ -334,6 +334,39 @@ For example, this command can be used to compile and flash an Arduino Nano RP204
 	tinygo flash -target nano-rp2040 ./examples/heartrate
 
 If you want more information about the `nina-fw` firmware, or want to add support for other ESP32-equipped boards, please see https://github.com/arduino/nina-fw
+
+## ESP32-C3 and ESP32-S3 (espradio)
+
+Go Bluetooth has bare metal support for the onboard Bluetooth Low Energy radio in the Espressif ESP32-C3 and ESP32-S3 chips. It uses the [espradio](https://github.com/tinygo-org/espradio) package, which speaks to the radio through the Virtual HCI (VHCI) interface.
+
+This support requires compiling your programs using [TinyGo](https://tinygo.org/) version 0.42 or later. TinyGo sets the `espradio` build tag for the ESP32 targets, so you do not have to give the tag yourself.
+
+The original ESP32 has no Bluetooth Low Energy support in espradio. For those boards, see the [ESP32 (NINA)](#esp32-nina) section.
+
+Currently supported boards include:
+
+* [Seeed Studio XIAO ESP32-C3](https://wiki.seeedstudio.com/XIAO_ESP32C3_Getting_Started/)
+* [Seeed Studio XIAO ESP32-S3](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/)
+* [M5Stamp C3](https://docs.m5stack.com/en/core/stamp_c3)
+* [M5Stamp S3](https://docs.m5stack.com/en/core/M5Stamp%20S3)
+* Other ESP32-C3 and ESP32-S3 boards with a TinyGo target, such as `esp32c3-supermini`, `esp32s3-supermini`, `qtpy-esp32c3`, and `esp32c3-generic`
+
+After you have installed TinyGo and the Go Bluetooth package, you should be able to compile/run code for your device.
+
+For example, this command can be used to compile and flash a XIAO ESP32-C3 board with the example we provide that turns it into a BLE peripheral to act like a heart rate monitor:
+
+	tinygo flash -target xiao-esp32c3 ./examples/heartrate
+
+### WiFi and Bluetooth together
+
+The WiFi and Bluetooth radios share the same hardware. To use both, enable WiFi first, then enable the Bluetooth adapter:
+
+```go
+must("enable radio", espradio.Enable(espradio.Config{}))
+must("enable BLE stack", adapter.Enable())
+```
+
+If you want more information about the `espradio` support, please see https://github.com/tinygo-org/espradio
 
 ## CYW43439 (RP2040-W)
 
