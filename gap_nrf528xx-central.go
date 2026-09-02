@@ -212,13 +212,15 @@ func (d Device) Disconnect() error {
 // Whether or not the device will actually honor this, depends on the device and
 // on the specific parameters.
 //
-// On the Nordic SoftDevice, this call will also set the slave latency to 0.
+// The SoftDevice uses the explicit fields. Priority fills the unset fields.
 func (d Device) RequestConnectionParams(params ConnectionParams) error {
+	params = params.Resolved()
+
 	// The default parameters if no specific parameters are picked.
 	connParams := C.ble_gap_conn_params_t{
 		min_conn_interval: C.BLE_GAP_CP_MIN_CONN_INTVL_NONE,
 		max_conn_interval: C.BLE_GAP_CP_MAX_CONN_INTVL_NONE,
-		slave_latency:     0,
+		slave_latency:     C.uint16_t(params.PeripheralLatency),
 		conn_sup_timeout:  C.BLE_GAP_CP_CONN_SUP_TIMEOUT_NONE,
 	}
 
