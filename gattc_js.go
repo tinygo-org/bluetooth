@@ -228,6 +228,9 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 	if callback == nil {
 		// Remove the listener first so no event finds a nil callback.
 		c.stopListening()
+
+		// Always stop, because a different DeviceCharacteristic value for the
+		// same characteristic can hold the subscription of the browser.
 		_, err := await(c.characteristic.Call("stopNotifications"))
 		return err
 	}
