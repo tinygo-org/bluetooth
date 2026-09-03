@@ -63,11 +63,21 @@ func (a *Adapter) Enable() error {
 // The devices from an earlier scan are gone after this, so the user must
 // select a device again.
 func (a *Adapter) Reset() error {
+	// Remove the listeners before the disconnect, so that no event arrives
+	// after the release of the JS function.
 	for id, listener := range a.disconnectListeners {
 		if device, ok := a.devices[id]; ok {
 			device.Call("removeEventListener", "gattserverdisconnected", listener)
 		}
 		listener.Release()
+	}
+
+	// The browser keeps the connection until the page closes it.
+	for _, device := range a.devices {
+		gatt := device.Get("gatt")
+		if !gatt.IsUndefined() && gatt.Get("connected").Bool() {
+			gatt.Call("disconnect")
+		}
 	}
 
 	a.bluetooth = js.Undefined()
