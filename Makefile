@@ -87,7 +87,6 @@ smoketest-windows:
 
 smoketest-wasm:
 	# Test on WASM.
-	GOOS=js GOARCH=wasm go build -o /tmp/go-build-discard.wasm ./examples/webbluetooth
 	$(TINYGO) build -o /tmp/go-build-discard.wasm -target=wasm ./examples/webbluetooth
 
 smoketest-macos:
