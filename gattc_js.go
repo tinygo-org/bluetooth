@@ -173,19 +173,19 @@ func (c DeviceCharacteristic) UUID() UUID {
 }
 
 // Read reads the current characteristic value.
+//
+// Read gives the length of the value, which can be more than the length of
+// data. The other backends do the same.
 func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	result, err := await(c.characteristic.Call("readValue"))
 	if err != nil {
 		return 0, err
 	}
 
+	// CopyBytesToGo copies the smaller of the two lengths.
 	buf := uint8Array(result)
-	n := buf.Get("length").Int()
-	if n > len(data) {
-		n = len(data)
-	}
-	js.CopyBytesToGo(data[:n], buf)
-	return n, nil
+	js.CopyBytesToGo(data, buf)
+	return buf.Get("length").Int(), nil
 }
 
 // Write replaces the characteristic value with a new value. The
