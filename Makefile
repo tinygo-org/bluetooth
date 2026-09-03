@@ -1,7 +1,7 @@
 
 TINYGO=tinygo
 
-smoketest: smoketest-tinygo smoketest-linux smoketest-windows
+smoketest: smoketest-tinygo smoketest-linux smoketest-windows smoketest-wasm
 
 smoketest-tinygo:
 	# Test all examples (and some boards)
@@ -84,6 +84,10 @@ smoketest-windows:
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/heartrate-monitor
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/advertisement
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/heartrate
+
+smoketest-wasm:
+	# Test on WASM.
+	$(TINYGO) build -o /tmp/go-build-discard.wasm -target=wasm ./examples/webbluetooth
 
 smoketest-macos:
 	# Test on macos.
