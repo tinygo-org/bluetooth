@@ -92,6 +92,7 @@ globalThis.onBleReady = async () => {
 
 ## Limitations of WebBluetooth
 
+* The browser opens the device picker only after a recent user action, such as a click. Call `ble.requestDevice` soon after that action, and do no slow work first.
 * The browser gives an opaque device ID instead of a MAC address. The `Address` type holds this ID.
 * You must call `Scan` before `Connect`. The browser object for the device does not survive a page reload.
 * You must list every service that you want to use in `Adapter.RequestedServices` before you call `Scan`. The browser refuses access to a service that is not in the list.

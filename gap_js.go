@@ -52,6 +52,9 @@ type Device struct {
 //
 // HasServiceUUID and ServiceUUIDs on that payload always give an empty result.
 // Put the services in Adapter.RequestedServices and use DiscoverServices.
+//
+// The browser opens the picker only after a recent user action, such as a
+// click. Do no slow work between that action and the call to Scan.
 func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	if callback == nil {
 		return errors.New("bluetooth: must provide callback to Scan function")
