@@ -25,7 +25,8 @@ type Adapter struct {
 	address              string
 	defaultAdvertisement *Advertisement
 
-	connectHandler func(device Device, connected bool)
+	connectHandler     func(device Device, connected bool)
+	stateChangeHandler func(newState AdapterState)
 }
 
 // NewAdapter creates a new Adapter with the given ID.
@@ -33,8 +34,9 @@ type Adapter struct {
 // Make sure to call Enable() before using it to initialize the adapter.
 func NewAdapter(id string) *Adapter {
 	return &Adapter{
-		id:             id,
-		connectHandler: func(device Device, connected bool) {},
+		id:                 id,
+		connectHandler:     func(device Device, connected bool) {},
+		stateChangeHandler: func(newState AdapterState) {},
 	}
 }
 
@@ -63,6 +65,9 @@ func (a *Adapter) Enable() (err error) {
 	}
 	addr.Store(&a.address)
 
+	if err := a.watchForStateChange(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -86,4 +91,76 @@ func (a *Adapter) Address() (MACAddress, error) {
 		return MACAddress{}, err
 	}
 	return MACAddress{MAC: mac}, nil
+}
+
+// SetStateChangeHandler sets a handler function to be called whenever the adaptor's
+// state changes.
+func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
+	a.stateChangeHandler = c
+}
+
+// State returns the current state of the adapter.
+func (a *Adapter) State() AdapterState {
+	if a.adapter == nil {
+		return AdapterStateUnknown
+	}
+
+	prop, err := a.adapter.GetProperty("org.bluez.Adapter1.Powered")
+	if err != nil {
+		return AdapterStateUnknown
+	}
+	powered, ok := prop.Value().(bool)
+	if !ok {
+		return AdapterStateUnknown
+	}
+	if powered {
+		return AdapterStatePoweredOn
+	}
+	return AdapterStatePoweredOff
+}
+
+// watchForStateChange watches for D-Bus PropertiesChanged signals from the
+// BlueZ adapter interface and reports Powered/Unpowered transitions to the
+// registered state-change handler.
+//
+// We can watch for extra adapter properties here, see
+// https://git.kernel.org/pub/scm/bluetooth/bluez.git/tree/doc/org.bluez.Adapter.rst
+// for the full list.
+func (a *Adapter) watchForStateChange() error {
+	matchOptions := []dbus.MatchOption{
+		dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
+		dbus.WithMatchMember("PropertiesChanged"),
+		dbus.WithMatchArg(dbusPropertiesChangedInterfaceName, "org.bluez.Adapter1"),
+	}
+	if err := a.bus.AddMatchSignal(matchOptions...); err != nil {
+		return err
+	}
+
+	signal := make(chan *dbus.Signal)
+	a.bus.Signal(signal)
+
+	go func() {
+		for sig := range signal {
+			if sig.Name != dbusSignalPropertiesChanged {
+				continue
+			}
+			// Only react to property changes on the adapter interface.
+			if interfaceName, ok := sig.Body[dbusPropertiesChangedInterfaceName].(string); !ok || interfaceName != "org.bluez.Adapter1" {
+				continue
+			}
+			changes, ok := sig.Body[dbusPropertiesChangedDictionary].(map[string]dbus.Variant)
+			if !ok {
+				continue
+			}
+			if powered, ok := changes["Powered"].Value().(bool); ok {
+				if powered {
+					a.stateChangeHandler(AdapterStatePoweredOn)
+				} else {
+					a.stateChangeHandler(AdapterStatePoweredOff)
+				}
+			}
+		}
+	}()
+
+	return nil
 }

@@ -26,7 +26,8 @@ type Adapter struct {
 	// used to allow multiple callers to call Connect concurrently.
 	connectMap sync.Map
 
-	connectHandler func(device Device, connected bool)
+	connectHandler     func(device Device, connected bool)
+	stateChangeHandler func(newState AdapterState)
 }
 
 // DefaultAdapter is the default adapter on the system.
@@ -37,9 +38,8 @@ var DefaultAdapter = &Adapter{
 	pm:         cbgo.NewPeripheralManager(nil),
 	connectMap: sync.Map{},
 
-	connectHandler: func(device Device, connected bool) {
-		return
-	},
+	connectHandler:     func(device Device, connected bool) {},
+	stateChangeHandler: func(newState AdapterState) {},
 }
 
 // Enable configures the BLE stack. It must be called before any
@@ -121,6 +121,24 @@ func (a *Adapter) Reset() error {
 	return nil
 }
 
+// SetStateChangeHandler sets a handler function to be called whenever the adaptor's
+// state changes.
+func (a *Adapter) SetStateChangeHandler(c func(newState AdapterState)) {
+	a.stateChangeHandler = c
+}
+
+// State returns the current state of the adapter.
+func (a *Adapter) State() AdapterState {
+	switch a.cm.State() {
+	case cbgo.ManagerStatePoweredOn:
+		return AdapterStatePoweredOn
+	case cbgo.ManagerStatePoweredOff:
+		return AdapterStatePoweredOff
+	default:
+		return AdapterStateUnknown
+	}
+}
+
 // CentralManager delegate functions
 
 type centralManagerDelegate struct {
@@ -132,18 +150,25 @@ type centralManagerDelegate struct {
 // CentralManagerDidUpdateState when central manager state updated.
 func (cmd *centralManagerDelegate) CentralManagerDidUpdateState(cmgr cbgo.CentralManager) {
 	var event error
+	var newState AdapterState
 	switch cmgr.State() {
 	case cbgo.ManagerStatePoweredOn:
+		newState = AdapterStatePoweredOn
 		event = nil
 	case cbgo.ManagerStatePoweredOff:
+		newState = AdapterStatePoweredOff
 		event = errors.New("bluetooth is powered off")
 	case cbgo.ManagerStateUnsupported:
+		newState = AdapterStatePoweredOff
 		event = errors.New("bluetooth is not supported on this device")
 	case cbgo.ManagerStateUnauthorized:
+		newState = AdapterStatePoweredOff
 		event = errors.New("bluetooth is not authorized for this app")
 	default:
+		cmd.a.stateChangeHandler(AdapterStateUnknown)
 		return
 	}
+	cmd.a.stateChangeHandler(newState)
 	// Non-blocking send: poweredChan may be nil after Enable
 	// completes, or already buffered.
 	select {
