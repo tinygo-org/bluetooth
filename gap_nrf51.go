@@ -139,3 +139,9 @@ func (d Device) Connected() (bool, error) {
 }
 
 type DeviceService struct{}
+
+// SetTxPower sets the radio transmit power for advertising, in dBm.
+// The s110 SoftDevice does not give this control, so it is not supported.
+func (a *Advertisement) SetTxPower(dbm int8) error {
+	return errNotSupported
+}

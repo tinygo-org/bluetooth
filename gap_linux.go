@@ -667,3 +667,9 @@ func (d *Device) parseProperties(props *map[string]dbus.Variant) error {
 
 	return nil
 }
+
+// SetTxPower sets the radio transmit power for advertising, in dBm.
+// Linux does not give this control, so it is not supported.
+func (a *Advertisement) SetTxPower(dbm int8) error {
+	return errNotSupported
+}

@@ -12,6 +12,7 @@ var (
 	errAdvertisementPacketTooBig = errors.New("bluetooth: advertisement packet overflows")
 	errNotYetImplmented          = errors.New("bluetooth: not implemented")
 	errNotSupported              = errors.New("bluetooth: not supported")
+	errInvalidTxPower            = errors.New("bluetooth: invalid transmit power level")
 )
 
 const (
