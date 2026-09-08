@@ -9,6 +9,16 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/advertisement
 	@md5sum test.hex
+	# beacon-lowpower calls EnableDCSupply and SetTxPower, so build it for each
+	# SoftDevice and for a board that uses the stubs.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7 -serial=none ./examples/beacon-lowpower
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/beacon-lowpower
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/beacon-lowpower
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/beacon-lowpower
+	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/circuitplay
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=circuitplay-bluefruit ./examples/connparams
@@ -70,6 +80,7 @@ smoketest-tinygo:
 smoketest-linux:
 	# Test on Linux.
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/advertisement
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/beacon-lowpower
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/connparams
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/heartrate-monitor
@@ -79,6 +90,7 @@ smoketest-linux:
 
 smoketest-windows:
 	# Test on Windows.
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/beacon-lowpower
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/scanner
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/discover
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/heartrate-monitor
