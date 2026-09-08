@@ -7,6 +7,7 @@ package bluetooth
 /*
 #include "nrf_sdm.h"
 #include "nrf_nvic.h"
+#include "nrf_soc.h"
 #include "ble.h"
 #include "ble_gap.h"
 
@@ -49,6 +50,24 @@ func (a *Adapter) enable() error {
 	appRAMBase := C.uint32_t(uintptr(unsafe.Pointer(&appRAMBase)))
 	errCode = C.sd_ble_enable(&appRAMBase)
 	return makeError(errCode)
+}
+
+// EnableDCSupply turns the DC/DC converter of a stage on or off, after Enable.
+// It lowers the current, but the board must have an inductor for that stage.
+// See nRF52840 Product Specification v1.11 section 5.4, Power management.
+func (a *Adapter) EnableDCSupply(stage DCSupplyStage, enable bool) error {
+	switch stage {
+	case DCSupplyMain:
+		mode := C.uint8_t(C.NRF_POWER_DCDC_DISABLE)
+		if enable {
+			mode = C.uint8_t(C.NRF_POWER_DCDC_ENABLE)
+		}
+		return makeError(C.sd_power_dcdc_mode_set(mode))
+	case DCSupplyHighVoltage:
+		return setDCSupplyHighVoltage(enable)
+	default:
+		return errNotSupported
+	}
 }
 
 func (a *Adapter) Address() (MACAddress, error) {
