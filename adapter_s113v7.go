@@ -36,3 +36,9 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 func (a *Adapter) StopScan() error {
 	return errNotSupported
 }
+
+// setDCSupplyHighVoltage controls the DC/DC converter of the REG0 stage. Only
+// the nRF52840 has a VDDH stage, so this is not supported.
+func setDCSupplyHighVoltage(enable bool) error {
+	return errNotSupported
+}

@@ -16,3 +16,17 @@ type BLEAdapter interface {
 func (a *Adapter) SetConnectHandler(c func(device Device, connected bool)) {
 	a.connectHandler = c
 }
+
+// DCSupplyStage selects a regulator stage. The two stages are in series,
+// because REG0 supplies VDD from VDDH and VDD is the input to REG1.
+// See nRF52840 Product Specification v1.11 section 5.4, Power management.
+type DCSupplyStage uint8
+
+const (
+	// DCSupplyMain is the REG1 stage, which supplies the core from VDD.
+	DCSupplyMain DCSupplyStage = iota
+
+	// DCSupplyHighVoltage is the REG0 stage, which needs VDDH power. The gain
+	// is small unless VDDH is much higher than VDD.
+	DCSupplyHighVoltage
+)
