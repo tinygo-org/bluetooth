@@ -105,6 +105,28 @@ func (a *Advertisement) Stop() error {
 	return makeError(errCode)
 }
 
+// SetTxPower sets the radio transmit power for advertising, in dBm.
+// A lower level uses less current but gives less range. Call it after Configure.
+func (a *Advertisement) SetTxPower(dbm int8) error {
+	if !isValidTxPower(dbm) {
+		return errInvalidTxPower
+	}
+	errCode := C.sd_ble_gap_tx_power_set(C.BLE_GAP_TX_POWER_ROLE_ADV,
+		C.uint16_t(a.handle), C.int8_t(dbm))
+	return makeError(errCode)
+}
+
+// isValidTxPower reports if the part accepts this level. An unlisted level gives
+// undefined behaviour. See the sd_ble_gap_tx_power_set note in ble_gap.h.
+func isValidTxPower(dbm int8) bool {
+	for _, level := range txPowerLevels {
+		if level == dbm {
+			return true
+		}
+	}
+	return false
+}
+
 // SetRandomAddress sets the random address to be used for advertising.
 func (a *Adapter) SetRandomAddress(mac MAC) error {
 	var addr C.ble_gap_addr_t

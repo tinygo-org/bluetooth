@@ -12,6 +12,10 @@ nrf_nvic_state_t nrf_nvic_state = {0};
 */
 import "C"
 
+// Transmit power levels in dBm that every part with this SoftDevice accepts.
+// See the sd_ble_gap_tx_power_set note in ble_gap.h.
+var txPowerLevels = []int8{-40, -20, -16, -12, -8, -4, 0, 3, 4}
+
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // s113v7 is a peripheral-only device, so this is not supported.

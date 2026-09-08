@@ -501,3 +501,9 @@ func (d Device) RequestConnectionParams(params ConnectionParams) error {
 func (a *Adapter) SetRandomAddress(mac MAC) error {
 	return errors.ErrUnsupported
 }
+
+// SetTxPower sets the radio transmit power for advertising, in dBm.
+// Windows does not give this control, so it is not supported.
+func (a *Advertisement) SetTxPower(dbm int8) error {
+	return errNotSupported
+}

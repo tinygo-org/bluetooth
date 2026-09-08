@@ -631,3 +631,9 @@ func (a *Advertisement) configureGenericServices(name string, appearance uint16)
 		})
 	a.genericServiceInit = true
 }
+
+// SetTxPower sets the radio transmit power for advertising, in dBm.
+// This HCI adapter does not give this control, so it is not supported.
+func (a *Advertisement) SetTxPower(dbm int8) error {
+	return errNotSupported
+}
