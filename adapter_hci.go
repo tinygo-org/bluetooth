@@ -91,24 +91,20 @@ func (a *Adapter) SetScanType(t ScanType) {
 	a.scanType = t
 }
 
+// SetRandomAddress sets the random static address that the controller uses.
 func (a *Adapter) SetRandomAddress(mac MAC) error {
-	if err := a.hci.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetRandomAddress, mac[:]); err != nil {
-		return err
-	}
-	copy(a.hci.address.MAC[:], mac[:])
-	a.hci.address.SetRandom(true)
-	return nil
+	return a.hci.setRandomAddress(mac)
 }
 
-func newBLEStack(port hciTransport) (*hci, *att) {
+// initStack builds the HCI, ATT and L2CAP layers on a transport.
+func (a *hciAdapter) initStack(port hciTransport) {
 	h := newHCI(port)
-	a := newATT(h)
-	h.att = a
+	at := newATT(h)
+	h.att = at
+	h.l2cap = newL2CAP(h)
 
-	l := newL2CAP(h)
-	h.l2cap = l
-
-	return h, a
+	a.hci = h
+	a.att = at
 }
 
 // Convert a NINA MAC address into a Go MAC address.

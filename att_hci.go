@@ -126,12 +126,22 @@ func (s *rawService) Read(p []byte) (int, error) {
 	return sz, nil
 }
 
+// charHandler is the callback set for a characteristic that this stack makes
+// available. It is a struct of functions rather than an interface, because on
+// TinyGo an interface call here costs about 5 kB of flash.
+type charHandler struct {
+	readValue  func() ([]byte, error)
+	writeValue func(data []byte) (int, error)
+	readCCCD   func() (uint16, error)
+	writeCCCD  func(value uint16) error
+}
+
 type rawCharacteristic struct {
 	startHandle uint16
 	properties  uint8
 	valueHandle uint16
 	uuid        UUID
-	chr         *Characteristic
+	handler     charHandler
 }
 
 func (c *rawCharacteristic) Write(buf []byte) (int, error) {
@@ -213,7 +223,7 @@ type rawAttribute struct {
 	parent      uint16
 	handle      uint16
 	uuid        UUID
-	permissions CharacteristicPermissions
+	permissions uint8
 	value       []byte
 }
 
@@ -962,8 +972,8 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 		}
 
 		c := a.findCharacteristic(attr.parent)
-		if c != nil && c.chr != nil {
-			value, err := c.chr.readValue()
+		if c != nil && c.handler.readValue != nil {
+			value, err := c.handler.readValue()
 			if err != nil {
 				return a.sendError(handle, attOpReadReq, attrHandle, attErrorReadNotPermitted)
 			}
@@ -984,8 +994,8 @@ func (a *att) handleReadReq(handle, attrHandle uint16) error {
 		}
 
 		c := a.findCharacteristic(attr.parent)
-		if c != nil && c.chr != nil {
-			cccd, err := c.chr.readCCCD()
+		if c != nil && c.handler.readCCCD != nil {
+			cccd, err := c.handler.readCCCD()
 			if err != nil {
 				return a.sendError(handle, attOpReadReq, attrHandle, attErrorReadNotPermitted)
 			}
@@ -1020,8 +1030,8 @@ func (a *att) handleWriteReq(handle, attrHandle uint16, data []byte) error {
 		}
 
 		c := a.findCharacteristic(attr.parent)
-		if c != nil && c.chr != nil {
-			if _, err := c.chr.Write(data); err != nil {
+		if c != nil && c.handler.writeValue != nil {
+			if _, err := c.handler.writeValue(data); err != nil {
 				return a.sendError(handle, attOpWriteReq, attrHandle, attErrorWriteNotPermitted)
 			}
 
@@ -1038,8 +1048,8 @@ func (a *att) handleWriteReq(handle, attrHandle uint16, data []byte) error {
 		}
 
 		c := a.findCharacteristic(attr.parent)
-		if c != nil && c.chr != nil {
-			if err := c.chr.writeCCCD(binary.LittleEndian.Uint16(data)); err != nil {
+		if c != nil && c.handler.writeCCCD != nil {
+			if err := c.handler.writeCCCD(binary.LittleEndian.Uint16(data)); err != nil {
 				return a.sendError(handle, attOpWriteReq, attrHandle, attErrorWriteNotPermitted)
 			}
 
@@ -1140,7 +1150,7 @@ func (a *att) removeConnection(handle uint16) error {
 	return nil
 }
 
-func (a *att) addLocalAttribute(typ attributeType, parent uint16, uuid UUID, permissions CharacteristicPermissions, value []byte) uint16 {
+func (a *att) addLocalAttribute(typ attributeType, parent uint16, uuid UUID, permissions uint8, value []byte) uint16 {
 	handle := a.lastHandle
 	a.attributes = append(a.attributes,
 		rawAttribute{
@@ -1164,14 +1174,14 @@ func (a *att) addLocalService(start, end uint16, uuid UUID) {
 	})
 }
 
-func (a *att) addLocalCharacteristic(startHandle uint16, properties CharacteristicPermissions, valueHandle uint16, uuid UUID, chr *Characteristic) {
+func (a *att) addLocalCharacteristic(startHandle uint16, properties uint8, valueHandle uint16, uuid UUID, handler charHandler) {
 	a.localCharacteristics = append(a.localCharacteristics,
 		rawCharacteristic{
 			startHandle: startHandle,
-			properties:  uint8(properties),
+			properties:  properties,
 			valueHandle: valueHandle,
 			uuid:        uuid,
-			chr:         chr,
+			handler:     handler,
 		})
 }
 

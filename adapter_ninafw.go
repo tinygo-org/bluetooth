@@ -64,7 +64,7 @@ func (a *Adapter) Enable() error {
 		machine.NINA_CTS.Configure(machine.PinConfig{Mode: machine.PinInput})
 	}
 
-	a.hci, a.att = newBLEStack(transport)
+	a.initStack(transport)
 	return a.enable()
 }
 

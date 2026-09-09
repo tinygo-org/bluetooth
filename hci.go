@@ -102,8 +102,9 @@ var (
 	ErrHCIHardware      = errors.New("bluetooth: HCI hardware error")
 )
 
-type leAdvertisingReport struct {
-	reported                        bool
+// advertisementReport is one LE Advertising Report. The advertisement data is
+// a fixed array rather than a slice, so that a report does not go on the heap.
+type advertisementReport struct {
 	numReports, typ, peerBdaddrType uint8
 	peerBdaddr                      [6]uint8
 	eirLength                       uint8
@@ -111,9 +112,9 @@ type leAdvertisingReport struct {
 	rssi                            int8
 }
 
-type leConnectData struct {
-	connected      bool
-	disconnected   bool
+// connectionComplete is an LE Connection Complete or LE Enhanced Connection
+// Complete event.
+type connectionComplete struct {
 	status         uint8
 	handle         uint16
 	role           uint8
@@ -121,6 +122,12 @@ type leConnectData struct {
 	peerBdaddr     [6]uint8
 	interval       uint16
 	timeout        uint16
+}
+
+// disconnection is a Disconnection Complete event.
+type disconnection struct {
+	handle uint16
+	reason uint8
 }
 
 type hciTransport interface {
@@ -145,10 +152,68 @@ type hci struct {
 	cmdCompleteStatus uint8
 	cmdResponse       []byte
 	scanning          bool
-	advData           leAdvertisingReport
-	connectData       leConnectData
 	maxPkt            uint16
 	pendingPkt        uint16
+
+	// The most recent event of each kind, read back with the accessors below.
+	// These are fields rather than callbacks because a callback for each event
+	// costs about 2 kB of flash on TinyGo.
+	advReport    advertisementReport
+	advReported  bool
+	connEvent    connectionComplete
+	connected    bool
+	disconnEvent disconnection
+	disconnected bool
+
+	eventHandler   func(event uint8, params []byte) (bool, error)
+	leEventHandler func(subevent uint8, params []byte) (bool, error)
+}
+
+// advertisement returns the most recent LE advertising report, and whether one
+// has arrived since the last call to clearAdvertisement. The report is only
+// valid until the next poll.
+func (h *hci) advertisement() (*advertisementReport, bool) {
+	return &h.advReport, h.advReported
+}
+
+// clearAdvertisement discards the stored advertising report.
+func (h *hci) clearAdvertisement() {
+	h.advReport = advertisementReport{}
+	h.advReported = false
+}
+
+// connection returns the most recent connection complete event, and whether
+// one has arrived since the last call to clearConnection.
+func (h *hci) connection() (*connectionComplete, bool) {
+	return &h.connEvent, h.connected
+}
+
+// disconnection returns the most recent disconnection event, and whether one
+// has arrived since the last call to clearConnection.
+func (h *hci) disconnection() (*disconnection, bool) {
+	return &h.disconnEvent, h.disconnected
+}
+
+// clearConnection discards the stored connection and disconnection events.
+func (h *hci) clearConnection() {
+	h.connEvent = connectionComplete{}
+	h.connected = false
+	h.disconnEvent = disconnection{}
+	h.disconnected = false
+}
+
+// setEventHandler installs a handler for events that this package does not
+// handle itself. The handler returns true when it consumed the event. This is
+// the hook for controller specific events.
+func (h *hci) setEventHandler(fn func(event uint8, params []byte) (bool, error)) {
+	h.eventHandler = fn
+}
+
+// setLeEventHandler installs a handler for LE meta subevents that this package
+// does not handle itself. The handler returns true when it consumed the
+// subevent.
+func (h *hci) setLeEventHandler(fn func(subevent uint8, params []byte) (bool, error)) {
+	h.leEventHandler = fn
 }
 
 // hciMaxPacketSize is the largest packet that can legitimately be received. An
@@ -391,6 +456,17 @@ func (h *hci) readBdAddr() error {
 	return nil
 }
 
+func (h *hci) setRandomAddress(mac MAC) error {
+	if err := h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetRandomAddress, mac[:]); err != nil {
+		return err
+	}
+
+	copy(h.address.MAC[:], mac[:])
+	h.address.SetRandom(true)
+
+	return nil
+}
+
 func (h *hci) setEventMask(eventMask uint64) error {
 	var b [8]byte
 	binary.LittleEndian.PutUint64(b[:], eventMask)
@@ -595,12 +671,12 @@ func (h *hci) sendWithoutResponse(opcode uint16, params []byte) error {
 	return nil
 }
 
-func (h *hci) sendAclPkt(handle uint16, cid uint8, data []byte) error {
+func (h *hci) sendAclPkt(handle, cid uint16, data []byte) error {
 	h.writebuf[0] = hciACLDataPkt
 	binary.LittleEndian.PutUint16(h.writebuf[1:], handle)
 	binary.LittleEndian.PutUint16(h.writebuf[3:], uint16(len(data)+4))
 	binary.LittleEndian.PutUint16(h.writebuf[5:], uint16(len(data)))
-	binary.LittleEndian.PutUint16(h.writebuf[7:], uint16(cid))
+	binary.LittleEndian.PutUint16(h.writebuf[7:], cid)
 
 	copy(h.writebuf[9:], data)
 
@@ -707,8 +783,13 @@ func (h *hci) handleEventData(buf []byte) error {
 		h.att.removeConnection(handle)
 		h.l2cap.removeConnection(handle)
 
-		h.connectData.disconnected = true
-		h.connectData.handle = handle
+		h.disconnEvent = disconnection{handle: handle}
+		// The reason follows the handle. A well formed event always carries
+		// it, but the length comes off the wire.
+		if len(buf) > 5 {
+			h.disconnEvent.reason = buf[5]
+		}
+		h.disconnected = true
 
 		return h.leSetAdvertiseEnable(true)
 
@@ -818,36 +899,37 @@ func (h *hci) handleEventData(buf []byte) error {
 				return ErrHCIInvalidPacket
 			}
 
-			h.connectData.connected = true
-			h.connectData.status = buf[3]
-			h.connectData.handle = binary.LittleEndian.Uint16(buf[4:])
-			h.connectData.role = buf[6]
-			h.connectData.peerBdaddrType = buf[7]
-			copy(h.connectData.peerBdaddr[0:], buf[8:14])
+			h.connEvent = connectionComplete{
+				status:         buf[3],
+				handle:         binary.LittleEndian.Uint16(buf[4:]),
+				role:           buf[6],
+				peerBdaddrType: buf[7],
+			}
+			copy(h.connEvent.peerBdaddr[0:], buf[8:14])
 
 			switch buf[2] {
 			case leMetaEventConnComplete:
-				h.connectData.interval = binary.LittleEndian.Uint16(buf[14:])
-				h.connectData.timeout = binary.LittleEndian.Uint16(buf[18:])
+				h.connEvent.interval = binary.LittleEndian.Uint16(buf[14:])
+				h.connEvent.timeout = binary.LittleEndian.Uint16(buf[18:])
 			case leMetaEventEnhancedConnectionComplete:
-				h.connectData.interval = binary.LittleEndian.Uint16(buf[26:])
-				h.connectData.timeout = binary.LittleEndian.Uint16(buf[30:])
+				h.connEvent.interval = binary.LittleEndian.Uint16(buf[26:])
+				h.connEvent.timeout = binary.LittleEndian.Uint16(buf[30:])
 			}
+			h.connected = true
 
-			h.att.addConnection(h.connectData.handle)
-			if err := h.l2cap.addConnection(h.connectData.handle, h.connectData.role,
-				h.connectData.interval, h.connectData.timeout); err != nil {
+			h.att.addConnection(h.connEvent.handle)
+			if err := h.l2cap.addConnection(h.connEvent.handle, h.connEvent.role,
+				h.connEvent.interval, h.connEvent.timeout); err != nil {
 				return err
 			}
 
 			return h.leSetAdvertiseEnable(false)
 
 		case leMetaEventAdvertisingReport:
-			// Validate the whole report before touching h.advData, so a
-			// truncated one cannot leave a half filled report behind marked as
-			// reported. The fixed part is 13 bytes (up to and including the
-			// data length), followed by the advertisement data and one RSSI
-			// byte.
+			// Validate the whole report before the handler runs, so a
+			// truncated one is never reported. The fixed part is 13 bytes (up
+			// to and including the data length), followed by the
+			// advertisement data and one RSSI byte.
 			if len(buf) < 13 {
 				if debug {
 					println("invalid advertising report length", len(buf))
@@ -866,23 +948,24 @@ func (h *hci) handleEventData(buf []byte) error {
 				return ErrHCIInvalidPacket
 			}
 
-			h.advData.reported = true
-			h.advData.numReports = buf[3]
-			h.advData.typ = buf[4]
-			h.advData.peerBdaddrType = buf[5]
-			copy(h.advData.peerBdaddr[0:], buf[6:12])
-			h.advData.eirLength = eirLength
-			h.advData.rssi = 0
-			if debug {
-				println("leMetaEventAdvertisingReport", plen, h.advData.numReports,
-					h.advData.typ, h.advData.peerBdaddrType, h.advData.eirLength)
+			h.advReport = advertisementReport{
+				numReports:     buf[3],
+				typ:            buf[4],
+				peerBdaddrType: buf[5],
+				eirLength:      eirLength,
 			}
-
-			copy(h.advData.eirData[0:eirLength], buf[13:13+eirLength])
+			copy(h.advReport.peerBdaddr[0:], buf[6:12])
+			copy(h.advReport.eirData[0:eirLength], buf[13:13+eirLength])
 
 			// TODO: handle multiple reports
-			if h.advData.numReports == 0x01 {
-				h.advData.rssi = int8(buf[13+int(eirLength)])
+			if h.advReport.numReports == 0x01 {
+				h.advReport.rssi = int8(buf[13+int(eirLength)])
+			}
+			h.advReported = true
+
+			if debug {
+				println("leMetaEventAdvertisingReport", plen, h.advReport.numReports,
+					h.advReport.typ, h.advReport.peerBdaddrType, h.advReport.eirLength)
 			}
 
 			return nil
@@ -943,7 +1026,16 @@ func (h *hci) handleEventData(buf []byte) error {
 				println("unknown metaevent", buf[2], buf[3], buf[4], buf[5])
 			}
 
-			h.clearAdvData()
+			if h.leEventHandler != nil {
+				handled, err := h.leEventHandler(buf[2], buf[3:])
+				if err != nil {
+					return err
+				}
+				if handled {
+					return nil
+				}
+			}
+
 			return ErrHCIUnknownEvent
 		}
 	case evtHardwareError:
@@ -952,32 +1044,18 @@ func (h *hci) handleEventData(buf []byte) error {
 		}
 
 		return ErrHCIUnknownEvent
+
+	default:
+		if h.eventHandler != nil {
+			handled, err := h.eventHandler(evt, buf[2:])
+			if err != nil {
+				return err
+			}
+			if handled {
+				return nil
+			}
+		}
 	}
-
-	return nil
-}
-
-func (h *hci) clearAdvData() error {
-	h.advData.reported = false
-	h.advData.numReports = 0
-	h.advData.typ = 0
-	h.advData.peerBdaddrType = 0
-	h.advData.peerBdaddr = [6]uint8{}
-	h.advData.eirLength = 0
-	h.advData.eirData = [31]uint8{}
-	h.advData.rssi = 0
-
-	return nil
-}
-
-func (h *hci) clearConnectData() error {
-	h.connectData.connected = false
-	h.connectData.disconnected = false
-	h.connectData.status = 0
-	h.connectData.handle = 0
-	h.connectData.role = 0
-	h.connectData.peerBdaddrType = 0
-	h.connectData.peerBdaddr = [6]uint8{}
 
 	return nil
 }

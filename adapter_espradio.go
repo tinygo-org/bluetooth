@@ -38,7 +38,7 @@ func (a *Adapter) Enable() error {
 
 	transport := &hciVHCI{}
 
-	a.hci, a.att = newBLEStack(transport)
+	a.initStack(transport)
 
 	a.enable()
 
