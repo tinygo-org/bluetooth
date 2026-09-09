@@ -1,3 +1,39 @@
+unreleased
+---
+* **core**
+  - ble: move `UUID`, `MAC` and `MACAddress` into a new `ble` subpackage. The
+    `bluetooth` package aliases them, so `bluetooth.UUID` and `ble.UUID` are the
+    same type and existing code keeps working.
+  - ble: move `AttributeProtocolError` and the `ErrAtt*` codes into the `ble`
+    subpackage, aliased in the same way. ATT now uses them instead of a second
+    copy of the same 17 codes.
+  - ble: rename `UUID.bytes()` to `UUID.BytesLittleEndian()`, and add
+    `ble.UUIDFromBytes` and `ble.NewMACAddress`.
+* **hci**
+  - hci: move the HCI, L2CAP and ATT protocol code into a new `hci` subpackage
+    that has no build tags, so it builds and unit tests on the host. A board
+    supplies an `hci.Transport` and calls `hci.NewStack`.
+  - hci: add `SetEventHandler` and `SetLEEventHandler`, so that a controller can
+    consume an event or an LE subevent that the package does not know, and
+    `SendVendorCommand` for the matching commands. Vendor extensions no longer
+    need to live in this repository.
+  - hci: add unit tests, at 87 percent statement coverage.
+  - hci: fix a panic on a Find Information Response, whose format byte was
+    treated as an entry length.
+  - hci: bounds check the entry length of a Read By Type Response and a Read By
+    Group Type Response, which came off the wire unchecked.
+  - hci: reject an ATT protocol data unit that is too short for its opcode,
+    rather than reading past the end of it.
+  - hci: fix `ReadBdAddr`, which copied the event header into the address.
+  - hci: fix `ReadLEBufferSize`, which read the raw packet buffer and raised the
+    maximum MTU far above what the response buffers hold.
+  - hci: fix `MTUReq`, which asked for an MTU of zero.
+  - hci: track the negotiated ATT MTU, so `GetMTU` reports it and a discovery
+    response carries more than one attribute.
+  - hci: reject a truncated L2CAP connection parameter update request, which was
+    answered as accepted with zeroed parameters.
+  - hci: `Transport` drops `ReadByte`, which nothing called.
+
 0.16.0
 ---
 * **core**

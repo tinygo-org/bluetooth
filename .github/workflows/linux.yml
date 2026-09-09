@@ -22,7 +22,9 @@ jobs:
       - name: Add required GOFLAGS
         run: go env -w GOFLAGS=-buildvcs=false
       - name: Run unit tests
-        run: go test
+        run: go test ./ ./ble ./hci
+      - name: Run unit tests with the race detector
+        run: go test -race ./ ./ble ./hci
       - name: Run TinyGo smoke tests
         run: make smoketest-tinygo
       - name: Run Linux smoke tests
