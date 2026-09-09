@@ -42,9 +42,20 @@ const (
 	OpSignedWriteCmd      = 0xd2
 )
 
+// DefaultMTU is the ATT MTU before an exchange. See the Bluetooth Core
+// Specification, Section 3.2.8 of Part F.
+const DefaultMTU = 23
+
 const (
 	MaximumMTU          = 248
 	maximumMTUBufferLen = MaximumMTU + 8
+)
+
+// The Find Information Response formats. See the Bluetooth Core
+// Specification, Section 3.4.3.2 of Part F.
+const (
+	attFindInfoFormat16Bit  = 0x01
+	attFindInfoFormat128Bit = 0x02
 )
 
 // ShortUUID is a 16 bit UUID as it appears on the wire.
@@ -65,8 +76,6 @@ func (s ShortUUID) UUID() ble.UUID {
 	return ble.New16BitUUID(uint16(s))
 }
 
-var errNotImplemented = errors.New("bluetooth/hci: not implemented")
-
 var (
 	ErrATTTimeout           = errors.New("bluetooth: ATT timeout")
 	ErrATTUnknownEvent      = errors.New("bluetooth: ATT unknown event")
@@ -85,6 +94,10 @@ type Service struct {
 }
 
 func (s *Service) unmarshal(buf []byte) (int, error) {
+	if len(buf) < 4 {
+		return 0, errInvalidPayloadLength
+	}
+
 	s.StartHandle = binary.LittleEndian.Uint16(buf[0:])
 	s.EndHandle = binary.LittleEndian.Uint16(buf[2:])
 
@@ -154,6 +167,10 @@ type Characteristic struct {
 }
 
 func (c *Characteristic) unmarshal(buf []byte) (int, error) {
+	if len(buf) < 5 {
+		return 0, errInvalidPayloadLength
+	}
+
 	c.StartHandle = binary.LittleEndian.Uint16(buf[0:])
 	c.Properties = buf[2]
 	c.ValueHandle = binary.LittleEndian.Uint16(buf[3:])
@@ -200,15 +217,12 @@ type Descriptor struct {
 }
 
 func (d *Descriptor) unmarshal(buf []byte) (int, error) {
+	if len(buf) < 2 {
+		return 0, errInvalidPayloadLength
+	}
+
 	d.Handle = binary.LittleEndian.Uint16(buf[0:])
 	d.Data = append(d.Data, buf[2:]...)
-
-	return len(d.Data) + 2, nil
-}
-
-func (d *Descriptor) marshal(p []byte) (int, error) {
-	binary.LittleEndian.PutUint16(p[0:], d.Handle)
-	copy(p[2:], d.Data)
 
 	return len(d.Data) + 2, nil
 }
@@ -236,10 +250,6 @@ type attribute struct {
 	uuid        ble.UUID
 	permissions uint8
 	value       []byte
-}
-
-func (a *attribute) unmarshal(buf []byte) (int, error) {
-	return 0, errNotImplemented
 }
 
 func (a *attribute) marshal(p []byte) (int, error) {
@@ -323,6 +333,7 @@ func newATT(hci *HCI) *ATT {
 		lastHandle:           0x0001,
 		attributes:           []attribute{},
 		localServices:        []Service{},
+		mtu:                  DefaultMTU,
 		maxMTU:               MaximumMTU,
 	}
 }
@@ -451,17 +462,18 @@ func (a *ATT) MTUReq(connectionHandle uint16) error {
 		println("att.mtuReq:", connectionHandle)
 	}
 
-	cd, err := a.ConnectionData(connectionHandle)
-	if err != nil {
+	if _, err := a.ConnectionData(connectionHandle); err != nil {
 		return err
 	}
 
 	a.busy.Lock()
 	defer a.busy.Unlock()
 
+	// Ask for the largest MTU this stack accepts. The remote answers with the
+	// smaller of the two.
 	var b [3]byte
 	b[0] = OpMTUReq
-	binary.LittleEndian.PutUint16(b[1:], cd.MTU)
+	binary.LittleEndian.PutUint16(b[1:], a.maxMTU)
 
 	if err := a.sendReq(connectionHandle, b[:]); err != nil {
 		return err
@@ -552,9 +564,61 @@ func (a *ATT) sendError(handle uint16, opcode uint8, hdl uint16, code ble.Attrib
 	return nil
 }
 
+// attMinLength returns the smallest a protocol data unit can be for an
+// opcode, counting the opcode byte. Anything shorter cannot be parsed. The
+// lengths come from the Bluetooth Core Specification, Section 3.4 of Part F.
+//
+// A switch rather than a table, so that it costs no RAM.
+func attMinLength(opcode uint8) int {
+	switch opcode {
+	case OpReadResponse, OpWriteResponse, OpHandleCNF:
+		return 1
+	case OpFindInfoResponse, OpReadByTypeResponse, OpReadByGroupResponse:
+		return 2
+	case OpMTUReq, OpMTUResponse, OpReadReq, OpWriteReq, OpWriteCmd,
+		OpHandleNotify, OpHandleInd:
+		return 3
+	case OpError, OpFindInfoReq, OpReadBlobReq:
+		return 5
+	case OpFindByTypeReq, OpReadByTypeReq, OpReadByGroupReq:
+		return 7
+	default:
+		return 1
+	}
+}
+
+// attEntryLength validates the entry length of a list response. The length
+// comes off the wire, so a zero would loop forever and an oversized one would
+// read past the end.
+func attEntryLength(buf []byte) (int, error) {
+	length := int(buf[1])
+	if length == 0 || 2+length > len(buf) {
+		if debug {
+			println("att: bad entry length", length, len(buf))
+		}
+
+		return 0, ErrInvalidPacket
+	}
+
+	return length, nil
+}
+
 func (a *ATT) handleData(handle uint16, buf []byte) error {
 	if debug {
 		println("att.handleData:", handle, "data:", hex.EncodeToString(buf))
+	}
+
+	// The protocol data unit arrives over the air, so check that it is long
+	// enough for its opcode before reading any of it.
+	if len(buf) < 1 {
+		return ErrInvalidPacket
+	}
+	if len(buf) < attMinLength(buf[0]) {
+		if debug {
+			println("att.handleData: too short for opcode", buf[0], len(buf))
+		}
+
+		return ErrInvalidPacket
 	}
 
 	cd, err := a.ConnectionData(handle)
@@ -591,6 +655,7 @@ func (a *ATT) handleData(handle uint16, buf []byte) error {
 
 		// save mtu for connection
 		cd.MTU = mtu
+		a.mtu = mtu
 
 		var b [3]byte
 		b[0] = OpMTUResponse
@@ -606,6 +671,7 @@ func (a *ATT) handleData(handle uint16, buf []byte) error {
 		}
 		cd.responded = true
 		cd.MTU = binary.LittleEndian.Uint16(buf[1:])
+		a.mtu = cd.MTU
 
 	case OpFindInfoReq:
 		if debug {
@@ -623,11 +689,29 @@ func (a *ATT) handleData(handle uint16, buf []byte) error {
 		}
 		cd.responded = true
 
-		lengthPerDescriptor := int(buf[1])
+		// The format says how wide each entry is. See the Bluetooth Core
+		// Specification, Section 3.4.3.2 of Part F.
+		var lengthPerDescriptor int
+		switch buf[1] {
+		case attFindInfoFormat16Bit:
+			lengthPerDescriptor = 2 + 2
+		case attFindInfoFormat128Bit:
+			lengthPerDescriptor = 2 + 16
+		default:
+			if debug {
+				println("att.handleData: unknown find info format", buf[1])
+			}
 
-		for i := 2; i < len(buf); i += lengthPerDescriptor {
+			return ErrInvalidPacket
+		}
+
+		// The format comes off the wire, so only read whole entries that are
+		// really present.
+		for i := 2; i+lengthPerDescriptor <= len(buf); i += lengthPerDescriptor {
 			d := Descriptor{}
-			d.unmarshal(buf[i : i+lengthPerDescriptor])
+			if _, err := d.unmarshal(buf[i : i+lengthPerDescriptor]); err != nil {
+				return err
+			}
 
 			if debug {
 				println("att.handleData: descriptor", d.Handle, hex.EncodeToString(d.Data))
@@ -658,11 +742,17 @@ func (a *ATT) handleData(handle uint16, buf []byte) error {
 		}
 		cd.responded = true
 
-		lengthPerCharacteristic := int(buf[1])
+		lengthPerCharacteristic, err := attEntryLength(buf)
+		if err != nil {
+			return err
+		}
 
-		for i := 2; i < len(buf); i += lengthPerCharacteristic {
+		// Only read whole entries that are really present.
+		for i := 2; i+lengthPerCharacteristic <= len(buf); i += lengthPerCharacteristic {
 			c := Characteristic{}
-			c.unmarshal(buf[i : i+lengthPerCharacteristic])
+			if _, err := c.unmarshal(buf[i : i+lengthPerCharacteristic]); err != nil {
+				return err
+			}
 
 			if debug {
 				println("att.handleData: characteristic", c.StartHandle, c.Properties, c.ValueHandle, c.UUID.String())
@@ -690,11 +780,17 @@ func (a *ATT) handleData(handle uint16, buf []byte) error {
 		}
 		cd.responded = true
 
-		lengthPerService := int(buf[1])
+		lengthPerService, err := attEntryLength(buf)
+		if err != nil {
+			return err
+		}
 
-		for i := 2; i < len(buf); i += lengthPerService {
+		// Only read whole entries that are really present.
+		for i := 2; i+lengthPerService <= len(buf); i += lengthPerService {
 			service := Service{}
-			service.unmarshal(buf[i : i+lengthPerService])
+			if _, err := service.unmarshal(buf[i : i+lengthPerService]); err != nil {
+				return err
+			}
 
 			if debug {
 				println("att.handleData: service", service.StartHandle, service.EndHandle, service.UUID.String())
@@ -934,6 +1030,13 @@ func (a *ATT) handleFindInfoReq(handle, start, end uint16) error {
 	pos = 2
 	infoType := 0
 	response[1] = 0
+
+	// TODO: the format has to follow the UUID width, 1 for 16 bit and 2 for
+	// 128 bit, and only characteristic values and descriptors belong in this
+	// response. It currently follows the attribute type instead, so a
+	// database whose first match is a service declaration answers with
+	// format 2 and 16 bit UUIDs. See the Bluetooth Core Specification,
+	// Section 3.4.3.2 of Part F.
 
 	for _, attr := range a.attributes {
 		if debug {

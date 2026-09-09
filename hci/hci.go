@@ -257,9 +257,9 @@ func (h *HCI) Address() ble.MACAddress {
 	return h.address
 }
 
-// CommandResponse returns the parameters of the most recent Command Complete
-// event. The slice points into the read buffer and is only valid until the
-// next poll.
+// CommandResponse returns the return parameters of the most recent Command
+// Complete event, without the status byte. The slice points into the read
+// buffer and is only valid until the next poll.
 func (h *HCI) CommandResponse() []byte {
 	return h.cmdResponse
 }
@@ -481,11 +481,13 @@ func (h *HCI) ReadBdAddr() error {
 		return err
 	}
 
-	if len(h.cmdResponse) < 7 {
+	// The return parameter is the six byte address, least significant byte
+	// first, which is the order that MAC uses.
+	if len(h.cmdResponse) < 6 {
 		return ErrInvalidPacket
 	}
 
-	copy(h.address.MAC[:], h.cmdResponse[:7])
+	copy(h.address.MAC[:], h.cmdResponse[:6])
 
 	return nil
 }
@@ -518,19 +520,26 @@ func (h *HCI) ReadLEBufferSize() error {
 		return err
 	}
 
-	pktLen := binary.LittleEndian.Uint16(h.buf[0:])
-	h.maxPkt = uint16(h.buf[2])
+	// The return parameters are the packet length and the number of packets.
+	if len(h.cmdResponse) < 3 {
+		return ErrInvalidPacket
+	}
+
+	pktLen := binary.LittleEndian.Uint16(h.cmdResponse[0:])
+	h.maxPkt = uint16(h.cmdResponse[2])
 
 	// pkt len must be at least 27 bytes
 	if pktLen < 27 {
 		pktLen = 27
 	}
 
-	if err := h.att.SetMaxMTU(pktLen); err != nil {
-		return err
+	// The response buffers are sized for MaximumMTU, so a controller that
+	// offers more than that must not raise the MTU above it.
+	if pktLen > MaximumMTU {
+		pktLen = MaximumMTU
 	}
 
-	return nil
+	return h.att.SetMaxMTU(pktLen)
 }
 
 func (h *HCI) LESetScanEnable(enabled, duplicates bool) error {
@@ -839,8 +848,12 @@ func (h *HCI) handleEventData(buf []byte) error {
 
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[3:])
 		h.cmdCompleteStatus = buf[5]
-		if plen > 0 {
-			h.cmdResponse = buf[1 : plen+2]
+
+		// The event parameters are the number of allowed command packets, the
+		// opcode and the status, followed by the return parameters of the
+		// command. Keep only the return parameters.
+		if plen > 4 {
+			h.cmdResponse = buf[6 : plen+2]
 		} else {
 			h.cmdResponse = buf[:0]
 		}
