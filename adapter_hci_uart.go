@@ -65,7 +65,7 @@ func (a *Adapter) Enable() error {
 		a.cts.Configure(machine.PinConfig{Mode: machine.PinInput})
 	}
 
-	a.hci, a.att = newBLEStack(transport)
+	a.initStack(transport)
 	a.enable()
 
 	return nil

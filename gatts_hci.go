@@ -12,6 +12,17 @@ type Characteristic struct {
 	cccd        uint16
 }
 
+// newCharHandler returns the ATT callback set for a characteristic, so that
+// the public API of Characteristic does not have to change.
+func newCharHandler(c *Characteristic) charHandler {
+	return charHandler{
+		readValue:  c.readValue,
+		writeValue: c.Write,
+		readCCCD:   c.readCCCD,
+		writeCCCD:  c.writeCCCD,
+	}
+}
+
 // AddService creates a new service with the characteristics listed in the
 // Service struct.
 func (a *Adapter) AddService(service *Service) error {
@@ -25,7 +36,7 @@ func (a *Adapter) AddService(service *Service) error {
 		cuuid := append([]byte{}, data[:]...)
 
 		// add characteristic declaration
-		charHandle := a.att.addLocalAttribute(attributeTypeCharacteristic, serviceHandle, shortUUID(gattCharacteristicUUID).UUID(), CharacteristicReadPermission, cuuid[:])
+		charHandle := a.att.addLocalAttribute(attributeTypeCharacteristic, serviceHandle, shortUUID(gattCharacteristicUUID).UUID(), uint8(CharacteristicReadPermission), cuuid[:])
 
 		// add characteristic value
 		vf := CharacteristicPermissions(0)
@@ -35,13 +46,13 @@ func (a *Adapter) AddService(service *Service) error {
 		if service.Characteristics[i].Flags.Write() {
 			vf |= CharacteristicWritePermission
 		}
-		valueHandle = a.att.addLocalAttribute(attributeTypeCharacteristicValue, charHandle, service.Characteristics[i].UUID, vf, service.Characteristics[i].Value)
+		valueHandle = a.att.addLocalAttribute(attributeTypeCharacteristicValue, charHandle, service.Characteristics[i].UUID, uint8(vf), service.Characteristics[i].Value)
 		endHandle = valueHandle
 
 		// add characteristic descriptor
 		if service.Characteristics[i].Flags.Notify() ||
 			service.Characteristics[i].Flags.Indicate() {
-			endHandle = a.att.addLocalAttribute(attributeTypeDescriptor, charHandle, shortUUID(gattClientCharacteristicConfigUUID).UUID(), CharacteristicReadPermission|CharacteristicWritePermission, []byte{0, 0})
+			endHandle = a.att.addLocalAttribute(attributeTypeDescriptor, charHandle, shortUUID(gattClientCharacteristicConfigUUID).UUID(), uint8(CharacteristicReadPermission|CharacteristicWritePermission), []byte{0, 0})
 		}
 
 		if service.Characteristics[i].Handle == nil {
@@ -69,7 +80,7 @@ func (a *Adapter) AddService(service *Service) error {
 			println("added characteristic", charHandle, valueHandle, service.Characteristics[i].UUID.String())
 		}
 
-		a.att.addLocalCharacteristic(charHandle, service.Characteristics[i].Flags, valueHandle, service.Characteristics[i].UUID, service.Characteristics[i].Handle)
+		a.att.addLocalCharacteristic(charHandle, uint8(service.Characteristics[i].Flags), valueHandle, service.Characteristics[i].UUID, newCharHandler(service.Characteristics[i].Handle))
 	}
 
 	if debug {

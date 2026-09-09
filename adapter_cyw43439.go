@@ -57,7 +57,7 @@ func (a *Adapter) Enable() error {
 
 	transport := &hciSPI{dev: dev}
 
-	a.hci, a.att = newBLEStack(transport)
+	a.initStack(transport)
 	if debug {
 		println("Enabling CYW43439 device")
 	}

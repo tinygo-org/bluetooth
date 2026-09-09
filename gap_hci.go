@@ -69,19 +69,21 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		}
 
 		switch {
-		case a.hci.advData.reported:
+		case a.hci.advReported:
+			rep, _ := a.hci.advertisement()
+
 			adf := AdvertisementFields{}
-			if a.hci.advData.eirLength > 31 {
+			if rep.eirLength > 31 {
 				if debug {
 					println("eirLength too long")
 				}
 
-				a.hci.clearAdvData()
+				a.hci.clearAdvertisement()
 				continue
 			}
 
-			rp := rawAdvertisementPayload{len: a.hci.advData.eirLength}
-			copy(rp.data[:], a.hci.advData.eirData[:a.hci.advData.eirLength])
+			rp := rawAdvertisementPayload{len: rep.eirLength}
+			copy(rp.data[:], rep.eirData[:rep.eirLength])
 			if rp.LocalName() != "" {
 				adf.LocalName = rp.LocalName()
 			}
@@ -131,19 +133,19 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				adf.ManufacturerData = append(adf.ManufacturerData, md...)
 			}
 
-			random := a.hci.advData.peerBdaddrType == GAPAddressTypeRandomStatic
+			random := rep.peerBdaddrType == GAPAddressTypeRandomStatic
 
 			callback(a, ScanResult{
 				Address: Address{
-					NewMACAddress(makeAddress(a.hci.advData.peerBdaddr), random),
+					NewMACAddress(makeAddress(rep.peerBdaddr), random),
 				},
-				RSSI: int16(a.hci.advData.rssi),
+				RSSI: int16(rep.rssi),
 				AdvertisementPayload: &advertisementFields{
 					AdvertisementFields: adf,
 				},
 			})
 
-			a.hci.clearAdvData()
+			a.hci.clearAdvertisement()
 			time.Sleep(5 * time.Millisecond)
 
 		default:
@@ -219,8 +221,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			return Device{}, err
 		}
 
-		if a.hci.connectData.connected {
-			defer a.hci.clearConnectData()
+		if conn, ok := a.hci.connection(); ok {
+			defer a.hci.clearConnection()
 
 			random := false
 			if address.IsRandom() {
@@ -229,11 +231,11 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 			d := Device{
 				Address: Address{
-					NewMACAddress(makeAddress(a.hci.connectData.peerBdaddr), random),
+					NewMACAddress(makeAddress(conn.peerBdaddr), random),
 				},
 				deviceInternal: &deviceInternal{
 					adapter:                   a,
-					handle:                    a.hci.connectData.handle,
+					handle:                    conn.handle,
 					mtu:                       defaultMTU,
 					notificationRegistrations: make([]notificationRegistration, 0),
 				},
@@ -482,16 +484,17 @@ func (a *Advertisement) Start() error {
 			}
 
 			switch {
-			case a.adapter.hci.connectData.connected:
-				random := a.adapter.hci.connectData.peerBdaddrType == 0x01
+			case a.adapter.hci.connected:
+				conn, _ := a.adapter.hci.connection()
+				random := conn.peerBdaddrType == 0x01
 
 				d := Device{
 					Address: Address{
-						NewMACAddress(makeAddress(a.adapter.hci.connectData.peerBdaddr), random),
+						NewMACAddress(makeAddress(conn.peerBdaddr), random),
 					},
 					deviceInternal: &deviceInternal{
 						adapter:                   a.adapter,
-						handle:                    a.adapter.hci.connectData.handle,
+						handle:                    conn.handle,
 						mtu:                       defaultMTU,
 						notificationRegistrations: make([]notificationRegistration, 0),
 					},
@@ -502,12 +505,13 @@ func (a *Advertisement) Start() error {
 					a.adapter.connectHandler(d, true)
 				}
 
-				a.adapter.hci.clearConnectData()
-			case a.adapter.hci.connectData.disconnected:
+				a.adapter.hci.clearConnection()
+			case a.adapter.hci.disconnected:
+				disc, _ := a.adapter.hci.disconnection()
 				d := Device{
 					deviceInternal: &deviceInternal{
 						adapter: a.adapter,
-						handle:  a.adapter.hci.connectData.handle,
+						handle:  disc.handle,
 					},
 				}
 				a.adapter.removeConnection(d)
@@ -516,7 +520,7 @@ func (a *Advertisement) Start() error {
 					a.adapter.connectHandler(d, false)
 				}
 
-				a.adapter.hci.clearConnectData()
+				a.adapter.hci.clearConnection()
 			}
 
 			time.Sleep(5 * time.Millisecond)
