@@ -160,6 +160,13 @@ type HCI struct {
 
 	eventHandler   func(event uint8, params []byte) (bool, error)
 	leEventHandler func(subevent uint8, params []byte) (bool, error)
+
+	// The timeouts and the delay between polls. A test shortens them so that
+	// a timeout path finishes at once. They are unexported, because the
+	// defaults are the only supported setting.
+	commandTimeout  time.Duration
+	responseTimeout time.Duration
+	retryDelay      time.Duration
 }
 
 // Advertisement returns the most recent LE advertising report, and whether one
@@ -250,9 +257,9 @@ func (h *HCI) Address() ble.MACAddress {
 	return h.address
 }
 
-// CommandResponse returns the parameters of the most recent Command Complete
-// event. The slice points into the read buffer and is only valid until the
-// next poll.
+// CommandResponse returns the return parameters of the most recent Command
+// Complete event, without the status byte. The slice points into the read
+// buffer and is only valid until the next poll.
 func (h *HCI) CommandResponse() []byte {
 	return h.cmdResponse
 }
@@ -265,9 +272,12 @@ func (h *HCI) CommandStatus() uint8 {
 
 func newHCI(t Transport) *HCI {
 	return &HCI{
-		transport: t,
-		buf:       make([]byte, ReadBufferSize),
-		writebuf:  make([]byte, 256),
+		transport:       t,
+		buf:             make([]byte, ReadBufferSize),
+		writebuf:        make([]byte, 256),
+		commandTimeout:  3 * time.Second,
+		responseTimeout: 10 * time.Second,
+		retryDelay:      5 * time.Millisecond,
 	}
 }
 
@@ -354,7 +364,7 @@ func (h *HCI) Poll() error {
 			h.pos = 0
 			h.end = 0
 
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(h.retryDelay)
 		case err != nil:
 			// some other error, so return
 			h.pos = 0
@@ -382,7 +392,7 @@ func (h *HCI) Poll() error {
 			h.pos = 0
 			h.end = 0
 
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(h.retryDelay)
 		case h.transport.Buffered() == 0:
 			// Incomplete packet with nothing more to read for now. Keep it and
 			// pick up where we left off on the next poll.
@@ -471,11 +481,13 @@ func (h *HCI) ReadBdAddr() error {
 		return err
 	}
 
-	if len(h.cmdResponse) < 7 {
+	// The return parameter is the six byte address, least significant byte
+	// first, which is the order that MAC uses.
+	if len(h.cmdResponse) < 6 {
 		return ErrInvalidPacket
 	}
 
-	copy(h.address.MAC[:], h.cmdResponse[:7])
+	copy(h.address.MAC[:], h.cmdResponse[:6])
 
 	return nil
 }
@@ -508,19 +520,26 @@ func (h *HCI) ReadLEBufferSize() error {
 		return err
 	}
 
-	pktLen := binary.LittleEndian.Uint16(h.buf[0:])
-	h.maxPkt = uint16(h.buf[2])
+	// The return parameters are the packet length and the number of packets.
+	if len(h.cmdResponse) < 3 {
+		return ErrInvalidPacket
+	}
+
+	pktLen := binary.LittleEndian.Uint16(h.cmdResponse[0:])
+	h.maxPkt = uint16(h.cmdResponse[2])
 
 	// pkt len must be at least 27 bytes
 	if pktLen < 27 {
 		pktLen = 27
 	}
 
-	if err := h.att.SetMaxMTU(pktLen); err != nil {
-		return err
+	// The response buffers are sized for MaximumMTU, so a controller that
+	// offers more than that must not raise the MTU above it.
+	if pktLen > MaximumMTU {
+		pktLen = MaximumMTU
 	}
 
-	return nil
+	return h.att.SetMaxMTU(pktLen)
 }
 
 func (h *HCI) LESetScanEnable(enabled, duplicates bool) error {
@@ -661,13 +680,13 @@ func (h *HCI) SendCommandWithParams(opcode uint16, params []byte) error {
 	h.cmdCompleteOpcode = 0xffff
 	h.cmdCompleteStatus = 0xff
 
-	start := time.Now().UnixNano()
+	start := time.Now()
 	for h.cmdCompleteOpcode != opcode {
 		if err := h.Poll(); err != nil {
 			return err
 		}
 
-		if (time.Now().UnixNano()-start)/int64(time.Second) > 3 {
+		if time.Since(start) > h.commandTimeout {
 			return ErrTimeout
 		}
 	}
@@ -829,8 +848,12 @@ func (h *HCI) handleEventData(buf []byte) error {
 
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[3:])
 		h.cmdCompleteStatus = buf[5]
-		if plen > 0 {
-			h.cmdResponse = buf[1 : plen+2]
+
+		// The event parameters are the number of allowed command packets, the
+		// opcode and the status, followed by the return parameters of the
+		// command. Keep only the return parameters.
+		if plen > 4 {
+			h.cmdResponse = buf[6 : plen+2]
 		} else {
 			h.cmdResponse = buf[:0]
 		}
