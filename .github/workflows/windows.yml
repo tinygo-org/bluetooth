@@ -19,6 +19,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Run unit tests
-        run: go test
+        run: go test ./ ./ble ./hci
       - name: "Run Windows smoke tests"
         run: make smoketest-windows

@@ -77,6 +77,36 @@ smoketest-tinygo:
 	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3	./examples/discover
 	@md5sum test.bin
 
+smoketest-hci:
+	# Test the four HCI transports, for a faster loop than the whole matrix.
+	# ninafw
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/advertisement
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=arduino-nano33        ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=pyportal              ./examples/discover
+	@md5sum test.uf2
+	# hci over a plain UART
+	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-express -tags="hci hci_uart" ./examples/advertisement
+	@md5sum test.uf2
+	# cyw43439
+	$(TINYGO) build -o test.uf2 -size=short -target=pico-w                ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=badger2040-w          ./examples/advertisement
+	@md5sum test.uf2
+	# espradio
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3          ./examples/discover
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3          ./examples/advertisement
+	@md5sum test.bin
+	# The bledebug build of the hci package is not covered anywhere else.
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 -tags=bledebug ./examples/discover
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=pico-w      -tags=bledebug ./examples/discover
+	@md5sum test.uf2
+
 smoketest-linux:
 	# Test on Linux.
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/advertisement

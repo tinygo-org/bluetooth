@@ -23,7 +23,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Run unit tests
-        run: go test
+        run: go test ./ ./ble ./hci
       - name: "Run macOS smoke tests"
         run: make smoketest-macos
   
@@ -38,6 +38,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Run unit tests
-        run: go test
+        run: go test ./ ./ble ./hci
       - name: "Run macOS smoke tests"
         run: make smoketest-macos
