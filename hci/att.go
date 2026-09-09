@@ -76,8 +76,6 @@ var (
 	ErrATTAttributeNotFound = errors.New("bluetooth: ATT attribute not found")
 )
 
-const defaultTimeoutSeconds = 10
-
 // Service is a service found on a remote device, or one that this stack makes
 // available.
 type Service struct {
@@ -1118,7 +1116,7 @@ func (a *ATT) waitUntilResponse(handle uint16) error {
 		return err
 	}
 
-	start := time.Now().UnixNano()
+	start := time.Now()
 	for {
 		if err := a.hci.Poll(); err != nil {
 			return err
@@ -1128,11 +1126,11 @@ func (a *ATT) waitUntilResponse(handle uint16) error {
 		case cd.responded:
 			return nil
 
-		case (time.Now().UnixNano()-start)/int64(time.Second) > defaultTimeoutSeconds:
+		case time.Since(start) > a.hci.responseTimeout:
 			return ErrATTTimeout
 
 		default:
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(a.hci.retryDelay)
 		}
 	}
 }
