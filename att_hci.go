@@ -118,7 +118,7 @@ func (s *rawService) Read(p []byte) (int, error) {
 		binary.LittleEndian.PutUint16(p[4:], s.uuid.Get16Bit())
 		sz += 2
 	default:
-		uuid := s.uuid.bytes()
+		uuid := s.uuid.BytesLittleEndian()
 		copy(p[4:], uuid[:])
 		sz += 16
 	}
@@ -166,7 +166,7 @@ func (c *rawCharacteristic) Read(p []byte) (int, error) {
 		binary.LittleEndian.PutUint16(p[5:], c.uuid.Get16Bit())
 		sz += 2
 	default:
-		uuid := c.uuid.bytes()
+		uuid := c.uuid.BytesLittleEndian()
 		copy(p[5:], uuid[:])
 		sz += 16
 	}
@@ -232,7 +232,7 @@ func (a *rawAttribute) Read(p []byte) (int, error) {
 			binary.LittleEndian.PutUint16(p[sz:], a.uuid.Get16Bit())
 			sz += 2
 		default:
-			uuid := a.uuid.bytes()
+			uuid := a.uuid.BytesLittleEndian()
 			copy(p[sz:], uuid[:])
 			sz += 16
 		}

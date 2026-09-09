@@ -89,7 +89,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		for _, rawService := range cd.services {
-			if len(uuids) == 0 || rawService.uuid.isIn(uuids) {
+			if len(uuids) == 0 || uuidIn(rawService.uuid, uuids) {
 				foundServices[rawService.uuid] =
 					DeviceService{
 						device:      d,
@@ -197,7 +197,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		}
 
 		for _, rawCharacteristic := range cd.characteristics {
-			if len(uuids) == 0 || rawCharacteristic.uuid.isIn(uuids) {
+			if len(uuids) == 0 || uuidIn(rawCharacteristic.uuid, uuids) {
 				dc := DeviceCharacteristic{
 					service:     &s,
 					uuid:        rawCharacteristic.uuid,

@@ -55,7 +55,7 @@ func secMode(level SecurityLevel) C.ble_gap_conn_sec_mode_t {
 // AddService creates a new service with the characteristics listed in the
 // Service struct.
 func (a *Adapter) AddService(service *Service) error {
-	uuid, errCode := service.UUID.shortUUID()
+	uuid, errCode := shortUUIDFor(service.UUID)
 	if errCode != 0 {
 		return Error(errCode)
 	}
@@ -72,7 +72,7 @@ func (a *Adapter) AddService(service *Service) error {
 		metadata.char_props.set_bitfield_notify(C.uint8_t(char.Flags>>4) & 1)
 		metadata.char_props.set_bitfield_indicate(C.uint8_t(char.Flags>>5) & 1)
 		handles := C.ble_gatts_char_handles_t{}
-		charUUID, errCode := char.UUID.shortUUID()
+		charUUID, errCode := shortUUIDFor(char.UUID)
 		if errCode != 0 {
 			return Error(errCode)
 		}
@@ -105,7 +105,7 @@ func (a *Adapter) AddService(service *Service) error {
 			char.Handle.permissions = char.Flags
 		}
 		for _, desc := range char.Descriptors {
-			descUUID, errCode := desc.UUID.shortUUID()
+			descUUID, errCode := shortUUIDFor(desc.UUID)
 			if errCode != 0 {
 				return Error(errCode)
 			}

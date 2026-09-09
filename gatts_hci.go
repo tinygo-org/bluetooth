@@ -15,13 +15,13 @@ type Characteristic struct {
 // AddService creates a new service with the characteristics listed in the
 // Service struct.
 func (a *Adapter) AddService(service *Service) error {
-	uuid := service.UUID.bytes()
+	uuid := service.UUID.BytesLittleEndian()
 	serviceHandle := a.att.addLocalAttribute(attributeTypeService, 0, shortUUID(gattServiceUUID).UUID(), 0, uuid[:])
 	valueHandle := serviceHandle
 	endHandle := serviceHandle
 
 	for i := range service.Characteristics {
-		data := service.Characteristics[i].UUID.bytes()
+		data := service.Characteristics[i].UUID.BytesLittleEndian()
 		cuuid := append([]byte{}, data[:]...)
 
 		// add characteristic declaration

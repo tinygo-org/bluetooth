@@ -144,7 +144,7 @@ func TestServiceUUIDs(t *testing.T) {
 		raw      string
 		expected []UUID
 	}
-	uuidBytes := ServiceUUIDAdafruitSound.bytes()
+	uuidBytes := ServiceUUIDAdafruitSound.BytesLittleEndian()
 	tests := []testCase{
 		{},
 		{

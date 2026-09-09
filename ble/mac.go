@@ -1,4 +1,4 @@
-package bluetooth
+package ble
 
 import (
 	"errors"
@@ -106,4 +106,38 @@ func (mac *MAC) UnmarshalBinary(data []byte) error {
 // (allocating a larger slice if necessary) and returns the updated slice.
 func (mac MAC) AppendBinary(b []byte) ([]byte, error) {
 	return append(b, mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]), nil
+}
+
+// MACAddress contains a Bluetooth address which is a MAC address.
+type MACAddress struct {
+	// MAC address of the Bluetooth device.
+	MAC
+
+	isRandom bool
+}
+
+// NewMACAddress returns a MACAddress for the given MAC, marked as random or
+// public.
+func NewMACAddress(mac MAC, random bool) MACAddress {
+	return MACAddress{MAC: mac, isRandom: random}
+}
+
+// IsRandom if the address is randomly created.
+func (mac MACAddress) IsRandom() bool {
+	return mac.isRandom
+}
+
+// SetRandom if is a random address.
+func (mac *MACAddress) SetRandom(val bool) {
+	mac.isRandom = val
+}
+
+// Set the address
+func (mac *MACAddress) Set(val string) {
+	m, err := ParseMAC(val)
+	if err != nil {
+		return
+	}
+
+	mac.MAC = m
 }

@@ -1,4 +1,4 @@
-package bluetooth
+package ble
 
 // This file implements 16-bit and 128-bit UUIDs as defined in the Bluetooth
 // specification.
@@ -116,9 +116,9 @@ func (uuid UUID) BytesBigEndian() [16]byte {
 	}
 }
 
-// bytes returns a 16-byte array containing the raw UUID in little-endian
+// BytesLittleEndian returns a 16 byte array with the raw UUID in little endian
 // order.
-func (uuid UUID) bytes() [16]byte {
+func (uuid UUID) BytesLittleEndian() [16]byte {
 	return [16]byte{
 		0:  byte(uuid.id[0]),
 		1:  byte(uuid.id[0] >> 8),
@@ -142,7 +142,7 @@ func (uuid UUID) bytes() [16]byte {
 // AppendBinary appends the bytes of the uuid in little-endian order to the
 // given byte slice b.
 func (uuid UUID) AppendBinary(b []byte) ([]byte, error) {
-	id := uuid.bytes()
+	id := uuid.BytesLittleEndian()
 	return append(b, id[:]...), nil
 }
 
@@ -432,4 +432,15 @@ func (u *UUID) UnmarshalBinary(uuid []byte) error {
 	u.id[2] = uint32(uuid[8]) | uint32(uuid[9])<<8 | uint32(uuid[10])<<16 | uint32(uuid[11])<<24
 	u.id[3] = uint32(uuid[12]) | uint32(uuid[13])<<8 | uint32(uuid[14])<<16 | uint32(uuid[15])<<24
 	return nil
+}
+
+// UUIDFromBytes returns the UUID for a 16 byte array in little endian order.
+// It is the inverse of BytesLittleEndian.
+func UUIDFromBytes(b [16]byte) UUID {
+	var uuid UUID
+	uuid.id[0] = uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+	uuid.id[1] = uint32(b[4]) | uint32(b[5])<<8 | uint32(b[6])<<16 | uint32(b[7])<<24
+	uuid.id[2] = uint32(b[8]) | uint32(b[9])<<8 | uint32(b[10])<<16 | uint32(b[11])<<24
+	uuid.id[3] = uint32(b[12]) | uint32(b[13])<<8 | uint32(b[14])<<16 | uint32(b[15])<<24
+	return uuid
 }

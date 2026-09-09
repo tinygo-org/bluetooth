@@ -45,7 +45,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	// Active scanning transmits, so the controller needs to know which of our
 	// own addresses to put in the SCAN_REQ.
 	localRandom := uint8(0)
-	if a.hci.address.isRandom {
+	if a.hci.address.IsRandom() {
 		localRandom = GAPAddressTypeRandomStatic
 	}
 
@@ -135,10 +135,7 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 
 			callback(a, ScanResult{
 				Address: Address{
-					MACAddress{
-						MAC:      makeAddress(a.hci.advData.peerBdaddr),
-						isRandom: random,
-					},
+					NewMACAddress(makeAddress(a.hci.advData.peerBdaddr), random),
 				},
 				RSSI: int16(a.hci.advData.rssi),
 				AdvertisementPayload: &advertisementFields{
@@ -192,11 +189,11 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	peerRandom := uint8(0)
-	if address.isRandom {
+	if address.IsRandom() {
 		peerRandom = GAPAddressTypeRandomStatic
 	}
 	localRandom := uint8(0)
-	if a.hci.address.isRandom {
+	if a.hci.address.IsRandom() {
 		localRandom = GAPAddressTypeRandomStatic
 	}
 	if err := a.hci.leCreateConn(0x0060, // interval
@@ -226,15 +223,13 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			defer a.hci.clearConnectData()
 
 			random := false
-			if address.isRandom {
+			if address.IsRandom() {
 				random = true
 			}
 
 			d := Device{
 				Address: Address{
-					MACAddress{
-						MAC:      makeAddress(a.hci.connectData.peerBdaddr),
-						isRandom: random},
+					NewMACAddress(makeAddress(a.hci.connectData.peerBdaddr), random),
 				},
 				deviceInternal: &deviceInternal{
 					adapter:                   a,
@@ -401,7 +396,7 @@ func (a *Advertisement) Start() error {
 	typ := uint8(a.advertisementType)
 
 	localRandom := uint8(0)
-	if a.adapter.hci.address.isRandom {
+	if a.adapter.hci.address.IsRandom() {
 		localRandom = GAPAddressTypeRandomStatic
 	}
 
@@ -432,7 +427,7 @@ func (a *Advertisement) Start() error {
 			binary.LittleEndian.PutUint16(advertisingData[5:], uuid.Get16Bit())
 		case uuid.Is32Bit():
 			sz = 6
-			data := uuid.bytes()
+			data := uuid.BytesLittleEndian()
 			slices.Reverse(data[:])
 			copy(advertisingData[5:], data[:])
 		}
@@ -492,9 +487,7 @@ func (a *Advertisement) Start() error {
 
 				d := Device{
 					Address: Address{
-						MACAddress{
-							MAC:      makeAddress(a.adapter.hci.connectData.peerBdaddr),
-							isRandom: random},
+						NewMACAddress(makeAddress(a.adapter.hci.connectData.peerBdaddr), random),
 					},
 					deviceInternal: &deviceInternal{
 						adapter:                   a.adapter,

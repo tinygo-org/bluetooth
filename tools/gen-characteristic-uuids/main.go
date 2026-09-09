@@ -45,7 +45,7 @@ func (c Characteristic) UUIDFunc() string {
 	if err != nil {
 		panic(err)
 	}
-	b := uuid.bytes()
+	b := uuid.BytesLittleEndian()
 	bs := hex.EncodeToString(b[:])
 	bss := ""
 	for i := 0; i < len(bs); i += 2 {
