@@ -160,6 +160,13 @@ type HCI struct {
 
 	eventHandler   func(event uint8, params []byte) (bool, error)
 	leEventHandler func(subevent uint8, params []byte) (bool, error)
+
+	// The timeouts and the delay between polls. A test shortens them so that
+	// a timeout path finishes at once. They are unexported, because the
+	// defaults are the only supported setting.
+	commandTimeout  time.Duration
+	responseTimeout time.Duration
+	retryDelay      time.Duration
 }
 
 // Advertisement returns the most recent LE advertising report, and whether one
@@ -265,9 +272,12 @@ func (h *HCI) CommandStatus() uint8 {
 
 func newHCI(t Transport) *HCI {
 	return &HCI{
-		transport: t,
-		buf:       make([]byte, ReadBufferSize),
-		writebuf:  make([]byte, 256),
+		transport:       t,
+		buf:             make([]byte, ReadBufferSize),
+		writebuf:        make([]byte, 256),
+		commandTimeout:  3 * time.Second,
+		responseTimeout: 10 * time.Second,
+		retryDelay:      5 * time.Millisecond,
 	}
 }
 
@@ -354,7 +364,7 @@ func (h *HCI) Poll() error {
 			h.pos = 0
 			h.end = 0
 
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(h.retryDelay)
 		case err != nil:
 			// some other error, so return
 			h.pos = 0
@@ -382,7 +392,7 @@ func (h *HCI) Poll() error {
 			h.pos = 0
 			h.end = 0
 
-			time.Sleep(5 * time.Millisecond)
+			time.Sleep(h.retryDelay)
 		case h.transport.Buffered() == 0:
 			// Incomplete packet with nothing more to read for now. Keep it and
 			// pick up where we left off on the next poll.
@@ -661,13 +671,13 @@ func (h *HCI) SendCommandWithParams(opcode uint16, params []byte) error {
 	h.cmdCompleteOpcode = 0xffff
 	h.cmdCompleteStatus = 0xff
 
-	start := time.Now().UnixNano()
+	start := time.Now()
 	for h.cmdCompleteOpcode != opcode {
 		if err := h.Poll(); err != nil {
 			return err
 		}
 
-		if (time.Now().UnixNano()-start)/int64(time.Second) > 3 {
+		if time.Since(start) > h.commandTimeout {
 			return ErrTimeout
 		}
 	}
