@@ -2,26 +2,17 @@
 
 package bluetooth
 
-const (
-	ogfVendor = 0x3f
+// ocfSetBTMACAddr is a Broadcom vendor command that sets the controller
+// address. See the CYW43439 datasheet.
+const ocfSetBTMACAddr = 0x0001
 
-	ocfSetBTMACAddr = 0x0001
-)
-
+// SetBdAddr sets the address of the controller.
 func (a *Adapter) SetBdAddr(address Address) error {
-	return a.hci.setBdAddr(address)
-}
-
-func (h *hci) setBdAddr(address Address) error {
-	hciPacket := make([]byte, len(address.MACAddress.MAC))
 	// Reverse the byte order as per spec
+	var mac [6]byte
 	for i := range address.MACAddress.MAC {
-		hciPacket[i] = address.MACAddress.MAC[len(address.MACAddress.MAC)-1-i]
+		mac[i] = address.MACAddress.MAC[len(address.MACAddress.MAC)-1-i]
 	}
 
-	if err := h.sendWithoutResponse(ogfVendor<<ogfCommandPos|ocfSetBTMACAddr, hciPacket); err != nil {
-		return err
-	}
-
-	return nil
+	return a.hci.SendVendorCommandWithoutResponse(ocfSetBTMACAddr, mac[:])
 }

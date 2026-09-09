@@ -38,50 +38,52 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 		return errScanning
 	}
 
-	if err := a.hci.leSetScanEnable(false, true); err != nil {
+	if err := a.hci.LESetScanEnable(false, true); err != nil {
 		return err
 	}
 
 	// Active scanning transmits, so the controller needs to know which of our
 	// own addresses to put in the SCAN_REQ.
 	localRandom := uint8(0)
-	if a.hci.address.IsRandom() {
+	if a.hci.Address().IsRandom() {
 		localRandom = GAPAddressTypeRandomStatic
 	}
 
 	// scan every 80ms, for 30ms
-	if err := a.hci.leSetScanParameters(a.scanType.hciValue(), 0x0080, 0x0030, localRandom, 0x00); err != nil {
+	if err := a.hci.LESetScanParameters(a.scanType.hciValue(), 0x0080, 0x0030, localRandom, 0x00); err != nil {
 		return err
 	}
 
 	a.scanning = true
 
 	// scan with duplicates
-	if err := a.hci.leSetScanEnable(true, false); err != nil {
+	if err := a.hci.LESetScanEnable(true, false); err != nil {
 		return err
 	}
 
 	lastUpdate := time.Now().UnixNano()
 
 	for {
-		if err := a.hci.poll(); err != nil {
+		if err := a.hci.Poll(); err != nil {
 			return err
 		}
 
 		switch {
-		case a.hci.advData.reported:
+		case a.hci.HasAdvertisement():
+			rep, _ := a.hci.Advertisement()
+
 			adf := AdvertisementFields{}
-			if a.hci.advData.eirLength > 31 {
+			if rep.DataLen > 31 {
 				if debug {
 					println("eirLength too long")
 				}
 
-				a.hci.clearAdvData()
+				a.hci.ClearAdvertisement()
 				continue
 			}
 
-			rp := rawAdvertisementPayload{len: a.hci.advData.eirLength}
-			copy(rp.data[:], a.hci.advData.eirData[:a.hci.advData.eirLength])
+			rp := rawAdvertisementPayload{len: rep.DataLen}
+			copy(rp.data[:], rep.Data[:rep.DataLen])
 			if rp.LocalName() != "" {
 				adf.LocalName = rp.LocalName()
 			}
@@ -131,19 +133,19 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				adf.ManufacturerData = append(adf.ManufacturerData, md...)
 			}
 
-			random := a.hci.advData.peerBdaddrType == GAPAddressTypeRandomStatic
+			random := rep.AddressType == GAPAddressTypeRandomStatic
 
 			callback(a, ScanResult{
 				Address: Address{
-					NewMACAddress(makeAddress(a.hci.advData.peerBdaddr), random),
+					NewMACAddress(makeAddress(rep.Address), random),
 				},
-				RSSI: int16(a.hci.advData.rssi),
+				RSSI: int16(rep.RSSI),
 				AdvertisementPayload: &advertisementFields{
 					AdvertisementFields: adf,
 				},
 			})
 
-			a.hci.clearAdvData()
+			a.hci.ClearAdvertisement()
 			time.Sleep(5 * time.Millisecond)
 
 		default:
@@ -168,7 +170,7 @@ func (a *Adapter) StopScan() error {
 		return errNotScanning
 	}
 
-	if err := a.hci.leSetScanEnable(false, false); err != nil {
+	if err := a.hci.LESetScanEnable(false, false); err != nil {
 		return err
 	}
 
@@ -193,10 +195,10 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		peerRandom = GAPAddressTypeRandomStatic
 	}
 	localRandom := uint8(0)
-	if a.hci.address.IsRandom() {
+	if a.hci.Address().IsRandom() {
 		localRandom = GAPAddressTypeRandomStatic
 	}
-	if err := a.hci.leCreateConn(0x0060, // interval
+	if err := a.hci.LECreateConn(0x0060, // interval
 		0x0030,                       // window
 		0x00,                         // initiatorFilter
 		peerRandom,                   // peerBdaddrType
@@ -215,12 +217,12 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	// are we connected?
 	start := time.Now().UnixNano()
 	for {
-		if err := a.hci.poll(); err != nil {
+		if err := a.hci.Poll(); err != nil {
 			return Device{}, err
 		}
 
-		if a.hci.connectData.connected {
-			defer a.hci.clearConnectData()
+		if conn, ok := a.hci.Connection(); ok {
+			defer a.hci.ClearConnection()
 
 			random := false
 			if address.IsRandom() {
@@ -229,11 +231,11 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 			d := Device{
 				Address: Address{
-					NewMACAddress(makeAddress(a.hci.connectData.peerBdaddr), random),
+					NewMACAddress(makeAddress(conn.Address), random),
 				},
 				deviceInternal: &deviceInternal{
 					adapter:                   a,
-					handle:                    a.hci.connectData.handle,
+					handle:                    conn.Handle,
 					mtu:                       defaultMTU,
 					notificationRegistrations: make([]notificationRegistration, 0),
 				},
@@ -257,7 +259,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	// cancel connection attempt that failed
-	if err := a.hci.leCancelConn(); err != nil {
+	if err := a.hci.LECancelConn(); err != nil {
 		return Device{}, err
 	}
 
@@ -290,7 +292,7 @@ func (d Device) Disconnect() error {
 	if debug {
 		println("Disconnect")
 	}
-	if err := d.adapter.hci.disconnect(d.handle); err != nil {
+	if err := d.adapter.hci.Disconnect(d.handle); err != nil {
 		return err
 	}
 
@@ -396,11 +398,11 @@ func (a *Advertisement) Start() error {
 	typ := uint8(a.advertisementType)
 
 	localRandom := uint8(0)
-	if a.adapter.hci.address.IsRandom() {
+	if a.adapter.hci.Address().IsRandom() {
 		localRandom = GAPAddressTypeRandomStatic
 	}
 
-	if err := a.adapter.hci.leSetAdvertisingParameters(a.interval, a.interval,
+	if err := a.adapter.hci.LESetAdvertisingParameters(a.interval, a.interval,
 		typ, localRandom, 0x00, [6]byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, 0x07, 0); err != nil {
 		return err
 	}
@@ -453,7 +455,7 @@ func (a *Advertisement) Start() error {
 		}
 	}
 
-	if err := a.adapter.hci.leSetAdvertisingData(advertisingData[:advertisingDataLen]); err != nil {
+	if err := a.adapter.hci.LESetAdvertisingData(advertisingData[:advertisingDataLen]); err != nil {
 		return err
 	}
 
@@ -461,7 +463,7 @@ func (a *Advertisement) Start() error {
 		return err
 	}
 
-	if err := a.adapter.hci.leSetAdvertiseEnable(true); err != nil {
+	if err := a.adapter.hci.LESetAdvertiseEnable(true); err != nil {
 		return err
 	}
 
@@ -474,7 +476,7 @@ func (a *Advertisement) Start() error {
 			default:
 			}
 
-			if err := a.adapter.att.poll(); err != nil {
+			if err := a.adapter.att.Poll(); err != nil {
 				// TODO: handle error
 				if debug {
 					println("error polling while advertising:", err.Error())
@@ -482,16 +484,17 @@ func (a *Advertisement) Start() error {
 			}
 
 			switch {
-			case a.adapter.hci.connectData.connected:
-				random := a.adapter.hci.connectData.peerBdaddrType == 0x01
+			case a.adapter.hci.HasConnection():
+				conn, _ := a.adapter.hci.Connection()
+				random := conn.AddressType == 0x01
 
 				d := Device{
 					Address: Address{
-						NewMACAddress(makeAddress(a.adapter.hci.connectData.peerBdaddr), random),
+						NewMACAddress(makeAddress(conn.Address), random),
 					},
 					deviceInternal: &deviceInternal{
 						adapter:                   a.adapter,
-						handle:                    a.adapter.hci.connectData.handle,
+						handle:                    conn.Handle,
 						mtu:                       defaultMTU,
 						notificationRegistrations: make([]notificationRegistration, 0),
 					},
@@ -502,12 +505,13 @@ func (a *Advertisement) Start() error {
 					a.adapter.connectHandler(d, true)
 				}
 
-				a.adapter.hci.clearConnectData()
-			case a.adapter.hci.connectData.disconnected:
+				a.adapter.hci.ClearConnection()
+			case a.adapter.hci.HasDisconnection():
+				disc, _ := a.adapter.hci.Disconnection()
 				d := Device{
 					deviceInternal: &deviceInternal{
 						adapter: a.adapter,
-						handle:  a.adapter.hci.connectData.handle,
+						handle:  disc.Handle,
 					},
 				}
 				a.adapter.removeConnection(d)
@@ -516,7 +520,7 @@ func (a *Advertisement) Start() error {
 					a.adapter.connectHandler(d, false)
 				}
 
-				a.adapter.hci.clearConnectData()
+				a.adapter.hci.ClearConnection()
 			}
 
 			time.Sleep(5 * time.Millisecond)
@@ -528,14 +532,14 @@ func (a *Advertisement) Start() error {
 
 // Stop advertisement. May only be called after it has been started.
 func (a *Advertisement) Stop() error {
-	err := a.adapter.hci.leSetAdvertiseEnable(false)
+	err := a.adapter.hci.LESetAdvertiseEnable(false)
 	if err != nil {
 		return err
 	}
 
 	time.Sleep(5 * time.Millisecond)
 	// stop the go routine that polls for HCI events
-	a.adapter.att.clearLocalData()
+	a.adapter.att.ClearLocalData()
 	a.stop <- struct{}{}
 	return nil
 }
@@ -581,7 +585,7 @@ func (a *Advertisement) setServiceData(sd []ServiceDataElement) error {
 		}
 	}
 
-	if err := a.adapter.hci.leSetScanResponseData(scanResponseData[:scanResponseDataLen]); err != nil {
+	if err := a.adapter.hci.LESetScanResponseData(scanResponseData[:scanResponseDataLen]); err != nil {
 		return err
 	}
 
