@@ -9,8 +9,8 @@ func (s shortUUID) UUID() UUID {
 	return New16BitUUID(uint16(s))
 }
 
-// isIn checks the passed in slice of UUIDs to see if this uuid is in it.
-func (uuid UUID) isIn(uuids []UUID) bool {
+// uuidIn checks the passed in slice of UUIDs to see if uuid is in it.
+func uuidIn(uuid UUID, uuids []UUID) bool {
 	for _, u := range uuids {
 		if u == uuid {
 			return true

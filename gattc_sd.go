@@ -83,7 +83,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		shortUUIDs = make([]C.ble_uuid_t, sz)
 		for i, uuid := range uuids {
 			var errCode C.uint32_t
-			shortUUIDs[i], errCode = uuid.shortUUID()
+			shortUUIDs[i], errCode = shortUUIDFor(uuid)
 			if errCode != 0 {
 				return nil, Error(errCode)
 			}
@@ -211,7 +211,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		shortUUIDs = make([]C.ble_uuid_t, sz)
 		for i, uuid := range uuids {
 			var errCode C.uint32_t
-			shortUUIDs[i], errCode = uuid.shortUUID()
+			shortUUIDs[i], errCode = shortUUIDFor(uuid)
 			if errCode != 0 {
 				return nil, Error(errCode)
 			}

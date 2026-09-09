@@ -122,10 +122,7 @@ func (a *Adapter) Address() (MACAddress, error) {
 
 // Convert a C.ble_gap_addr_t to a MACAddress struct.
 func makeMACAddress(addr C.ble_gap_addr_t) MACAddress {
-	return MACAddress{
-		MAC:      makeAddress(addr.addr),
-		isRandom: addr.addr_type != 0,
-	}
+	return NewMACAddress(makeAddress(addr.addr), addr.addr_type != 0)
 }
 
 // Connect starts a connection attempt to the given peripheral device address.

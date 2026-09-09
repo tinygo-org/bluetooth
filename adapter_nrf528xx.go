@@ -81,10 +81,7 @@ func (a *Adapter) Address() (MACAddress, error) {
 
 // Convert a C.ble_gap_addr_t to a MACAddress struct.
 func makeMACAddress(addr C.ble_gap_addr_t) MACAddress {
-	return MACAddress{
-		MAC:      makeAddress(addr.addr),
-		isRandom: addr.bitfield_addr_type() != 0,
-	}
+	return NewMACAddress(makeAddress(addr.addr), addr.bitfield_addr_type() != 0)
 }
 
 // Always let the BLE stack pick the right PHY.
