@@ -2,7 +2,11 @@
 
 package bluetooth
 
-import "errors"
+import (
+	"errors"
+
+	"tinygo.org/x/bluetooth/hci"
+)
 
 var (
 	errNotYetImplemented         = errors.New("bluetooth: not yet implemented")
@@ -64,7 +68,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	services := make([]DeviceService, 0, maxDefaultServicesToDiscover)
 	foundServices := make(map[UUID]DeviceService)
 
-	cd, err := d.adapter.att.findConnectionData(d.handle)
+	cd, err := d.adapter.att.ConnectionData(d.handle)
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +76,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	startHandle := uint16(0x0001)
 	endHandle := uint16(0xffff)
 	for endHandle == uint16(0xffff) {
-		err := d.adapter.att.readByGroupReq(d.handle, startHandle, endHandle, gattServiceUUID)
+		err := d.adapter.att.ReadByGroupReq(d.handle, startHandle, endHandle, hci.UUIDPrimaryService)
 		if err != nil {
 			if err == ErrATTAttributeNotFound {
 				break
@@ -81,32 +85,32 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		if debug {
-			println("found services", len(cd.services))
+			println("found services", len(cd.Services))
 		}
 
-		if len(cd.services) == 0 {
+		if len(cd.Services) == 0 {
 			break
 		}
 
-		for _, rawService := range cd.services {
-			if len(uuids) == 0 || uuidIn(rawService.uuid, uuids) {
-				foundServices[rawService.uuid] =
+		for _, rawService := range cd.Services {
+			if len(uuids) == 0 || uuidIn(rawService.UUID, uuids) {
+				foundServices[rawService.UUID] =
 					DeviceService{
 						device:      d,
-						uuid:        rawService.uuid,
-						startHandle: rawService.startHandle,
-						endHandle:   rawService.endHandle,
+						uuid:        rawService.UUID,
+						startHandle: rawService.StartHandle,
+						endHandle:   rawService.EndHandle,
 					}
 			}
 
-			startHandle = rawService.endHandle + 1
+			startHandle = rawService.EndHandle + 1
 			if startHandle == 0x0000 {
 				endHandle = 0x0000
 			}
 		}
 
 		// reset raw services
-		cd.services = []rawService{}
+		cd.Services = []hci.Service{}
 
 		// did we find them all?
 		if len(foundServices) == len(uuids) {
@@ -168,7 +172,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	characteristics := make([]DeviceCharacteristic, 0, maxDefaultCharacteristicsToDiscover)
 	foundCharacteristics := make(map[UUID]DeviceCharacteristic)
 
-	cd, err := s.device.adapter.att.findConnectionData(s.device.handle)
+	cd, err := s.device.adapter.att.ConnectionData(s.device.handle)
 	if err != nil {
 		return nil, err
 	}
@@ -176,11 +180,11 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	startHandle := s.startHandle
 	endHandle := s.endHandle
 	for startHandle < endHandle {
-		err := s.device.adapter.att.readByTypeReq(s.device.handle, startHandle, endHandle, gattCharacteristicUUID)
+		err := s.device.adapter.att.ReadByTypeReq(s.device.handle, startHandle, endHandle, hci.UUIDCharacteristic)
 		switch {
 		case err == ErrATTOp:
-			opcode, _, errcode := s.device.adapter.att.lastError(s.device.handle)
-			if opcode == attOpReadByTypeReq && errcode == attErrorAttrNotFound {
+			attErr, _ := s.device.adapter.att.LastError(s.device.handle)
+			if attErr.Opcode == hci.OpReadByTypeReq && attErr.Code == ErrAttNotFound {
 				// no characteristics found
 				break
 			}
@@ -189,31 +193,31 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		}
 
 		if debug {
-			println("found characteristics", len(cd.characteristics))
+			println("found characteristics", len(cd.Characteristics))
 		}
 
-		if len(cd.characteristics) == 0 {
+		if len(cd.Characteristics) == 0 {
 			break
 		}
 
-		for _, rawCharacteristic := range cd.characteristics {
-			if len(uuids) == 0 || uuidIn(rawCharacteristic.uuid, uuids) {
+		for _, rawCharacteristic := range cd.Characteristics {
+			if len(uuids) == 0 || uuidIn(rawCharacteristic.UUID, uuids) {
 				dc := DeviceCharacteristic{
 					service:     &s,
-					uuid:        rawCharacteristic.uuid,
-					handle:      rawCharacteristic.valueHandle,
-					properties:  rawCharacteristic.properties,
-					permissions: CharacteristicPermissions(rawCharacteristic.properties),
+					uuid:        rawCharacteristic.UUID,
+					handle:      rawCharacteristic.ValueHandle,
+					properties:  rawCharacteristic.Properties,
+					permissions: CharacteristicPermissions(rawCharacteristic.Properties),
 				}
 
-				foundCharacteristics[rawCharacteristic.uuid] = dc
+				foundCharacteristics[rawCharacteristic.UUID] = dc
 			}
 
-			startHandle = rawCharacteristic.valueHandle + 1
+			startHandle = rawCharacteristic.ValueHandle + 1
 		}
 
 		// reset raw characteristics
-		cd.characteristics = []rawCharacteristic{}
+		cd.Characteristics = []hci.Characteristic{}
 
 		// did we find them all?
 		if len(foundCharacteristics) == len(uuids) {
@@ -257,7 +261,7 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 		return 0, errNoWriteWithoutResponse
 	}
 
-	err = c.service.device.adapter.att.writeCmd(c.service.device.handle, c.handle, p)
+	err = c.service.device.adapter.att.WriteCmd(c.service.device.handle, c.handle, p)
 	if err != nil {
 		return 0, err
 	}
@@ -283,7 +287,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 			println("disabling notifications")
 		}
 
-		err := c.service.device.adapter.att.writeReq(c.service.device.handle, c.handle+1, []byte{0x00, 0x00})
+		err := c.service.device.adapter.att.WriteReq(c.service.device.handle, c.handle+1, []byte{0x00, 0x00})
 		if err != nil {
 			return err
 		}
@@ -293,7 +297,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 			println("enabling notifications")
 		}
 
-		err := c.service.device.adapter.att.writeReq(c.service.device.handle, c.handle+1, []byte{0x01, 0x00})
+		err := c.service.device.adapter.att.WriteReq(c.service.device.handle, c.handle+1, []byte{0x01, 0x00})
 		if err != nil {
 			return err
 		}
@@ -309,12 +313,12 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
-	err := c.service.device.adapter.att.mtuReq(c.service.device.handle)
+	err := c.service.device.adapter.att.MTUReq(c.service.device.handle)
 	if err != nil {
 		return 0, err
 	}
 
-	c.service.device.mtu = c.service.device.adapter.att.mtu
+	c.service.device.mtu = c.service.device.adapter.att.MTU()
 
 	return c.service.device.mtu, nil
 }
@@ -325,21 +329,21 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, errNoRead
 	}
 
-	err := c.service.device.adapter.att.readReq(c.service.device.handle, c.handle)
+	err := c.service.device.adapter.att.ReadReq(c.service.device.handle, c.handle)
 	if err != nil {
 		return 0, err
 	}
 
-	cd, err := c.service.device.adapter.att.findConnectionData(c.service.device.handle)
+	cd, err := c.service.device.adapter.att.ConnectionData(c.service.device.handle)
 	if err != nil {
 		return 0, err
 	}
 
-	if len(cd.value) == 0 {
+	if len(cd.Value) == 0 {
 		return 0, errReadFailed
 	}
 
-	copy(data, cd.value)
+	copy(data, cd.Value)
 
-	return len(cd.value), nil
+	return len(cd.Value), nil
 }

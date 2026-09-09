@@ -5,6 +5,8 @@ package bluetooth
 import (
 	"machine"
 	"time"
+
+	"tinygo.org/x/bluetooth/hci"
 )
 
 const maxConnections = 1
@@ -91,17 +93,19 @@ func resetNINAInverted() {
 	time.Sleep(1000 * time.Millisecond)
 }
 
+var _ hci.Transport = (*hciUART)(nil)
+
 type hciUART struct {
 	uart *machine.UART
 }
 
-func (h *hciUART) startRead() {
+func (h *hciUART) StartRead() {
 	if machine.NINA_SOFT_FLOWCONTROL {
 		machine.NINA_RTS.Low()
 	}
 }
 
-func (h *hciUART) endRead() {
+func (h *hciUART) EndRead() {
 	if machine.NINA_SOFT_FLOWCONTROL {
 		machine.NINA_RTS.High()
 	}
@@ -109,10 +113,6 @@ func (h *hciUART) endRead() {
 
 func (h *hciUART) Buffered() int {
 	return h.uart.Buffered()
-}
-
-func (h *hciUART) ReadByte() (byte, error) {
-	return h.uart.ReadByte()
 }
 
 func (h *hciUART) Read(buf []byte) (int, error) {
@@ -127,7 +127,7 @@ func (h *hciUART) Write(buf []byte) (int, error) {
 		for machine.NINA_CTS.Get() {
 			retries--
 			if retries == 0 {
-				return 0, ErrHCITimeout
+				return 0, hci.ErrTimeout
 			}
 		}
 	}

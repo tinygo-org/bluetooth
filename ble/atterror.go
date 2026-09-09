@@ -1,4 +1,4 @@
-package bluetooth
+package ble
 
 import (
 	"encoding/hex"

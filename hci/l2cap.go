@@ -1,6 +1,4 @@
-//go:build ninafw || hci || cyw43439 || espradio
-
-package bluetooth
+package hci
 
 import (
 	"encoding/binary"
@@ -22,7 +20,7 @@ type l2capConnectionParamReqPkt struct {
 	timeout     uint16
 }
 
-func (l *l2capConnectionParamReqPkt) Write(buf []byte) (int, error) {
+func (l *l2capConnectionParamReqPkt) unmarshal(buf []byte) (int, error) {
 	if len(buf) < 8 {
 		return 0, errInvalidPayloadLength
 	}
@@ -35,7 +33,7 @@ func (l *l2capConnectionParamReqPkt) Write(buf []byte) (int, error) {
 	return 8, nil
 }
 
-func (l *l2capConnectionParamReqPkt) Read(p []byte) (int, error) {
+func (l *l2capConnectionParamReqPkt) marshal(p []byte) (int, error) {
 	if len(p) < 8 {
 		return 0, errInvalidPayloadLength
 	}
@@ -55,7 +53,7 @@ type l2capConnectionParamResponsePkt struct {
 	value      uint16
 }
 
-func (l *l2capConnectionParamResponsePkt) Read(p []byte) (int, error) {
+func (l *l2capConnectionParamResponsePkt) marshal(p []byte) (int, error) {
 	p[0] = l.code
 	p[1] = l.identifier
 	binary.LittleEndian.PutUint16(p[2:], l.length)
@@ -65,10 +63,10 @@ func (l *l2capConnectionParamResponsePkt) Read(p []byte) (int, error) {
 }
 
 type l2cap struct {
-	hci *hci
+	hci *HCI
 }
 
-func newL2CAP(hci *hci) *l2cap {
+func newL2CAP(hci *HCI) *l2cap {
 	return &l2cap{
 		hci: hci,
 	}
@@ -127,7 +125,7 @@ func (l *l2cap) handleParameterUpdateRequest(connectionHandle uint16, identifier
 	}
 
 	req := l2capConnectionParamReqPkt{}
-	req.Write(data)
+	req.unmarshal(data)
 
 	// TODO: check against min/max
 
@@ -139,7 +137,7 @@ func (l *l2cap) handleParameterUpdateRequest(connectionHandle uint16, identifier
 	}
 
 	var b [6]byte
-	resp.Read(b[:])
+	resp.marshal(b[:])
 
 	if err := l.sendReq(connectionHandle, b[:]); err != nil {
 		return err
@@ -162,5 +160,5 @@ func (l *l2cap) sendReq(handle uint16, data []byte) error {
 		println("l2cap.sendReq:", handle, "data:", hex.EncodeToString(data))
 	}
 
-	return l.hci.sendAclPkt(handle, signalingCID, data)
+	return l.hci.SendACLPacket(handle, CIDSignaling, data)
 }

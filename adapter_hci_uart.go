@@ -4,6 +4,8 @@ package bluetooth
 
 import (
 	"machine"
+
+	"tinygo.org/x/bluetooth/hci"
 )
 
 const maxConnections = 1
@@ -76,6 +78,8 @@ func (a *Adapter) Reset() error {
 	return nil
 }
 
+var _ hci.Transport = (*hciUART)(nil)
+
 type hciUART struct {
 	uart *machine.UART
 
@@ -83,13 +87,13 @@ type hciUART struct {
 	cts, rts machine.Pin
 }
 
-func (h *hciUART) startRead() {
+func (h *hciUART) StartRead() {
 	if h.rts != machine.NoPin {
 		h.rts.Low()
 	}
 }
 
-func (h *hciUART) endRead() {
+func (h *hciUART) EndRead() {
 	if h.rts != machine.NoPin {
 		h.rts.High()
 	}
@@ -97,10 +101,6 @@ func (h *hciUART) endRead() {
 
 func (h *hciUART) Buffered() int {
 	return h.uart.Buffered()
-}
-
-func (h *hciUART) ReadByte() (byte, error) {
-	return h.uart.ReadByte()
 }
 
 func (h *hciUART) Read(buf []byte) (int, error) {
@@ -115,7 +115,7 @@ func (h *hciUART) Write(buf []byte) (int, error) {
 		for h.cts.Get() {
 			retries--
 			if retries == 0 {
-				return 0, ErrHCITimeout
+				return 0, hci.ErrTimeout
 			}
 		}
 	}

@@ -8,6 +8,8 @@ import (
 	"log/slog"
 
 	"github.com/soypat/cyw43439"
+
+	"tinygo.org/x/bluetooth/hci"
 )
 
 const maxConnections = 1
@@ -76,32 +78,20 @@ func (a *Adapter) Reset() error {
 	return nil
 }
 
+var _ hci.Transport = (*hciSPI)(nil)
+
 type hciSPI struct {
 	dev *cyw43439.Device
 }
 
-func (h *hciSPI) startRead() {
+func (h *hciSPI) StartRead() {
 }
 
-func (h *hciSPI) endRead() {
+func (h *hciSPI) EndRead() {
 }
 
 func (h *hciSPI) Buffered() int {
 	return h.dev.BufferedHCI()
-}
-
-func (h *hciSPI) ReadByte() (byte, error) {
-	var buf [1]byte
-
-	r, err := h.dev.HCIReadWriter()
-	if err != nil {
-		return 0, err
-	}
-	if _, err := r.Read(buf[:]); err != nil {
-		return 0, err
-	}
-
-	return buf[0], nil
 }
 
 func (h *hciSPI) Read(buf []byte) (int, error) {

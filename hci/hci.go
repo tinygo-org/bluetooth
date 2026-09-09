@@ -1,50 +1,50 @@
-//go:build ninafw || hci || cyw43439 || espradio
-
-package bluetooth
+package hci
 
 import (
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"time"
+
+	"tinygo.org/x/bluetooth/ble"
 )
 
 const (
-	ogfCommandPos = 10
+	OGFCommandPos = 10
 
-	ogfLinkCtl     = 0x01
-	ogfHostCtl     = 0x03
-	ogfInfoParam   = 0x04
-	ogfStatusParam = 0x05
-	ogfLECtrl      = 0x08
+	OGFLinkCtl     = 0x01
+	OGFHostCtl     = 0x03
+	OGFInfoParam   = 0x04
+	OGFStatusParam = 0x05
+	OGFLECtrl      = 0x08
 
-	// ogfLinkCtl
-	ocfDisconnect = 0x0006
+	// OGFLinkCtl
+	OCFDisconnect = 0x0006
 
-	// ogfHostCtl
-	ocfSetEventMask = 0x0001
-	ocfReset        = 0x0003
+	// OGFHostCtl
+	OCFSetEventMask = 0x0001
+	OCFReset        = 0x0003
 
-	// ogfInfoParam
-	ocfReadLocalVersion = 0x0001
-	ocfReadBDAddr       = 0x0009
+	// OGFInfoParam
+	OCFReadLocalVersion = 0x0001
+	OCFReadBDAddr       = 0x0009
 
-	// ogfStatusParam
-	ocfReadRSSI = 0x0005
+	// OGFStatusParam
+	OCFReadRSSI = 0x0005
 
-	// ogfLECtrl
-	ocfLEReadBufferSize           = 0x0002
-	ocfLESetRandomAddress         = 0x0005
-	ocfLESetAdvertisingParameters = 0x0006
-	ocfLESetAdvertisingData       = 0x0008
-	ocfLESetScanResponseData      = 0x0009
-	ocfLESetAdvertiseEnable       = 0x000a
-	ocfLESetScanParameters        = 0x000b
-	ocfLESetScanEnable            = 0x000c
-	ocfLECreateConn               = 0x000d
-	ocfLECancelConn               = 0x000e
-	ocfLEConnUpdate               = 0x0013
-	ocfLEParamRequestReply        = 0x0020
+	// OGFLECtrl
+	OCFLEReadBufferSize           = 0x0002
+	OCFLESetRandomAddress         = 0x0005
+	OCFLESetAdvertisingParameters = 0x0006
+	OCFLESetAdvertisingData       = 0x0008
+	OCFLESetScanResponseData      = 0x0009
+	OCFLESetAdvertiseEnable       = 0x000a
+	OCFLESetScanParameters        = 0x000b
+	OCFLESetScanEnable            = 0x000c
+	OCFLECreateConn               = 0x000d
+	OCFLECancelConn               = 0x000e
+	OCFLEConnUpdate               = 0x0013
+	OCFLEParamRequestReply        = 0x0020
 
 	leCommandEncrypt                  = 0x0017
 	leCommandRandom                   = 0x0018
@@ -54,100 +54,93 @@ const (
 	leCommandGenerateDHKeyV1          = 0x0026
 	leCommandGenerateDHKeyV2          = 0x005E
 
-	leMetaEventConnComplete                   = 0x01
-	leMetaEventAdvertisingReport              = 0x02
-	leMetaEventConnectionUpdateComplete       = 0x03
-	leMetaEventReadRemoteUsedFeaturesComplete = 0x04
-	leMetaEventLongTermKeyRequest             = 0x05
-	leMetaEventRemoteConnParamReq             = 0x06
-	leMetaEventDataLengthChange               = 0x07
-	leMetaEventReadLocalP256Complete          = 0x08
-	leMetaEventGenerateDHKeyComplete          = 0x09
-	leMetaEventEnhancedConnectionComplete     = 0x0A
-	leMetaEventDirectAdvertisingReport        = 0x0B
+	LEMetaConnComplete                   = 0x01
+	LEMetaAdvertisingReport              = 0x02
+	LEMetaConnectionUpdateComplete       = 0x03
+	LEMetaReadRemoteUsedFeaturesComplete = 0x04
+	LEMetaLongTermKeyRequest             = 0x05
+	LEMetaRemoteConnParamReq             = 0x06
+	LEMetaDataLengthChange               = 0x07
+	LEMetaReadLocalP256Complete          = 0x08
+	LEMetaGenerateDHKeyComplete          = 0x09
+	LEMetaEnhancedConnectionComplete     = 0x0A
+	LEMetaDirectAdvertisingReport        = 0x0B
 
-	hciCommandPkt         = 0x01
-	hciACLDataPkt         = 0x02
-	hciSynchronousDataPkt = 0x03
-	hciEventPkt           = 0x04
-	hciSecurityPkt        = 0x06
+	PacketCommand         = 0x01
+	PacketACLData         = 0x02
+	PacketSynchronousData = 0x03
+	PacketEvent           = 0x04
+	PacketSecurity        = 0x06
 
-	evtDisconnComplete  = 0x05
-	evtEncryptionChange = 0x08
-	evtCmdComplete      = 0x0e
-	evtCmdStatus        = 0x0f
-	evtHardwareError    = 0x10
-	evtNumCompPkts      = 0x13
-	evtReturnLinkKeys   = 0x15
-	evtLEMetaEvent      = 0x3e
+	EventDisconnComplete  = 0x05
+	EventEncryptionChange = 0x08
+	EventCmdComplete      = 0x0e
+	EventCmdStatus        = 0x0f
+	EventHardwareError    = 0x10
+	EventNumCompPkts      = 0x13
+	EventReturnLinkKeys   = 0x15
+	EventLEMeta           = 0x3e
 
-	hciOEUserEndedConnection = 0x13
+	ReasonRemoteUserTerminated = 0x13
 )
 
 const (
 	hciACLLenPos = 4
 	hciEvtLenPos = 2
 
-	attCID       = 0x0004
+	CIDATT       = 0x0004
 	bleCTL       = 0x0008
-	signalingCID = 0x0005
-	securityCID  = 0x0006
+	CIDSignaling = 0x0005
+	CIDSecurity  = 0x0006
 )
 
 var (
-	ErrHCITimeout       = errors.New("bluetooth: HCI timeout")
-	ErrHCIUnknownEvent  = errors.New("bluetooth: HCI unknown event")
-	ErrHCIUnknown       = errors.New("bluetooth: HCI unknown error")
-	ErrHCIInvalidPacket = errors.New("bluetooth: HCI invalid packet")
-	ErrHCIHardware      = errors.New("bluetooth: HCI hardware error")
+	ErrTimeout       = errors.New("bluetooth: HCI timeout")
+	ErrUnknownEvent  = errors.New("bluetooth: HCI unknown event")
+	ErrUnknown       = errors.New("bluetooth: HCI unknown error")
+	ErrInvalidPacket = errors.New("bluetooth: HCI invalid packet")
+	ErrHardware      = errors.New("bluetooth: HCI hardware error")
 )
 
-// advertisementReport is one LE Advertising Report. The advertisement data is
+// AdvertisementReport is one LE Advertising Report. The advertisement data is
 // a fixed array rather than a slice, so that a report does not go on the heap.
-type advertisementReport struct {
-	numReports, typ, peerBdaddrType uint8
-	peerBdaddr                      [6]uint8
-	eirLength                       uint8
-	eirData                         [31]uint8
-	rssi                            int8
+type AdvertisementReport struct {
+	NumReports  uint8
+	Type        uint8
+	AddressType uint8
+	Address     [6]uint8
+	DataLen     uint8
+	Data        [31]uint8
+	RSSI        int8
 }
 
-// connectionComplete is an LE Connection Complete or LE Enhanced Connection
+// ConnectionComplete is an LE Connection Complete or LE Enhanced Connection
 // Complete event.
-type connectionComplete struct {
-	status         uint8
-	handle         uint16
-	role           uint8
-	peerBdaddrType uint8
-	peerBdaddr     [6]uint8
-	interval       uint16
-	timeout        uint16
+type ConnectionComplete struct {
+	Status      uint8
+	Handle      uint16
+	Role        uint8
+	AddressType uint8
+	Address     [6]uint8
+	Interval    uint16
+	Timeout     uint16
 }
 
-// disconnection is a Disconnection Complete event.
-type disconnection struct {
-	handle uint16
-	reason uint8
+// Disconnection is a Disconnection Complete event.
+type Disconnection struct {
+	Handle uint16
+	Reason uint8
 }
 
-type hciTransport interface {
-	startRead()
-	endRead()
-	Buffered() int
-	ReadByte() (byte, error)
-	Read(buf []byte) (int, error)
-	Write(buf []byte) (int, error)
-}
-
-type hci struct {
-	transport         hciTransport
-	att               *att
+type HCI struct {
+	transport         Transport
+	att               *ATT
 	l2cap             *l2cap
 	buf               []byte
 	pos               int
 	end               int
 	writebuf          []byte
-	address           MACAddress
+	address           ble.MACAddress
 	cmdCompleteOpcode uint16
 	cmdCompleteStatus uint8
 	cmdResponse       []byte
@@ -158,98 +151,129 @@ type hci struct {
 	// The most recent event of each kind, read back with the accessors below.
 	// These are fields rather than callbacks because a callback for each event
 	// costs about 2 kB of flash on TinyGo.
-	advReport    advertisementReport
+	advReport    AdvertisementReport
 	advReported  bool
-	connEvent    connectionComplete
+	connEvent    ConnectionComplete
 	connected    bool
-	disconnEvent disconnection
+	disconnEvent Disconnection
 	disconnected bool
 
 	eventHandler   func(event uint8, params []byte) (bool, error)
 	leEventHandler func(subevent uint8, params []byte) (bool, error)
 }
 
-// advertisement returns the most recent LE advertising report, and whether one
-// has arrived since the last call to clearAdvertisement. The report is only
+// Advertisement returns the most recent LE advertising report, and whether one
+// has arrived since the last call to ClearAdvertisement. The report is only
 // valid until the next poll.
-func (h *hci) advertisement() (*advertisementReport, bool) {
+func (h *HCI) Advertisement() (*AdvertisementReport, bool) {
 	return &h.advReport, h.advReported
 }
 
-// clearAdvertisement discards the stored advertising report.
-func (h *hci) clearAdvertisement() {
-	h.advReport = advertisementReport{}
+// HasAdvertisement reports whether an advertising report has arrived since
+// the last call to ClearAdvertisement.
+func (h *HCI) HasAdvertisement() bool {
+	return h.advReported
+}
+
+// ClearAdvertisement discards the stored advertising report.
+func (h *HCI) ClearAdvertisement() {
+	h.advReport = AdvertisementReport{}
 	h.advReported = false
 }
 
-// connection returns the most recent connection complete event, and whether
-// one has arrived since the last call to clearConnection.
-func (h *hci) connection() (*connectionComplete, bool) {
+// HasConnection reports whether a connection complete event has arrived since
+// the last call to ClearConnection.
+func (h *HCI) HasConnection() bool {
+	return h.connected
+}
+
+// HasDisconnection reports whether a disconnection event has arrived since the
+// last call to ClearConnection.
+func (h *HCI) HasDisconnection() bool {
+	return h.disconnected
+}
+
+// Connection returns the most recent connection complete event, and whether
+// one has arrived since the last call to ClearConnection.
+func (h *HCI) Connection() (*ConnectionComplete, bool) {
 	return &h.connEvent, h.connected
 }
 
-// disconnection returns the most recent disconnection event, and whether one
+// Disconnection returns the most recent Disconnection event, and whether one
 // has arrived since the last call to clearConnection.
-func (h *hci) disconnection() (*disconnection, bool) {
+func (h *HCI) Disconnection() (*Disconnection, bool) {
 	return &h.disconnEvent, h.disconnected
 }
 
-// clearConnection discards the stored connection and disconnection events.
-func (h *hci) clearConnection() {
-	h.connEvent = connectionComplete{}
+// clearConnection discards the stored connection and Disconnection events.
+func (h *HCI) ClearConnection() {
+	h.connEvent = ConnectionComplete{}
 	h.connected = false
-	h.disconnEvent = disconnection{}
+	h.disconnEvent = Disconnection{}
 	h.disconnected = false
 }
 
 // setEventHandler installs a handler for events that this package does not
 // handle itself. The handler returns true when it consumed the event. This is
 // the hook for controller specific events.
-func (h *hci) setEventHandler(fn func(event uint8, params []byte) (bool, error)) {
+func (h *HCI) SetEventHandler(fn func(event uint8, params []byte) (bool, error)) {
 	h.eventHandler = fn
 }
 
 // setLeEventHandler installs a handler for LE meta subevents that this package
 // does not handle itself. The handler returns true when it consumed the
 // subevent.
-func (h *hci) setLeEventHandler(fn func(subevent uint8, params []byte) (bool, error)) {
+func (h *HCI) SetLEEventHandler(fn func(subevent uint8, params []byte) (bool, error)) {
 	h.leEventHandler = fn
 }
 
-// hciMaxPacketSize is the largest packet that can legitimately be received. An
-// HCI event carries a single byte parameter length, so the largest one is the
-// packet type byte, the event code, the length byte and 255 parameter bytes.
-// This also covers the largest ACL packet that can arrive given maximumMTU.
-const hciMaxPacketSize = hciEvtLenPos + 255 + 1
-
-// hciTransportOverhead is the extra room a transport may need in the
-// destination buffer on top of the bytes it hands back. The CYW43439 copies a
-// whole entry out of its ring buffer before stripping the 3 byte SDIO header,
-// and rounds the copy up to a 4 byte boundary.
-const hciTransportOverhead = 3
-
-// hciReadBufSize is the size of the packet read buffer. It must be large enough
-// for the largest packet that can legitimately be received plus any transport
-// overhead, otherwise such a packet can never be assembled.
-const hciReadBufSize = (hciMaxPacketSize + hciTransportOverhead + 3) &^ 3
-
-// alignUp4 rounds n up to a multiple of 4. Packet oriented transports read in
-// 4 byte units, so the destination has to have room for the rounded up size.
-func alignUp4(n int) int {
-	return (n + 3) &^ 3
+// Stack is the HCI, L2CAP and ATT layers wired together on one transport.
+type Stack struct {
+	HCI *HCI
+	ATT *ATT
 }
 
-func newHCI(t hciTransport) *hci {
-	return &hci{
+// NewStack builds the protocol stack on a transport. Call Start on the HCI
+// layer to bring the controller up.
+func NewStack(t Transport) *Stack {
+	h := newHCI(t)
+	a := newATT(h)
+	h.att = a
+	h.l2cap = newL2CAP(h)
+
+	return &Stack{HCI: h, ATT: a}
+}
+
+// Address returns the controller address, as last read by ReadBdAddr or set by
+// SetRandomAddress.
+func (h *HCI) Address() ble.MACAddress {
+	return h.address
+}
+
+// CommandResponse returns the parameters of the most recent Command Complete
+// event. The slice points into the read buffer and is only valid until the
+// next poll.
+func (h *HCI) CommandResponse() []byte {
+	return h.cmdResponse
+}
+
+// CommandStatus returns the status of the most recent Command Complete or
+// Command Status event.
+func (h *HCI) CommandStatus() uint8 {
+	return h.cmdCompleteStatus
+}
+
+func newHCI(t Transport) *HCI {
+	return &HCI{
 		transport: t,
-		buf:       make([]byte, hciReadBufSize),
+		buf:       make([]byte, ReadBufferSize),
 		writebuf:  make([]byte, 256),
 	}
 }
 
-func (h *hci) start() error {
-	h.transport.startRead()
-	defer h.transport.endRead()
+func (h *HCI) Start() error {
+	h.transport.StartRead()
+	defer h.transport.EndRead()
 
 	for {
 		available := h.transport.Buffered()
@@ -263,7 +287,7 @@ func (h *hci) start() error {
 		// outright when it does not fit.
 		aligned := alignUp4(available)
 		if aligned > len(h.buf) {
-			return ErrHCIInvalidPacket
+			return ErrInvalidPacket
 		}
 		if _, err := h.transport.Read(h.buf[:aligned]); err != nil {
 			return err
@@ -271,17 +295,17 @@ func (h *hci) start() error {
 	}
 }
 
-func (h *hci) stop() error {
+func (h *HCI) Stop() error {
 	return nil
 }
 
-func (h *hci) reset() error {
-	return h.sendCommand(ogfHostCtl<<10 | ocfReset)
+func (h *HCI) Reset() error {
+	return h.SendCommand(OGFHostCtl<<10 | OCFReset)
 }
 
-func (h *hci) poll() error {
-	h.transport.startRead()
-	defer h.transport.endRead()
+func (h *HCI) Poll() error {
+	h.transport.StartRead()
+	defer h.transport.EndRead()
 
 	for {
 		// noRoom records that data is waiting but does not fit alongside what
@@ -308,7 +332,7 @@ func (h *hci) poll() error {
 					println("hci poll packet too large:", available)
 				}
 
-				return ErrHCIInvalidPacket
+				return ErrInvalidPacket
 			default:
 				noRoom = true
 			}
@@ -322,7 +346,7 @@ func (h *hci) poll() error {
 		h.pos = h.end
 		done, err := h.processPacket()
 		switch {
-		case err == ErrHCIInvalidPacket || err == ErrHCIUnknown || err == ErrHCIUnknownEvent:
+		case err == ErrInvalidPacket || err == ErrUnknown || err == ErrUnknownEvent:
 			if debug {
 				println("hci poll unknown packet:", err.Error(), hex.EncodeToString(h.buf[:h.pos]))
 			}
@@ -367,9 +391,9 @@ func (h *hci) poll() error {
 	}
 }
 
-func (h *hci) processPacket() (bool, error) {
+func (h *HCI) processPacket() (bool, error) {
 	switch h.buf[0] {
-	case hciACLDataPkt:
+	case PacketACLData:
 		if h.pos > hciACLLenPos {
 			pktlen := int(binary.LittleEndian.Uint16(h.buf[3:5]))
 
@@ -377,8 +401,8 @@ func (h *hci) processPacket() (bool, error) {
 			// byte. The length comes off the wire, so it may be larger than
 			// the read buffer can ever hold.
 			pktTotal := hciACLLenPos + pktlen + 1
-			if pktTotal > hciMaxPacketSize {
-				return true, ErrHCIInvalidPacket
+			if pktTotal > MaxPacketSize {
+				return true, ErrInvalidPacket
 			}
 
 			switch {
@@ -395,13 +419,13 @@ func (h *hci) processPacket() (bool, error) {
 			}
 		}
 
-	case hciEventPkt:
+	case PacketEvent:
 		if h.pos > hciEvtLenPos {
 			pktlen := int(h.buf[hciEvtLenPos])
 
 			pktTotal := hciEvtLenPos + pktlen + 1
-			if pktTotal > hciMaxPacketSize {
-				return true, ErrHCIInvalidPacket
+			if pktTotal > MaxPacketSize {
+				return true, ErrInvalidPacket
 			}
 
 			switch {
@@ -418,7 +442,7 @@ func (h *hci) processPacket() (bool, error) {
 			}
 		}
 
-	case hciSynchronousDataPkt:
+	case PacketSynchronousData:
 		// not supported by BLE, so ignore
 		if h.pos > 3 {
 			pktlen := int(h.buf[3])
@@ -436,19 +460,19 @@ func (h *hci) processPacket() (bool, error) {
 		if debug {
 			println("unknown packet data recv:", h.pos, h.end, hex.EncodeToString(h.buf[:h.pos]))
 		}
-		return true, ErrHCIUnknown
+		return true, ErrUnknown
 	}
 
 	return false, nil
 }
 
-func (h *hci) readBdAddr() error {
-	if err := h.sendCommand(ogfInfoParam<<ogfCommandPos | ocfReadBDAddr); err != nil {
+func (h *HCI) ReadBdAddr() error {
+	if err := h.SendCommand(OGFInfoParam<<OGFCommandPos | OCFReadBDAddr); err != nil {
 		return err
 	}
 
 	if len(h.cmdResponse) < 7 {
-		return ErrHCIInvalidPacket
+		return ErrInvalidPacket
 	}
 
 	copy(h.address.MAC[:], h.cmdResponse[:7])
@@ -456,8 +480,8 @@ func (h *hci) readBdAddr() error {
 	return nil
 }
 
-func (h *hci) setRandomAddress(mac MAC) error {
-	if err := h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetRandomAddress, mac[:]); err != nil {
+func (h *HCI) SetRandomAddress(mac ble.MAC) error {
+	if err := h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLESetRandomAddress, mac[:]); err != nil {
 		return err
 	}
 
@@ -467,20 +491,20 @@ func (h *hci) setRandomAddress(mac MAC) error {
 	return nil
 }
 
-func (h *hci) setEventMask(eventMask uint64) error {
+func (h *HCI) SetEventMask(eventMask uint64) error {
 	var b [8]byte
 	binary.LittleEndian.PutUint64(b[:], eventMask)
-	return h.sendCommandWithParams(ogfHostCtl<<ogfCommandPos|ocfSetEventMask, b[:])
+	return h.SendCommandWithParams(OGFHostCtl<<OGFCommandPos|OCFSetEventMask, b[:])
 }
 
-func (h *hci) setLeEventMask(eventMask uint64) error {
+func (h *HCI) SetLEEventMask(eventMask uint64) error {
 	var b [8]byte
 	binary.LittleEndian.PutUint64(b[:], eventMask)
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|0x01, b[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|0x01, b[:])
 }
 
-func (h *hci) readLeBufferSize() error {
-	if err := h.sendCommand(ogfLECtrl<<ogfCommandPos | ocfLEReadBufferSize); err != nil {
+func (h *HCI) ReadLEBufferSize() error {
+	if err := h.SendCommand(OGFLECtrl<<OGFCommandPos | OCFLEReadBufferSize); err != nil {
 		return err
 	}
 
@@ -492,14 +516,14 @@ func (h *hci) readLeBufferSize() error {
 		pktLen = 27
 	}
 
-	if err := h.att.setMaxMTU(pktLen); err != nil {
+	if err := h.att.SetMaxMTU(pktLen); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (h *hci) leSetScanEnable(enabled, duplicates bool) error {
+func (h *HCI) LESetScanEnable(enabled, duplicates bool) error {
 	h.scanning = enabled
 
 	var data [2]byte
@@ -510,10 +534,10 @@ func (h *hci) leSetScanEnable(enabled, duplicates bool) error {
 		data[1] = 1
 	}
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetScanEnable, data[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLESetScanEnable, data[:])
 }
 
-func (h *hci) leSetScanParameters(typ uint8, interval, window uint16, ownBdaddrType, filter uint8) error {
+func (h *HCI) LESetScanParameters(typ uint8, interval, window uint16, ownBdaddrType, filter uint8) error {
 	var data [7]byte
 	data[0] = typ
 	binary.LittleEndian.PutUint16(data[1:], interval)
@@ -521,19 +545,19 @@ func (h *hci) leSetScanParameters(typ uint8, interval, window uint16, ownBdaddrT
 	data[5] = ownBdaddrType
 	data[6] = filter
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetScanParameters, data[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLESetScanParameters, data[:])
 }
 
-func (h *hci) leSetAdvertiseEnable(enabled bool) error {
+func (h *HCI) LESetAdvertiseEnable(enabled bool) error {
 	var data [1]byte
 	if enabled {
 		data[0] = 1
 	}
 
-	return h.sendWithoutResponse(ogfLECtrl<<ogfCommandPos|ocfLESetAdvertiseEnable, data[:])
+	return h.SendWithoutResponse(OGFLECtrl<<OGFCommandPos|OCFLESetAdvertiseEnable, data[:])
 }
 
-func (h *hci) leSetAdvertisingParameters(minInterval, maxInterval uint16,
+func (h *HCI) LESetAdvertisingParameters(minInterval, maxInterval uint16,
 	advType, ownBdaddrType uint8,
 	directBdaddrType uint8, directBdaddr [6]byte,
 	chanMap, filter uint8) error {
@@ -548,26 +572,26 @@ func (h *hci) leSetAdvertisingParameters(minInterval, maxInterval uint16,
 	b[13] = chanMap
 	b[14] = filter
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetAdvertisingParameters, b[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLESetAdvertisingParameters, b[:])
 }
 
-func (h *hci) leSetAdvertisingData(data []byte) error {
+func (h *HCI) LESetAdvertisingData(data []byte) error {
 	var b [32]byte
 	b[0] = byte(len(data))
 	copy(b[1:], data)
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetAdvertisingData, b[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLESetAdvertisingData, b[:])
 }
 
-func (h *hci) leSetScanResponseData(data []byte) error {
+func (h *HCI) LESetScanResponseData(data []byte) error {
 	var b [32]byte
 	b[0] = byte(len(data))
 	copy(b[1:], data)
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLESetScanResponseData, b[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLESetScanResponseData, b[:])
 }
 
-func (h *hci) leCreateConn(interval, window uint16,
+func (h *HCI) LECreateConn(interval, window uint16,
 	initiatorFilter, peerBdaddrType uint8, peerBdaddr [6]byte, ownBdaddrType uint8,
 	minInterval, maxInterval, latency, supervisionTimeout,
 	minCeLength, maxCeLength uint16) error {
@@ -586,14 +610,14 @@ func (h *hci) leCreateConn(interval, window uint16,
 	binary.LittleEndian.PutUint16(b[21:], minCeLength)
 	binary.LittleEndian.PutUint16(b[23:], maxCeLength)
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLECreateConn, b[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLECreateConn, b[:])
 }
 
-func (h *hci) leCancelConn() error {
-	return h.sendCommand(ogfLECtrl<<ogfCommandPos | ocfLECancelConn)
+func (h *HCI) LECancelConn() error {
+	return h.SendCommand(OGFLECtrl<<OGFCommandPos | OCFLECancelConn)
 }
 
-func (h *hci) leConnUpdate(handle uint16, minInterval, maxInterval,
+func (h *HCI) LEConnUpdate(handle uint16, minInterval, maxInterval,
 	latency, supervisionTimeout uint16) error {
 
 	var b [14]byte
@@ -605,27 +629,27 @@ func (h *hci) leConnUpdate(handle uint16, minInterval, maxInterval,
 	binary.LittleEndian.PutUint16(b[10:], 0x0004)
 	binary.LittleEndian.PutUint16(b[12:], 0x0006)
 
-	return h.sendCommandWithParams(ogfLECtrl<<ogfCommandPos|ocfLEConnUpdate, b[:])
+	return h.SendCommandWithParams(OGFLECtrl<<OGFCommandPos|OCFLEConnUpdate, b[:])
 }
 
-func (h *hci) disconnect(handle uint16) error {
+func (h *HCI) Disconnect(handle uint16) error {
 	var b [3]byte
 	binary.LittleEndian.PutUint16(b[0:], handle)
-	b[2] = hciOEUserEndedConnection
+	b[2] = ReasonRemoteUserTerminated
 
-	return h.sendCommandWithParams(ogfLinkCtl<<ogfCommandPos|ocfDisconnect, b[:])
+	return h.SendCommandWithParams(OGFLinkCtl<<OGFCommandPos|OCFDisconnect, b[:])
 }
 
-func (h *hci) sendCommand(opcode uint16) error {
-	return h.sendCommandWithParams(opcode, []byte{})
+func (h *HCI) SendCommand(opcode uint16) error {
+	return h.SendCommandWithParams(opcode, []byte{})
 }
 
-func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
+func (h *HCI) SendCommandWithParams(opcode uint16, params []byte) error {
 	if debug {
 		println("hci send command", opcode, hex.EncodeToString(params))
 	}
 
-	h.writebuf[0] = hciCommandPkt
+	h.writebuf[0] = PacketCommand
 	binary.LittleEndian.PutUint16(h.writebuf[1:], opcode)
 	h.writebuf[3] = byte(len(params))
 	copy(h.writebuf[4:], params)
@@ -639,24 +663,24 @@ func (h *hci) sendCommandWithParams(opcode uint16, params []byte) error {
 
 	start := time.Now().UnixNano()
 	for h.cmdCompleteOpcode != opcode {
-		if err := h.poll(); err != nil {
+		if err := h.Poll(); err != nil {
 			return err
 		}
 
 		if (time.Now().UnixNano()-start)/int64(time.Second) > 3 {
-			return ErrHCITimeout
+			return ErrTimeout
 		}
 	}
 
 	return nil
 }
 
-func (h *hci) sendWithoutResponse(opcode uint16, params []byte) error {
+func (h *HCI) SendWithoutResponse(opcode uint16, params []byte) error {
 	if debug {
 		println("hci send without response command", opcode, hex.EncodeToString(params))
 	}
 
-	h.writebuf[0] = hciCommandPkt
+	h.writebuf[0] = PacketCommand
 	binary.LittleEndian.PutUint16(h.writebuf[1:], opcode)
 	h.writebuf[3] = byte(len(params))
 	copy(h.writebuf[4:], params)
@@ -671,8 +695,8 @@ func (h *hci) sendWithoutResponse(opcode uint16, params []byte) error {
 	return nil
 }
 
-func (h *hci) sendAclPkt(handle, cid uint16, data []byte) error {
-	h.writebuf[0] = hciACLDataPkt
+func (h *HCI) SendACLPacket(handle, cid uint16, data []byte) error {
+	h.writebuf[0] = PacketACLData
 	binary.LittleEndian.PutUint16(h.writebuf[1:], handle)
 	binary.LittleEndian.PutUint16(h.writebuf[3:], uint16(len(data)+4))
 	binary.LittleEndian.PutUint16(h.writebuf[5:], uint16(len(data)))
@@ -693,7 +717,7 @@ func (h *hci) sendAclPkt(handle, cid uint16, data []byte) error {
 	return nil
 }
 
-func (h *hci) write(buf []byte) (int, error) {
+func (h *HCI) write(buf []byte) (int, error) {
 	return h.transport.Write(buf)
 }
 
@@ -704,10 +728,10 @@ type aclDataHeader struct {
 	cid    uint16
 }
 
-func (h *hci) handleACLData(buf []byte) error {
+func (h *HCI) handleACLData(buf []byte) error {
 	// The ACL header is 4 bytes, followed by a 4 byte L2CAP header.
 	if len(buf) < 8 {
-		return ErrHCIInvalidPacket
+		return ErrInvalidPacket
 	}
 
 	aclHdr := aclDataHeader{
@@ -730,11 +754,11 @@ func (h *hci) handleACLData(buf []byte) error {
 		if debug {
 			println("invalid acl payload length", aclHdr.len, len(buf))
 		}
-		return ErrHCIInvalidPacket
+		return ErrInvalidPacket
 	}
 
 	switch aclHdr.cid {
-	case attCID:
+	case CIDATT:
 		if aclFlags == 0x01 {
 			// TODO: use buffered packet
 			if debug {
@@ -744,7 +768,7 @@ func (h *hci) handleACLData(buf []byte) error {
 		} else {
 			return h.att.handleData(aclHdr.handle&0x0fff, buf[8:end])
 		}
-	case signalingCID:
+	case CIDSignaling:
 		if debug {
 			println("signaling cid", aclHdr.cid, hex.EncodeToString(buf))
 		}
@@ -760,47 +784,47 @@ func (h *hci) handleACLData(buf []byte) error {
 	return nil
 }
 
-func (h *hci) handleEventData(buf []byte) error {
+func (h *HCI) handleEventData(buf []byte) error {
 	// Every event has at least an event code and a parameter length byte.
 	if len(buf) < 2 {
-		return ErrHCIInvalidPacket
+		return ErrInvalidPacket
 	}
 
 	evt := buf[0]
 	plen := buf[1]
 
 	switch evt {
-	case evtDisconnComplete:
+	case EventDisconnComplete:
 		if debug {
-			println("evtDisconnComplete")
+			println("EventDisconnComplete")
 		}
 
 		if len(buf) < 5 {
-			return ErrHCIInvalidPacket
+			return ErrInvalidPacket
 		}
 
 		handle := binary.LittleEndian.Uint16(buf[3:])
 		h.att.removeConnection(handle)
 		h.l2cap.removeConnection(handle)
 
-		h.disconnEvent = disconnection{handle: handle}
+		h.disconnEvent = Disconnection{Handle: handle}
 		// The reason follows the handle. A well formed event always carries
 		// it, but the length comes off the wire.
 		if len(buf) > 5 {
-			h.disconnEvent.reason = buf[5]
+			h.disconnEvent.Reason = buf[5]
 		}
 		h.disconnected = true
 
-		return h.leSetAdvertiseEnable(true)
+		return h.LESetAdvertiseEnable(true)
 
-	case evtEncryptionChange:
+	case EventEncryptionChange:
 		if debug {
-			println("evtEncryptionChange")
+			println("EventEncryptionChange")
 		}
 
-	case evtCmdComplete:
+	case EventCmdComplete:
 		if len(buf) < 6 || int(plen)+2 > len(buf) {
-			return ErrHCIInvalidPacket
+			return ErrInvalidPacket
 		}
 
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[3:])
@@ -812,32 +836,32 @@ func (h *hci) handleEventData(buf []byte) error {
 		}
 
 		if debug {
-			println("evtCmdComplete", h.cmdCompleteOpcode, h.cmdCompleteStatus)
+			println("EventCmdComplete", h.cmdCompleteOpcode, h.cmdCompleteStatus)
 		}
 
 		return nil
 
-	case evtCmdStatus:
+	case EventCmdStatus:
 		if len(buf) < 6 {
-			return ErrHCIInvalidPacket
+			return ErrInvalidPacket
 		}
 
 		h.cmdCompleteStatus = buf[2]
 		h.cmdCompleteOpcode = binary.LittleEndian.Uint16(buf[4:])
 		if debug {
-			println("evtCmdStatus", h.cmdCompleteOpcode, h.cmdCompleteOpcode, h.cmdCompleteStatus)
+			println("EventCmdStatus", h.cmdCompleteOpcode, h.cmdCompleteOpcode, h.cmdCompleteStatus)
 		}
 
 		h.cmdResponse = buf[:0]
 
 		return nil
 
-	case evtNumCompPkts:
+	case EventNumCompPkts:
 		if debug {
-			println("evtNumCompPkts", hex.EncodeToString(buf))
+			println("EventNumCompPkts", hex.EncodeToString(buf))
 		}
 		if len(buf) < 3 {
-			return ErrHCIInvalidPacket
+			return ErrInvalidPacket
 		}
 
 		// count of handles
@@ -847,7 +871,7 @@ func (h *hci) handleEventData(buf []byte) error {
 		// The handle count comes off the wire, so make sure the event is
 		// actually long enough to hold that many entries.
 		if 5+(int(c)-1)*4+2 > len(buf) {
-			return ErrHCIInvalidPacket
+			return ErrInvalidPacket
 		}
 
 		for i := byte(0); i < c; i++ {
@@ -861,71 +885,71 @@ func (h *hci) handleEventData(buf []byte) error {
 		}
 
 		if debug {
-			println("evtNumCompPkts", pkts, h.pendingPkt)
+			println("EventNumCompPkts", pkts, h.pendingPkt)
 		}
 
 		return nil
 
-	case evtLEMetaEvent:
+	case EventLEMeta:
 		if debug {
-			println("evtLEMetaEvent")
+			println("EventLEMeta")
 		}
 
 		// An LE meta event has at least a subevent code.
 		if len(buf) < 3 {
-			return ErrHCIInvalidPacket
+			return ErrInvalidPacket
 		}
 
 		switch buf[2] {
-		case leMetaEventConnComplete, leMetaEventEnhancedConnectionComplete:
+		case LEMetaConnComplete, LEMetaEnhancedConnectionComplete:
 			if debug {
-				if buf[2] == leMetaEventConnComplete {
-					println("leMetaEventConnComplete", hex.EncodeToString(buf))
+				if buf[2] == LEMetaConnComplete {
+					println("LEMetaConnComplete", hex.EncodeToString(buf))
 				} else {
-					println("leMetaEventEnhancedConnectionComplete", hex.EncodeToString(buf))
+					println("LEMetaEnhancedConnectionComplete", hex.EncodeToString(buf))
 				}
 			}
 
 			// The enhanced variant carries two extra addresses before the
 			// connection interval, so it needs a longer event.
 			minLen := 20
-			if buf[2] == leMetaEventEnhancedConnectionComplete {
+			if buf[2] == LEMetaEnhancedConnectionComplete {
 				minLen = 32
 			}
 			if len(buf) < minLen {
 				if debug {
 					println("invalid connection complete length", len(buf))
 				}
-				return ErrHCIInvalidPacket
+				return ErrInvalidPacket
 			}
 
-			h.connEvent = connectionComplete{
-				status:         buf[3],
-				handle:         binary.LittleEndian.Uint16(buf[4:]),
-				role:           buf[6],
-				peerBdaddrType: buf[7],
+			h.connEvent = ConnectionComplete{
+				Status:      buf[3],
+				Handle:      binary.LittleEndian.Uint16(buf[4:]),
+				Role:        buf[6],
+				AddressType: buf[7],
 			}
-			copy(h.connEvent.peerBdaddr[0:], buf[8:14])
+			copy(h.connEvent.Address[0:], buf[8:14])
 
 			switch buf[2] {
-			case leMetaEventConnComplete:
-				h.connEvent.interval = binary.LittleEndian.Uint16(buf[14:])
-				h.connEvent.timeout = binary.LittleEndian.Uint16(buf[18:])
-			case leMetaEventEnhancedConnectionComplete:
-				h.connEvent.interval = binary.LittleEndian.Uint16(buf[26:])
-				h.connEvent.timeout = binary.LittleEndian.Uint16(buf[30:])
+			case LEMetaConnComplete:
+				h.connEvent.Interval = binary.LittleEndian.Uint16(buf[14:])
+				h.connEvent.Timeout = binary.LittleEndian.Uint16(buf[18:])
+			case LEMetaEnhancedConnectionComplete:
+				h.connEvent.Interval = binary.LittleEndian.Uint16(buf[26:])
+				h.connEvent.Timeout = binary.LittleEndian.Uint16(buf[30:])
 			}
 			h.connected = true
 
-			h.att.addConnection(h.connEvent.handle)
-			if err := h.l2cap.addConnection(h.connEvent.handle, h.connEvent.role,
-				h.connEvent.interval, h.connEvent.timeout); err != nil {
+			h.att.addConnection(h.connEvent.Handle)
+			if err := h.l2cap.addConnection(h.connEvent.Handle, h.connEvent.Role,
+				h.connEvent.Interval, h.connEvent.Timeout); err != nil {
 				return err
 			}
 
-			return h.leSetAdvertiseEnable(false)
+			return h.LESetAdvertiseEnable(false)
 
-		case leMetaEventAdvertisingReport:
+		case LEMetaAdvertisingReport:
 			// Validate the whole report before the handler runs, so a
 			// truncated one is never reported. The fixed part is 13 bytes (up
 			// to and including the data length), followed by the
@@ -934,7 +958,7 @@ func (h *hci) handleEventData(buf []byte) error {
 				if debug {
 					println("invalid advertising report length", len(buf))
 				}
-				return ErrHCIInvalidPacket
+				return ErrInvalidPacket
 			}
 
 			eirLength := buf[12]
@@ -945,43 +969,43 @@ func (h *hci) handleEventData(buf []byte) error {
 				if debug {
 					println("invalid packet length", eirLength, len(buf))
 				}
-				return ErrHCIInvalidPacket
+				return ErrInvalidPacket
 			}
 
-			h.advReport = advertisementReport{
-				numReports:     buf[3],
-				typ:            buf[4],
-				peerBdaddrType: buf[5],
-				eirLength:      eirLength,
+			h.advReport = AdvertisementReport{
+				NumReports:  buf[3],
+				Type:        buf[4],
+				AddressType: buf[5],
+				DataLen:     eirLength,
 			}
-			copy(h.advReport.peerBdaddr[0:], buf[6:12])
-			copy(h.advReport.eirData[0:eirLength], buf[13:13+eirLength])
+			copy(h.advReport.Address[0:], buf[6:12])
+			copy(h.advReport.Data[0:eirLength], buf[13:13+eirLength])
 
 			// TODO: handle multiple reports
-			if h.advReport.numReports == 0x01 {
-				h.advReport.rssi = int8(buf[13+int(eirLength)])
+			if h.advReport.NumReports == 0x01 {
+				h.advReport.RSSI = int8(buf[13+int(eirLength)])
 			}
 			h.advReported = true
 
 			if debug {
-				println("leMetaEventAdvertisingReport", plen, h.advReport.numReports,
-					h.advReport.typ, h.advReport.peerBdaddrType, h.advReport.eirLength)
+				println("LEMetaAdvertisingReport", plen, h.advReport.NumReports,
+					h.advReport.Type, h.advReport.AddressType, h.advReport.DataLen)
 			}
 
 			return nil
 
-		case leMetaEventLongTermKeyRequest:
+		case LEMetaLongTermKeyRequest:
 			if debug {
-				println("leMetaEventLongTermKeyRequest")
+				println("LEMetaLongTermKeyRequest")
 			}
 
-		case leMetaEventRemoteConnParamReq:
+		case LEMetaRemoteConnParamReq:
 			if debug {
-				println("leMetaEventRemoteConnParamReq")
+				println("LEMetaRemoteConnParamReq")
 			}
 
 			if len(buf) < 13 {
-				return ErrHCIInvalidPacket
+				return ErrInvalidPacket
 			}
 
 			connectionHandle := binary.LittleEndian.Uint16(buf[3:])
@@ -999,26 +1023,26 @@ func (h *hci) handleEventData(buf []byte) error {
 			binary.LittleEndian.PutUint16(b[10:], 0x000F)
 			binary.LittleEndian.PutUint16(b[12:], 0x0FFF)
 
-			return h.sendWithoutResponse(ogfLECtrl<<10|ocfLEParamRequestReply, b[:])
+			return h.SendWithoutResponse(OGFLECtrl<<10|OCFLEParamRequestReply, b[:])
 
-		case leMetaEventConnectionUpdateComplete:
+		case LEMetaConnectionUpdateComplete:
 			if debug {
-				println("leMetaEventConnectionUpdateComplete")
+				println("LEMetaConnectionUpdateComplete")
 			}
 
-		case leMetaEventReadLocalP256Complete:
+		case LEMetaReadLocalP256Complete:
 			if debug {
-				println("leMetaEventReadLocalP256Complete")
+				println("LEMetaReadLocalP256Complete")
 			}
 
-		case leMetaEventGenerateDHKeyComplete:
+		case LEMetaGenerateDHKeyComplete:
 			if debug {
-				println("leMetaEventGenerateDHKeyComplete")
+				println("LEMetaGenerateDHKeyComplete")
 			}
 
-		case leMetaEventDataLengthChange:
+		case LEMetaDataLengthChange:
 			if debug {
-				println("leMetaEventDataLengthChange")
+				println("LEMetaDataLengthChange")
 			}
 
 		default:
@@ -1036,14 +1060,14 @@ func (h *hci) handleEventData(buf []byte) error {
 				}
 			}
 
-			return ErrHCIUnknownEvent
+			return ErrUnknownEvent
 		}
-	case evtHardwareError:
+	case EventHardwareError:
 		if debug {
-			println("evtHardwareError", hex.EncodeToString(buf))
+			println("EventHardwareError", hex.EncodeToString(buf))
 		}
 
-		return ErrHCIUnknownEvent
+		return ErrUnknownEvent
 
 	default:
 		if h.eventHandler != nil {
