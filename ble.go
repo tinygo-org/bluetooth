@@ -14,6 +14,33 @@ type (
 
 	// MACAddress contains a Bluetooth address which is a MAC address.
 	MACAddress = ble.MACAddress
+
+	// AttributeProtocolError represents an ATT error code as defined in the
+	// Bluetooth Core Specification, Section 3.4.1.1 (ATT_ERROR_RSP), Table 3.4.
+	AttributeProtocolError = ble.AttributeProtocolError
+)
+
+// ATT error codes from the Bluetooth Core Specification, Table 3.4.
+const (
+	ErrAttInvalidHandle              = ble.ErrAttInvalidHandle
+	ErrAttReadNotPermitted           = ble.ErrAttReadNotPermitted
+	ErrAttWriteNotPermitted          = ble.ErrAttWriteNotPermitted
+	ErrAttInvalidPDU                 = ble.ErrAttInvalidPDU
+	ErrAttInsufficientAuthentication = ble.ErrAttInsufficientAuthentication
+	ErrAttRequestNotSupported        = ble.ErrAttRequestNotSupported
+	ErrAttInvalidOffset              = ble.ErrAttInvalidOffset
+	ErrAttInsufficientAuthorization  = ble.ErrAttInsufficientAuthorization
+	ErrAttPrepareQueueFull           = ble.ErrAttPrepareQueueFull
+	ErrAttNotFound                   = ble.ErrAttNotFound
+	ErrAttNotLong                    = ble.ErrAttNotLong
+	ErrAttInsufficientEncKeySize     = ble.ErrAttInsufficientEncKeySize
+	ErrAttInvalidLength              = ble.ErrAttInvalidLength
+	ErrAttUnlikelyError              = ble.ErrAttUnlikelyError
+	ErrAttInsufficientEncryption     = ble.ErrAttInsufficientEncryption
+	ErrAttUnsupportedGroupType       = ble.ErrAttUnsupportedGroupType
+	ErrAttInsufficientResources      = ble.ErrAttInsufficientResources
+	ErrAttOutOfSync                  = ble.ErrAttOutOfSync
+	ErrAttValueNotAllowed            = ble.ErrAttValueNotAllowed
 )
 
 // NewUUID returns a new 128-bit UUID for a 16 byte array in big endian order.

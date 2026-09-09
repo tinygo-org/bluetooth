@@ -4,15 +4,16 @@ package bluetooth
 
 import (
 	"runtime"
-
 	"time"
+
+	"tinygo.org/x/bluetooth/hci"
 )
 
 // hciAdapter represents the implementation for the connection to the HCI controller.
 type hciAdapter struct {
-	hciport hciTransport
-	hci     *hci
-	att     *att
+	hciport hci.Transport
+	hci     *hci.HCI
+	att     *hci.ATT
 
 	isDefault bool
 	scanning  bool
@@ -26,14 +27,14 @@ type hciAdapter struct {
 }
 
 func (a *hciAdapter) enable() error {
-	if err := a.hci.start(); err != nil {
+	if err := a.hci.Start(); err != nil {
 		if debug {
 			println("error starting HCI:", err.Error())
 		}
 		return err
 	}
 
-	if err := a.hci.reset(); err != nil {
+	if err := a.hci.Reset(); err != nil {
 		if debug {
 			println("error resetting HCI:", err.Error())
 		}
@@ -43,24 +44,24 @@ func (a *hciAdapter) enable() error {
 
 	time.Sleep(150 * time.Millisecond)
 
-	if err := a.hci.setEventMask(0x3FFFFFFFFFFFFFFF); err != nil {
+	if err := a.hci.SetEventMask(0x3FFFFFFFFFFFFFFF); err != nil {
 		return err
 	}
 
-	return a.hci.setLeEventMask(0x00000000000003FF)
+	return a.hci.SetLEEventMask(0x00000000000003FF)
 }
 
 func (a *hciAdapter) Address() (MACAddress, error) {
 	var empty MAC
-	if a.hci.address.MAC != empty {
-		return a.hci.address, nil
+	if a.hci.Address().MAC != empty {
+		return a.hci.Address(), nil
 	}
 
-	if err := a.hci.readBdAddr(); err != nil {
+	if err := a.hci.ReadBdAddr(); err != nil {
 		return MACAddress{}, err
 	}
 
-	return a.hci.address, nil
+	return a.hci.Address(), nil
 }
 
 // ScanType selects whether the scanner transmits while scanning.
@@ -93,18 +94,14 @@ func (a *Adapter) SetScanType(t ScanType) {
 
 // SetRandomAddress sets the random static address that the controller uses.
 func (a *Adapter) SetRandomAddress(mac MAC) error {
-	return a.hci.setRandomAddress(mac)
+	return a.hci.SetRandomAddress(mac)
 }
 
-// initStack builds the HCI, ATT and L2CAP layers on a transport.
-func (a *hciAdapter) initStack(port hciTransport) {
-	h := newHCI(port)
-	at := newATT(h)
-	h.att = at
-	h.l2cap = newL2CAP(h)
-
-	a.hci = h
-	a.att = at
+// initStack builds the protocol stack on a transport.
+func (a *hciAdapter) initStack(port hci.Transport) {
+	stack := hci.NewStack(port)
+	a.hci = stack.HCI
+	a.att = stack.ATT
 }
 
 // Convert a NINA MAC address into a Go MAC address.
@@ -145,7 +142,7 @@ func (a *hciAdapter) startNotifications() {
 	// go routine to poll for HCI events for ATT notifications
 	go func() {
 		for {
-			if err := a.att.poll(); err != nil {
+			if err := a.att.Poll(); err != nil {
 				// TODO: handle error
 				if debug {
 					println("error polling for notifications:", err.Error())
@@ -160,29 +157,29 @@ func (a *hciAdapter) startNotifications() {
 	go func() {
 		for {
 			select {
-			case not := <-a.att.notifications:
+			case not := <-a.att.Notifications():
 				if debug {
-					println("notification received", not.connectionHandle, not.handle, not.data)
+					println("notification received", not.ConnectionHandle, not.Handle, not.Data)
 				}
 
-				d := a.findConnection(not.connectionHandle)
+				d := a.findConnection(not.ConnectionHandle)
 				if d.deviceInternal == nil {
 					if debug {
-						println("no device found for handle", not.connectionHandle)
+						println("no device found for handle", not.ConnectionHandle)
 					}
 					continue
 				}
 
-				n := d.findNotificationRegistration(not.handle)
+				n := d.findNotificationRegistration(not.Handle)
 				if n == nil {
 					if debug {
-						println("no notification registered for handle", not.handle)
+						println("no notification registered for handle", not.Handle)
 					}
 					continue
 				}
 
 				if n.callback != nil {
-					n.callback(not.data)
+					n.callback(not.Data)
 				}
 
 			default:

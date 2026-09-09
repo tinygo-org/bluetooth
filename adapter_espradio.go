@@ -6,6 +6,8 @@ import (
 	"runtime"
 
 	"tinygo.org/x/espradio"
+
+	"tinygo.org/x/bluetooth/hci"
 )
 
 const maxConnections = 1
@@ -45,21 +47,18 @@ func (a *Adapter) Enable() error {
 	return nil
 }
 
-// hciVHCI wraps espradio's BLE VHCI transport to implement the
-// unexported hciTransport interface.
+// hciVHCI wraps espradio's BLE VHCI transport to implement hci.Transport.
+var _ hci.Transport = (*hciVHCI)(nil)
+
 type hciVHCI struct {
 	t espradio.VHCITransport
 }
 
-func (h *hciVHCI) startRead() { runtime.Gosched() }
-func (h *hciVHCI) endRead()   {}
+func (h *hciVHCI) StartRead() { runtime.Gosched() }
+func (h *hciVHCI) EndRead()   {}
 
 func (h *hciVHCI) Buffered() int {
 	return h.t.Buffered()
-}
-
-func (h *hciVHCI) ReadByte() (byte, error) {
-	return h.t.ReadByte()
 }
 
 func (h *hciVHCI) Read(buf []byte) (int, error) {
