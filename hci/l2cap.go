@@ -33,19 +33,6 @@ func (l *l2capConnectionParamReqPkt) unmarshal(buf []byte) (int, error) {
 	return 8, nil
 }
 
-func (l *l2capConnectionParamReqPkt) marshal(p []byte) (int, error) {
-	if len(p) < 8 {
-		return 0, errInvalidPayloadLength
-	}
-
-	binary.LittleEndian.PutUint16(p[0:], l.minInterval)
-	binary.LittleEndian.PutUint16(p[2:], l.maxInterval)
-	binary.LittleEndian.PutUint16(p[4:], l.latency)
-	binary.LittleEndian.PutUint16(p[6:], l.timeout)
-
-	return 8, nil
-}
-
 type l2capConnectionParamResponsePkt struct {
 	code       uint8
 	identifier uint8
@@ -98,15 +85,17 @@ func (l *l2cap) removeConnection(handle uint16) error {
 }
 
 func (l *l2cap) handleData(handle uint16, buf []byte) error {
-	code := buf[0]
-	identifier := buf[1]
-	//length := binary.LittleEndian.Uint16(buf[2:4])
-
 	if debug {
 		println("l2cap.handleData:", handle, "data:", hex.EncodeToString(buf))
 	}
 
-	// TODO: check length
+	// Every signalling packet carries a code, an identifier and a length.
+	if len(buf) < 4 {
+		return errInvalidPayloadLength
+	}
+
+	code := buf[0]
+	identifier := buf[1]
 
 	switch code {
 	case connectionParamUpdateRequest:
@@ -125,7 +114,9 @@ func (l *l2cap) handleParameterUpdateRequest(connectionHandle uint16, identifier
 	}
 
 	req := l2capConnectionParamReqPkt{}
-	req.unmarshal(data)
+	if _, err := req.unmarshal(data); err != nil {
+		return err
+	}
 
 	// TODO: check against min/max
 
