@@ -254,7 +254,7 @@ You will need to install OpenOCD (http://openocd.org/) to flash the board.
 First, flash the SoftDevice firmware by copying the .hex file to the device. For example (on Linux):
 
 	cd bluetooth
-    cp ./s110_nrf51_8.0.0/s110_nrf51_8.0.0_softdevice.hex /media/yourusername/MICROBIT/
+    cp ./softdevice/s110_nrf51_8.0.0/s110_nrf51_8.0.0_softdevice.hex /media/yourusername/MICROBIT/
 
 Once you have copied the SoftDevice firmware to the BBC micro:bit, you can then flash your TinyGo program:
 
@@ -271,7 +271,7 @@ You can use the BBC micro:bit v2 either as a peripheral only using the S113 Soft
 To use S113, flash the SoftDevice firmware by copying the .hex file to the device. For example (on Linux):
 
 	cd bluetooth
-	cp ./s113_nrf52_7.0.1/s113_nrf52_7.0.1_softdevice.hex /media/yourusername/MICROBIT/
+	cp ./softdevice/s113_nrf52_7.0.1/s113_nrf52_7.0.1_softdevice.hex /media/yourusername/MICROBIT/
 
 Note that you should only have to do this one time. Do not reset the power on the board until you complete the next step.
 
@@ -282,7 +282,7 @@ Now that you have copied the SoftDevice firmware to the BBC micro:bit v2, you ca
 To use S140 with central and peripheral support, flash the SoftDevice firmware by copying the .hex file to the device. For example (on Linux):
 
 	cd bluetooth
-	cp ./s140_nrf52_7.3.0/s140_nrf52_7.3.0_softdevice.hex /media/yourusername/MICROBIT/
+	cp ./softdevice/s140_nrf52_7.3.0/s140_nrf52_7.3.0_softdevice.hex /media/yourusername/MICROBIT/
 
 Note that you should only have to do this one time. Do not reset the power on the board until you complete the next step.
 
@@ -302,7 +302,7 @@ The following Nordic Semiconductor chips are currently supported:
 
 To use a board that uses one of the above supported chips from Nordic Semiconductor, other then those already listed, you will probably need to install the SoftDevice firmware on the board yourself in order to use it with TinyGo and the Go Bluetooth package.
 
-Flashing the SoftDevice can sometimes be tricky. If you have [nrfjprog](https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Command-Line-Tools) installed, you can erase the flash and flash the new BLE firmware using the following commands. Replace the path to the hex file with the correct SoftDevice, for example `s132_nrf52_6.1.1/s132_nrf52_6.1.1_softdevice.hex` for S132 version 6.
+Flashing the SoftDevice can sometimes be tricky. If you have [nrfjprog](https://www.nordicsemi.com/Software-and-Tools/Development-Tools/nRF-Command-Line-Tools) installed, you can erase the flash and flash the new BLE firmware using the following commands. Replace the path to the hex file with the correct SoftDevice, for example `softdevice/s132_nrf52_6.1.1/s132_nrf52_6.1.1_softdevice.hex` for S132 version 6.
 
     nrfjprog -f nrf52 --eraseall
     nrfjprog -f nrf52 --program path/to/softdevice.hex
