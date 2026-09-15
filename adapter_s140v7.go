@@ -5,7 +5,7 @@ package bluetooth
 /*
 // Add the correct SoftDevice include path to CFLAGS, so #include will work as
 // expected.
-#cgo CFLAGS: -Is140_nrf52_7.3.0/s140_nrf52_7.3.0_API/include
+#cgo CFLAGS: -Isoftdevice/s140_nrf52_7.3.0/s140_nrf52_7.3.0_API/include
 
 #include "nrf_nvic.h"
 #include "nrf_soc.h"
