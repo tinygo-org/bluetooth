@@ -427,9 +427,6 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		if err != nil {
 			return
 		}
-		if status == bluetooth.BluetoothConnectionStatusDisconnected {
-			device.Disconnect()
-		}
 
 		if a.connectHandler != nil {
 			a.connectHandler(device, status == bluetooth.BluetoothConnectionStatusConnected)
