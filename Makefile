@@ -76,6 +76,10 @@ smoketest-tinygo:
 	@md5sum test.bin
 	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3	./examples/discover
 	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=esp32-mini32	./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=esp32-mini32	./examples/discover
+	@md5sum test.bin
 
 smoketest-hci:
 	# Test the four HCI transports, for a faster loop than the whole matrix.
@@ -100,6 +104,8 @@ smoketest-hci:
 	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3          ./examples/discover
 	@md5sum test.bin
 	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32s3          ./examples/advertisement
+	@md5sum test.bin
+	$(TINYGO) build -o test.bin -size=short -target=esp32-mini32          ./examples/advertisement
 	@md5sum test.bin
 	# The bledebug build of the hci package is not covered anywhere else.
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 -tags=bledebug ./examples/discover

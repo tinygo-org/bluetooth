@@ -335,13 +335,15 @@ For example, this command can be used to compile and flash an Arduino Nano RP204
 
 If you want more information about the `nina-fw` firmware, or want to add support for other ESP32-equipped boards, please see https://github.com/arduino/nina-fw
 
-## ESP32-C3 and ESP32-S3 (espradio)
+## ESP32, ESP32-C3 and ESP32-S3 (espradio)
 
-Go Bluetooth has bare metal support for the onboard Bluetooth Low Energy radio in the Espressif ESP32-C3 and ESP32-S3 chips. It uses the [espradio](https://github.com/tinygo-org/espradio) package, which speaks to the radio through the Virtual HCI (VHCI) interface.
+Go Bluetooth has bare metal support for the onboard Bluetooth Low Energy radio in the Espressif ESP32, ESP32-C3 and ESP32-S3 chips. It uses the [espradio](https://github.com/tinygo-org/espradio) package, which speaks to the radio through the Virtual HCI (VHCI) interface.
 
 This support requires compiling your programs using [TinyGo](https://tinygo.org/) version 0.42 or later. TinyGo sets the `espradio` build tag for the ESP32 targets, so you do not have to give the tag yourself.
 
-The original ESP32 has no Bluetooth Low Energy support in espradio. For those boards, see the [ESP32 (NINA)](#esp32-nina) section.
+On the original ESP32 only Bluetooth Low Energy is supported. The chip also has Bluetooth Classic (BR/EDR), which espradio does not use. The Bluetooth controller needs 64 KB of RAM at a fixed address on this chip, so a program that calls `Enable()` has a smaller heap than a program that does not.
+
+Some boards carry a second ESP32 as a co-processor instead. For those boards, see the [ESP32 (NINA)](#esp32-nina) section.
 
 Currently supported boards include:
 
@@ -349,7 +351,8 @@ Currently supported boards include:
 * [Seeed Studio XIAO ESP32-S3](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/)
 * [M5Stamp C3](https://docs.m5stack.com/en/core/stamp_c3)
 * [M5Stamp S3](https://docs.m5stack.com/en/core/M5Stamp%20S3)
-* Other ESP32-C3 and ESP32-S3 boards with a TinyGo target, such as `esp32c3-supermini`, `esp32s3-supermini`, `qtpy-esp32c3`, and `esp32c3-generic`
+* [M5Stack](https://docs.m5stack.com/en/core/basic)
+* Other ESP32, ESP32-C3 and ESP32-S3 boards with a TinyGo target, such as `esp32-coreboard-v2`, `esp32-mini32`, `esp32c3-supermini`, `esp32s3-supermini`, `qtpy-esp32c3`, and `esp32c3-generic`
 
 After you have installed TinyGo and the Go Bluetooth package, you should be able to compile/run code for your device.
 

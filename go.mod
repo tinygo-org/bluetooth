@@ -11,7 +11,7 @@ require (
 	golang.org/x/crypto v0.12.0
 	golang.org/x/sys v0.11.0
 	tinygo.org/x/drivers v0.36.0
-	tinygo.org/x/espradio v0.3.0
+	tinygo.org/x/espradio v0.3.1-0.20260925094528-b51c8a513407
 	tinygo.org/x/tinyfont v0.6.0
 	tinygo.org/x/tinyterm v0.5.0
 )
