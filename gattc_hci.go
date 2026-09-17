@@ -150,6 +150,12 @@ type DeviceCharacteristic struct {
 	callback    func(buf []byte)
 }
 
+// Permissions returns the permissions of this characteristic on the remote
+// device. See Bluetooth Core Specification 6.0, Vol 3, Part G, Table 3.5.
+func (c DeviceCharacteristic) Permissions() CharacteristicPermissions {
+	return c.permissions
+}
+
 // UUID returns the UUID for this DeviceCharacteristic.
 func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuid

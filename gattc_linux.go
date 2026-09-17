@@ -136,9 +136,16 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 type DeviceCharacteristic struct {
 	uuidWrapper
 	adapter                      *Adapter
+	permissions                  CharacteristicPermissions
 	characteristic               dbus.BusObject
 	property                     chan *dbus.Signal // channel where notifications are reported
 	propertiesChangedMatchOption dbus.MatchOption  // the same value must be passed to RemoveMatchSignal
+}
+
+// Permissions returns the permissions of this characteristic on the remote
+// device. See Bluetooth Core Specification 6.0, Vol 3, Part G, Table 3.5.
+func (c DeviceCharacteristic) Permissions() CharacteristicPermissions {
+	return c.permissions
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -184,9 +191,11 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 			continue
 		}
 		cuuid, _ := ParseUUID(properties["UUID"].Value().(string))
+		flags, _ := properties["Flags"].Value().([]string)
 		char := DeviceCharacteristic{
 			uuidWrapper:    cuuid,
 			adapter:        s.adapter,
+			permissions:    bluezFlags(flags),
 			characteristic: s.adapter.bus.Object("org.bluez", dbus.ObjectPath(objectPath)),
 		}
 
