@@ -93,29 +93,13 @@ func (a *Adapter) AddService(s *Service) error {
 	objects[path] = serviceSpec
 
 	for i, char := range s.Characteristics {
-		// Calculate Flags field.
-		bluezCharFlags := []string{
-			"broadcast",              // bit 0
-			"read",                   // bit 1
-			"write-without-response", // bit 2
-			"write",                  // bit 3
-			"notify",                 // bit 4
-			"indicate",               // bit 5
-		}
-		var flags []string
-		for i := 0; i < len(bluezCharFlags); i++ {
-			if (char.Flags>>i)&1 != 0 {
-				flags = append(flags, bluezCharFlags[i])
-			}
-		}
-
 		// Export the properties of this characteristic.
 		charPath := path + dbus.ObjectPath("/char"+strconv.Itoa(i))
 		propsSpec := map[string]map[string]*prop.Prop{
 			"org.bluez.GattCharacteristic1": {
 				"UUID":    {Value: char.UUID.String()},
 				"Service": {Value: path},
-				"Flags":   {Value: flags},
+				"Flags":   {Value: bluezFlagNames(char.Flags)},
 				"Value":   {Value: char.Value, Writable: true, Emit: prop.EmitTrue},
 			},
 		}

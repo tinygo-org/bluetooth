@@ -79,6 +79,8 @@ const (
 	CharacteristicWritePermission
 	CharacteristicNotifyPermission
 	CharacteristicIndicatePermission
+
+	characteristicPermissionsMask CharacteristicPermissions = 1<<iota - 1
 )
 
 // Broadcast returns whether broadcasting of the value is permitted.
