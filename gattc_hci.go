@@ -143,11 +143,16 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 type DeviceCharacteristic struct {
 	uuid UUID
 
-	service     *DeviceService
-	permissions CharacteristicPermissions
-	handle      uint16
-	properties  uint8
-	callback    func(buf []byte)
+	service    *DeviceService
+	handle     uint16
+	properties uint8
+	callback   func(buf []byte)
+}
+
+// Permissions returns the permissions of this characteristic on the remote
+// device. See Bluetooth Core Specification 6.0, Vol 3, Part G, Table 3.5.
+func (c DeviceCharacteristic) Permissions() CharacteristicPermissions {
+	return CharacteristicPermissions(c.properties) & characteristicPermissionsMask
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -203,11 +208,10 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		for _, rawCharacteristic := range cd.Characteristics {
 			if len(uuids) == 0 || uuidIn(rawCharacteristic.UUID, uuids) {
 				dc := DeviceCharacteristic{
-					service:     &s,
-					uuid:        rawCharacteristic.UUID,
-					handle:      rawCharacteristic.ValueHandle,
-					properties:  rawCharacteristic.Properties,
-					permissions: CharacteristicPermissions(rawCharacteristic.Properties),
+					service:    &s,
+					uuid:       rawCharacteristic.UUID,
+					handle:     rawCharacteristic.ValueHandle,
+					properties: rawCharacteristic.Properties,
 				}
 
 				foundCharacteristics[rawCharacteristic.UUID] = dc
@@ -257,7 +261,7 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 // writes can be in flight at any given time. This call is also known as a
 // "write command" (as opposed to a write request).
 func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) {
-	if !c.permissions.WriteWithoutResponse() {
+	if !c.Permissions().WriteWithoutResponse() {
 		return 0, errNoWriteWithoutResponse
 	}
 
@@ -276,7 +280,7 @@ func (c DeviceCharacteristic) WriteWithoutResponse(p []byte) (n int, err error) 
 //
 // Users may call EnableNotifications with a nil callback to disable notifications.
 func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) error {
-	if !c.permissions.Notify() {
+	if !c.Permissions().Notify() {
 		return errNoNotify
 	}
 
@@ -325,7 +329,7 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 
 // Read reads the current characteristic value.
 func (c DeviceCharacteristic) Read(data []byte) (int, error) {
-	if !c.permissions.Read() {
+	if !c.Permissions().Read() {
 		return 0, errNoRead
 	}
 

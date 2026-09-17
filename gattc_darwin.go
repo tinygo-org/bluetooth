@@ -214,6 +214,34 @@ type deviceCharacteristic struct {
 	notifyChan     chan error
 }
 
+// Permissions returns the permissions of this characteristic on the remote
+// device. See Bluetooth Core Specification 6.0, Vol 3, Part G, Table 3.5.
+func (c DeviceCharacteristic) Permissions() (p CharacteristicPermissions) {
+	props := c.characteristic.Properties()
+
+	// The encryption required properties also set the Notify or Indicate bit.
+	// See Apple CBCharacteristicProperties.
+	for _, m := range [...]struct {
+		cb cbgo.CharacteristicProperties
+		p  CharacteristicPermissions
+	}{
+		{cbgo.CharacteristicPropertyBroadcast, CharacteristicBroadcastPermission},
+		{cbgo.CharacteristicPropertyRead, CharacteristicReadPermission},
+		{cbgo.CharacteristicPropertyWriteWithoutResponse, CharacteristicWriteWithoutResponsePermission},
+		{cbgo.CharacteristicPropertyWrite, CharacteristicWritePermission},
+		{cbgo.CharacteristicPropertyNotify, CharacteristicNotifyPermission},
+		{cbgo.CharacteristicPropertyIndicate, CharacteristicIndicatePermission},
+		{cbgo.CharacteristicPropertyNotifyEncryptionRequired, CharacteristicNotifyPermission},
+		{cbgo.CharacteristicPropertyIndicateEncryptionRequired, CharacteristicIndicatePermission},
+	} {
+		if props&m.cb != 0 {
+			p |= m.p
+		}
+	}
+
+	return p
+}
+
 // UUID returns the UUID for this DeviceCharacteristic.
 func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuidWrapper
