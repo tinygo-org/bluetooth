@@ -34,6 +34,8 @@ type GATTCCharacteristic interface {
 	// UUID returns the UUID for this DeviceCharacteristic.
 	UUID() UUID
 
+	Permissions() CharacteristicPermissions
+
 	// Read reads the current characteristic value into data. It returns the number of
 	// bytes copied, and io.ErrShortBuffer when the value is longer than data.
 	Read(data []byte) (int, error)
