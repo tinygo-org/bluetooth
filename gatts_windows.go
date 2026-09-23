@@ -29,10 +29,10 @@ type Characteristic struct {
 // Service struct.
 func (a *Adapter) AddService(s *Service) error {
 	gattServiceOp, err := genericattributeprofile.GattServiceProviderCreateAsync(syscallUUIDFromUUID(s.UUID))
-
 	if err != nil {
 		return err
 	}
+	defer gattServiceOp.Release()
 
 	if err = awaitAsyncOperation(gattServiceOp, genericattributeprofile.SignatureGattServiceProviderResult); err != nil {
 		return err
@@ -44,6 +44,7 @@ func (a *Adapter) AddService(s *Service) error {
 	}
 
 	serviceProviderResult := (*genericattributeprofile.GattServiceProviderResult)(res)
+	defer serviceProviderResult.Release()
 	serviceProvider, err := serviceProviderResult.GetServiceProvider()
 	if err != nil {
 		return err
@@ -73,6 +74,7 @@ func (a *Adapter) AddService(s *Service) error {
 		if err != nil {
 			return
 		}
+		defer reqAsyncOp.Release()
 
 		if err = awaitAsyncOperation(reqAsyncOp, genericattributeprofile.SignatureGattWriteRequest); err != nil {
 			return
@@ -84,11 +86,13 @@ func (a *Adapter) AddService(s *Service) error {
 		}
 
 		gattWriteRequest := (*genericattributeprofile.GattWriteRequest)(res)
+		defer gattWriteRequest.Release()
 
 		buf, err := gattWriteRequest.GetValue()
 		if err != nil {
 			return
 		}
+		defer buf.Release()
 
 		offset, err := gattWriteRequest.GetOffset()
 		if err != nil {
@@ -126,6 +130,7 @@ func (a *Adapter) AddService(s *Service) error {
 		if err != nil {
 			return
 		}
+		defer reqAsyncOp.Release()
 
 		if err = awaitAsyncOperation(reqAsyncOp, genericattributeprofile.SignatureGattReadRequest); err != nil {
 			return
@@ -137,6 +142,7 @@ func (a *Adapter) AddService(s *Service) error {
 		}
 
 		gattReadRequest := (*genericattributeprofile.GattReadRequest)(res)
+		defer gattReadRequest.Release()
 
 		characteristic := (*genericattributeprofile.GattLocalCharacteristic)(sender)
 		uuid, err := characteristic.GetUuid()
@@ -167,9 +173,9 @@ func (a *Adapter) AddService(s *Service) error {
 		if err != nil {
 			return
 		}
+		defer buf.Release()
 
 		gattReadRequest.RespondWithValue(buf)
-		buf.Release()
 	})
 
 	for _, char := range s.Characteristics {
@@ -179,14 +185,17 @@ func (a *Adapter) AddService(s *Service) error {
 		}
 
 		if err = params.SetCharacteristicProperties(genericattributeprofile.GattCharacteristicProperties(char.Flags)); err != nil {
+			params.Release()
 			return err
 		}
 
 		uuid := syscallUUIDFromUUID(char.UUID)
 		createCharOp, err := localService.CreateCharacteristicAsync(uuid, params)
+		params.Release()
 		if err != nil {
 			return err
 		}
+		defer createCharOp.Release()
 
 		if err = awaitAsyncOperation(createCharOp, genericattributeprofile.SignatureGattLocalCharacteristicResult); err != nil {
 			return err
@@ -198,6 +207,7 @@ func (a *Adapter) AddService(s *Service) error {
 		}
 
 		characteristicResults := (*genericattributeprofile.GattLocalCharacteristicResult)(res)
+		defer characteristicResults.Release()
 		characteristic, err := characteristicResults.GetCharacteristic()
 		if err != nil {
 			return err
@@ -228,6 +238,7 @@ func (a *Adapter) AddService(s *Service) error {
 	if err != nil {
 		return err
 	}
+	defer params.Release()
 
 	if err = params.SetIsConnectable(true); err != nil {
 		return err
@@ -243,10 +254,10 @@ func (a *Adapter) AddService(s *Service) error {
 // RemoveService stops advertising the service and removes it.
 func (a *Adapter) RemoveService(s *Service) error {
 	gattServiceOp, err := genericattributeprofile.GattServiceProviderCreateAsync(syscallUUIDFromUUID(s.UUID))
-
 	if err != nil {
 		return err
 	}
+	defer gattServiceOp.Release()
 
 	if err = awaitAsyncOperation(gattServiceOp, genericattributeprofile.SignatureGattServiceProviderResult); err != nil {
 		return err
@@ -258,6 +269,7 @@ func (a *Adapter) RemoveService(s *Service) error {
 	}
 
 	serviceProviderResult := (*genericattributeprofile.GattServiceProviderResult)(res)
+	defer serviceProviderResult.Release()
 	serviceProvider, err := serviceProviderResult.GetServiceProvider()
 	if err != nil {
 		return err
