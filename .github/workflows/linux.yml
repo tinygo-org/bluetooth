@@ -12,11 +12,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/tinygo-org/tinygo:latest
+      image: ghcr.io/tinygo-org/tinygo-dev
       options: --user root
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: TinyGo version check
         run: tinygo version
       - name: Add required GOFLAGS
