@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebBluetooth - TinyGo</title>
+    <style>
+        body { font-family: system-ui, sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+        button { font-size: 1rem; padding: 0.4rem 1rem; cursor: pointer; }
+        button:disabled { cursor: not-allowed; opacity: 0.5; }
+        fieldset { border: 1px solid #ddd; border-radius: 4px; margin-top: 1.5rem; }
+        legend { font-weight: 600; padding: 0 0.4rem; }
+        label { display: block; margin: 0.5rem 0 0.15rem; font-size: 0.85rem; color: #555; }
+        input { width: 100%; box-sizing: border-box; padding: 0.35rem; font-family: monospace; font-size: 0.85rem; }
+        table { border-collapse: collapse; width: 100%; margin-top: 0.5rem; }
+        td { padding: 0.3rem 0; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        td:first-child { color: #555; width: 12rem; }
+        #status { font-weight: 600; }
+        #log { background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; padding: 0.75rem; margin-top: 1rem; max-height: 16rem; overflow-y: auto; }
+        #log p { margin: 0.2rem 0; font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <h1>WebBluetooth - TinyGo</h1>
+    <p>The WASM module exports <code>globalThis.ble</code>. Every call returns a Promise. This page does all of the display work.</p>
+
+    <p>Status: <span id="status">loading WASM…</span></p>
+    <button id="connect" disabled>Connect</button>
+    <button id="disconnect" disabled>Disconnect</button>
+
+    <fieldset>
+        <legend>Device Information</legend>
+        <table>
+            <tr><td>Manufacturer name</td><td id="manufacturer">-</td></tr>
+            <tr><td>Model number</td><td id="model">-</td></tr>
+            <tr><td>Firmware revision</td><td id="firmware">-</td></tr>
+        </table>
+    </fieldset>
+
+    <fieldset>
+        <legend>Notifications</legend>
+        <p>Give a service and a characteristic that send notifications. The default is Battery Level, which <code>examples/battery</code> serves. The service must be here before you connect, because the browser refuses a service that the page did not ask for.</p>
+        <label for="notifyService">Service UUID</label>
+        <input id="notifyService" value="0000180f-0000-1000-8000-00805f9b34fb">
+        <label for="notifyChar">Characteristic UUID</label>
+        <input id="notifyChar" value="00002a19-0000-1000-8000-00805f9b34fb">
+        <p>
+            <button id="subscribe" disabled>Subscribe</button>
+            <button id="unsubscribe" disabled>Unsubscribe</button>
+        </p>
+    </fieldset>
+
+    <div id="log"></div>
+
+    <script src="wasm_exec.js"></script>
+    <script>
+        const DEVICE_INFO = "0000180a-0000-1000-8000-00805f9b34fb";
+        const MANUFACTURER = "00002a29-0000-1000-8000-00805f9b34fb";
+        const MODEL_NUMBER = "00002a24-0000-1000-8000-00805f9b34fb";
+        const FIRMWARE_REVISION = "00002a26-0000-1000-8000-00805f9b34fb";
+
+        const $ = (id) => document.getElementById(id);
+
+        function log(message) {
+            console.log(message);
+            const line = document.createElement("p");
+            line.textContent = message;
+            $("log").appendChild(line);
+            $("log").scrollTop = $("log").scrollHeight;
+        }
+
+        function setConnected(connected) {
+            $("status").textContent = connected ? "connected" : "not connected";
+            $("connect").disabled = connected;
+            $("disconnect").disabled = !connected;
+            $("subscribe").disabled = !connected;
+            $("unsubscribe").disabled = !connected;
+            if (!connected) {
+                $("manufacturer").textContent = "-";
+                $("model").textContent = "-";
+                $("firmware").textContent = "-";
+            }
+        }
+
+        // The WASM module calls this when globalThis.ble is ready.
+        globalThis.onBleReady = () => {
+            ble.onConnectionChange((connected) => {
+                log(connected ? "Connected." : "Disconnected.");
+                setConnected(connected);
+            });
+            setConnected(false);
+            $("connect").disabled = false;
+            log("Bluetooth API ready. Click Connect.");
+        };
+
+        $("connect").addEventListener("click", async () => {
+            $("connect").disabled = true;
+            try {
+                await ble.enable();
+
+                // Ask for every service that this page uses.
+                const wanted = [DEVICE_INFO, $("notifyService").value.trim()].filter(Boolean);
+                log("Opening the device picker…");
+                const device = await ble.requestDevice(wanted);
+                log(`Selected ${device.name || "unnamed device"} (${device.id})`);
+
+                await ble.connect(device.id);
+                await readDeviceInformation();
+            } catch (err) {
+                log(`Error: ${err.message}`);
+                $("connect").disabled = false;
+            }
+        });
+
+        $("disconnect").addEventListener("click", async () => {
+            try {
+                await ble.disconnect();
+            } catch (err) {
+                log(`Error: ${err.message}`);
+            }
+        });
+
+        $("subscribe").addEventListener("click", async () => {
+            const service = $("notifyService").value.trim();
+            const characteristic = $("notifyChar").value.trim();
+            try {
+                await ble.subscribe(service, characteristic, (value) => {
+                    log(`notification: ${hex(value)}`);
+                });
+                log("Subscribed.");
+            } catch (err) {
+                log(`Error: ${err.message}`);
+            }
+        });
+
+        $("unsubscribe").addEventListener("click", async () => {
+            const service = $("notifyService").value.trim();
+            const characteristic = $("notifyChar").value.trim();
+            try {
+                await ble.unsubscribe(service, characteristic);
+                log("Unsubscribed.");
+            } catch (err) {
+                log(`Error: ${err.message}`);
+            }
+        });
+
+        async function readDeviceInformation() {
+            const fields = [
+                ["manufacturer", "Manufacturer name", MANUFACTURER],
+                ["model", "Model number", MODEL_NUMBER],
+                ["firmware", "Firmware revision", FIRMWARE_REVISION],
+            ];
+            for (const [id, name, uuid] of fields) {
+                try {
+                    $(id).textContent = await ble.readString(DEVICE_INFO, uuid);
+                } catch (err) {
+                    $(id).textContent = "not available";
+                    log(`${name}: ${err.message}`);
+                }
+            }
+        }
+
+        const hex = (bytes) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(" ");
+
+        const go = new Go();
+        WebAssembly.instantiateStreaming(fetch("wasm.wasm"), go.importObject)
+            .then((result) => go.run(result.instance))
+            .catch((err) => {
+                $("status").textContent = "failed to load";
+                log(`Could not load wasm.wasm: ${err}`);
+            });
+    </script>
+</body>
+</html>
