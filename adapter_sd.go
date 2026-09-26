@@ -68,7 +68,7 @@ var eventBufLen C.uint16_t
 // which is a separate event queue from the BLE events handled by
 // handleEvent, but delivered through the same interrupt (SD_EVT_IRQn is
 // SWI2_IRQn). 0 means no result yet, 1 success, 2 error. Consumed by bond
-// storage code where available.
+// storage and FlashBlockDevice where available, under flashOpMu.
 var flashOpResult volatile.Register8
 
 // Static because taking the address of a local variable for a C call would

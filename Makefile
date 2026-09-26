@@ -55,6 +55,18 @@ smoketest-tinygo:
 	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/usbvbus
 	@md5sum test.uf2
+	# flash calls Adapter.Flash, so build it for each nRF52 SoftDevice and for
+	# a board that uses the stub.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/flash
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=pca10056-s140v6-uf2   ./examples/flash
+	@md5sum test.uf2
+	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/flash
+	@md5sum test.hex
+	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/flash
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/flash
+	@md5sum test.uf2
 	# Test some more boards that are not tested above.
 	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/advertisement
 	@md5sum test.hex
