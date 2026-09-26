@@ -1,5 +1,17 @@
 package bluetooth
 
+// AdapterState represents the state of the adaptor.
+type AdapterState int
+
+const (
+	// AdapterStatePoweredOff is the state of the adaptor when it is powered off.
+	AdapterStatePoweredOff = AdapterState(iota)
+	// AdapterStatePoweredOn is the state of the adaptor when it is powered on.
+	AdapterStatePoweredOn
+	// AdapterStateUnknown is the state of the adaptor when it is unknown.
+	AdapterStateUnknown
+)
+
 // BLEAdapter is the shared interface that all platform-specific Adapter types must implement.
 type BLEAdapter interface {
 	Connect(address Address, params ConnectionParams) (Device, error)
