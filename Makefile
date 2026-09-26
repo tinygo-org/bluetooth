@@ -47,6 +47,14 @@ smoketest-tinygo:
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/stop-advertisement
 	@md5sum test.hex
+	# usbvbus calls USBVBusPresent, so build it for each nRF52840 SoftDevice and
+	# for a board that uses the stub.
+	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/usbvbus
+	@md5sum test.hex
+	$(TINYGO) build -o test.uf2 -size=short -target=pca10056-s140v6-uf2   ./examples/usbvbus
+	@md5sum test.uf2
+	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/usbvbus
+	@md5sum test.uf2
 	# Test some more boards that are not tested above.
 	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7       ./examples/advertisement
 	@md5sum test.hex
