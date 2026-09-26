@@ -12,6 +12,8 @@ import (
 	"tinygo.org/x/bluetooth"
 )
 
+const magic = 0x600df1a5
+
 var adapter = bluetooth.DefaultAdapter
 
 func main() {
@@ -22,19 +24,21 @@ func main() {
 	dev, err := adapter.Flash()
 	must("get flash", err)
 
-	// Use the first page of the flash data area.
-	var buf [4]byte
+	// The first page of the flash data area holds the magic value and the count.
+	// Flashing a program does not erase this page, so it can hold old data.
+	var buf [8]byte
 	_, err = dev.ReadAt(buf[:], 0)
 	must("read flash", err)
-	count := binary.LittleEndian.Uint32(buf[:])
-	if count == 0xffffffff {
-		count = 0
+	count := uint32(0)
+	if binary.LittleEndian.Uint32(buf[0:4]) == magic {
+		count = binary.LittleEndian.Uint32(buf[4:8])
 	}
 	count++
 	println("reset count:", count)
 
 	must("erase flash", dev.EraseBlocks(0, 1))
-	binary.LittleEndian.PutUint32(buf[:], count)
+	binary.LittleEndian.PutUint32(buf[0:4], magic)
+	binary.LittleEndian.PutUint32(buf[4:8], count)
 	_, err = dev.WriteAt(buf[:], 0)
 	must("write flash", err)
 
@@ -42,7 +46,7 @@ func main() {
 	must("config adv", adv.Configure(bluetooth.AdvertisementOptions{
 		LocalName: "Go Flash",
 		ManufacturerData: []bluetooth.ManufacturerDataElement{
-			{CompanyID: 0xffff, Data: buf[:]},
+			{CompanyID: 0xffff, Data: buf[4:8]},
 		},
 	}))
 	must("start adv", adv.Start())
