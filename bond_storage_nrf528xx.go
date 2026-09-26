@@ -66,6 +66,11 @@ func loadBondFromFlash() {
 func saveBondToFlash() error {
 	addr := bondFlashAddr()
 
+	// Serialize with SDFlash operations: completion is reported through the
+	// single flashOpResult flag.
+	flashOpMu.Lock()
+	defer flashOpMu.Unlock()
+
 	flashOpResult.Set(0)
 	errCode := C.sd_flash_page_erase(C.uint32_t(uint32(addr) / bondFlashPageSize))
 	if errCode != 0 {
@@ -104,6 +109,9 @@ func saveBondToFlash() error {
 // called from the bond storage worker (see bondStorageWorker), so that flash
 // operations never run concurrently.
 func eraseBondFromFlash() error {
+	flashOpMu.Lock()
+	defer flashOpMu.Unlock()
+
 	flashOpResult.Set(0)
 	errCode := C.sd_flash_page_erase(C.uint32_t(uint32(bondFlashAddr()) / bondFlashPageSize))
 	if errCode != 0 {
