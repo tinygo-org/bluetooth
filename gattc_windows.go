@@ -324,6 +324,13 @@ func (c DeviceCharacteristic) Properties() uint32 {
 	return uint32(c.properties)
 }
 
+// Permissions returns the permissions of this characteristic on the remote
+// device. See Bluetooth Core Specification 6.0, Vol 3, Part G, Table 3.5.
+// WinRT uses the same bit order as the specification.
+func (c DeviceCharacteristic) Permissions() CharacteristicPermissions {
+	return CharacteristicPermissions(c.properties)
+}
+
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return c.service.device.session.GetMaxPduSize()
