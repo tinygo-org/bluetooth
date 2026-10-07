@@ -242,7 +242,7 @@ func (c DeviceCharacteristic) Write(p []byte) (n int, err error) {
 
 	c.writeChan = nil
 	if err != nil {
-		return 0, err
+		return 0, attError(err)
 	}
 
 	return len(p), nil
@@ -297,7 +297,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 
 	if err != nil {
 		c.callback = nil
-		return err
+		return attError(err)
 	}
 
 	// Clear callback after confirmed disable.
@@ -323,7 +323,7 @@ func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
 	case err := <-c.readChan:
 		c.readChan = nil
 		if err != nil {
-			return 0, err
+			return 0, attError(err)
 		}
 	case <-time.NewTimer(10 * time.Second).C:
 		c.readChan = nil
