@@ -20,6 +20,9 @@ type Adapter struct {
 	// by device ID.
 	disconnectListeners map[string]js.Func
 
+	// notifying holds the characteristics that have a value change listener.
+	notifying map[*deviceCharacteristic]struct{}
+
 	scanning bool
 
 	// RequestedServices is the list of service UUIDs to give as
@@ -54,6 +57,7 @@ func (a *Adapter) Enable() error {
 	if a.devices == nil {
 		a.devices = map[string]js.Value{}
 		a.disconnectListeners = map[string]js.Func{}
+		a.notifying = map[*deviceCharacteristic]struct{}{}
 	}
 	return nil
 }
@@ -65,6 +69,9 @@ func (a *Adapter) Enable() error {
 func (a *Adapter) Reset() error {
 	// Remove the listeners before the disconnect, so that no event arrives
 	// after the release of the JS function.
+	for c := range a.notifying {
+		c.stopListening()
+	}
 	for id, listener := range a.disconnectListeners {
 		if device, ok := a.devices[id]; ok {
 			device.Call("removeEventListener", "gattserverdisconnected", listener)
@@ -81,8 +88,8 @@ func (a *Adapter) Reset() error {
 	}
 
 	a.bluetooth = js.Undefined()
-	a.devices = nil
-	a.disconnectListeners = nil
+	clear(a.devices)
+	clear(a.disconnectListeners)
 	a.scanning = false
 	return nil
 }

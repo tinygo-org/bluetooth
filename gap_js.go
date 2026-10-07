@@ -37,8 +37,9 @@ var _ GAPDevice = Device{}
 type Device struct {
 	Address Address
 
-	device js.Value // BluetoothDevice
-	server js.Value // BluetoothRemoteGATTServer
+	adapter *Adapter
+	device  js.Value // BluetoothDevice
+	server  js.Value // BluetoothRemoteGATTServer
 }
 
 // Scan opens the device picker of the browser and calls the callback one time
@@ -141,6 +142,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 	d := Device{
 		Address: address,
+		adapter: a,
 		device:  jsDevice,
 		server:  server,
 	}
@@ -163,6 +165,7 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 	listener = js.FuncOf(func(this js.Value, args []js.Value) any {
 		device := Device{
 			Address: d.Address,
+			adapter: a,
 			device:  d.device,
 			server:  d.device.Get("gatt"),
 		}
@@ -170,6 +173,10 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 		d.device.Call("removeEventListener", "gattserverdisconnected", listener)
 		listener.Release()
 		delete(a.disconnectListeners, deviceID)
+
+		// The browser drops the characteristics of the device.
+		// https://webbluetoothcg.github.io/web-bluetooth/#clean-up-the-disconnected-device
+		a.stopListening(deviceID)
 
 		// A blocked JS callback stops the event loop, and every method in
 		// this package waits for a promise. See syscall/js.FuncOf.

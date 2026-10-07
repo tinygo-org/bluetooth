@@ -164,7 +164,6 @@ type deviceCharacteristic struct {
 	service        DeviceService
 	characteristic js.Value // BluetoothRemoteGATTCharacteristic
 	listener       js.Func
-	listening      bool
 }
 
 // UUID returns the UUID for this DeviceCharacteristic.
@@ -249,7 +248,7 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 		return nil
 	})
 	c.characteristic.Call("addEventListener", "characteristicvaluechanged", c.listener)
-	c.listening = true
+	c.service.device.adapter.notifying[c.deviceCharacteristic] = struct{}{}
 
 	if _, err := await(c.characteristic.Call("startNotifications")); err != nil {
 		c.stopListening()
@@ -260,13 +259,23 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 
 // stopListening removes the value change listener and releases the JS function.
 func (c *deviceCharacteristic) stopListening() {
-	if !c.listening {
+	notifying := c.service.device.adapter.notifying
+	if _, ok := notifying[c]; !ok {
 		return
 	}
 	c.characteristic.Call("removeEventListener", "characteristicvaluechanged", c.listener)
 	c.listener.Release()
 	c.listener = js.Func{}
-	c.listening = false
+	delete(notifying, c)
+}
+
+// stopListening releases the value change listeners of a device.
+func (a *Adapter) stopListening(deviceID string) {
+	for c := range a.notifying {
+		if c.service.device.Address.ID == deviceID {
+			c.stopListening()
+		}
+	}
 }
 
 // GetMTU returns the MTU for the characteristic.
