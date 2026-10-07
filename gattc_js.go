@@ -310,7 +310,7 @@ func jsError(reason js.Value) error {
 			message: reason.Get("message").String(),
 		}
 	}
-	return errors.New(reason.Call("toString").String())
+	return errors.New(js.Global().Get("String").Invoke(reason).String())
 }
 
 // uint8Array wraps a DataView in a Uint8Array over the same bytes.
