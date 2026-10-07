@@ -47,9 +47,26 @@ func (a *Adapter) Enable() error {
 	if navigator.IsUndefined() {
 		return errors.New("bluetooth: navigator is not available")
 	}
+
+	// navigator.bluetooth only exists in a secure context.
+	// https://webbluetoothcg.github.io/web-bluetooth/#navigator-extensions
+	if secure := js.Global().Get("isSecureContext"); secure.Type() == js.TypeBoolean && !secure.Bool() {
+		return errors.New("bluetooth: WebBluetooth needs a secure context, such as HTTPS or localhost")
+	}
+
 	bt := navigator.Get("bluetooth")
 	if bt.IsUndefined() {
 		return errors.New("bluetooth: WebBluetooth is not supported in this browser")
+	}
+
+	// This is false without an adapter, or when a policy blocks WebBluetooth.
+	// https://webbluetoothcg.github.io/web-bluetooth/#dom-bluetooth-getavailability
+	available, err := await(bt.Call("getAvailability"))
+	if err != nil {
+		return err
+	}
+	if !available.Truthy() {
+		return errors.New("bluetooth: no adapter, or the browser blocks WebBluetooth")
 	}
 	a.bluetooth = bt
 
