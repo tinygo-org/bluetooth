@@ -35,7 +35,7 @@ const maxAttributeValueLength = 512
 // The browser only returns a service that is in Adapter.RequestedServices.
 func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if d.server.IsUndefined() {
-		return nil, errors.New("bluetooth: not connected")
+		return nil, errNotConnected
 	}
 
 	if len(uuids) == 0 {

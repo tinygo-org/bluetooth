@@ -36,6 +36,8 @@ var _ GAPDevice = Device{}
 // ErrScanCanceled is the error from Scan when the user closes the device picker.
 var ErrScanCanceled = errors.New("bluetooth: the user closed the device picker")
 
+var errNotConnected = errors.New("bluetooth: not connected")
+
 // Device is a connection to a remote peripheral via WebBluetooth.
 type Device struct {
 	Address Address
@@ -198,9 +200,10 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 
 // Disconnect from the BLE device.
 func (d Device) Disconnect() error {
-	if !d.server.IsUndefined() && d.server.Get("connected").Bool() {
-		d.server.Call("disconnect")
+	if d.server.IsUndefined() || !d.server.Get("connected").Bool() {
+		return errNotConnected
 	}
+	d.server.Call("disconnect")
 	return nil
 }
 
