@@ -37,8 +37,10 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 
 	d.prph.DiscoverServices(cbuuids)
 
-	// clear cache of services
-	d.services = make(map[UUID]DeviceService)
+	// Keep services found by earlier calls, the delegate routes callbacks through this map.
+	if d.services == nil {
+		d.services = make(map[UUID]DeviceService)
+	}
 
 	// wait on channel for service discovery
 	select {
@@ -84,6 +86,9 @@ type uuidWrapper = UUID
 
 // Small helper to create a DeviceService object.
 func (d Device) makeService(dsvcuuid uuidWrapper, dsvc cbgo.Service) DeviceService {
+	if svc, ok := d.services[dsvcuuid]; ok && svc.service == dsvc {
+		return svc
+	}
 	svc := DeviceService{
 		deviceService: &deviceService{
 			uuidWrapper: dsvcuuid,
@@ -136,9 +141,6 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 
 	s.device.prph.DiscoverCharacteristics(cbuuids, s.service)
 
-	// clear cache of characteristics
-	s.characteristics = make([]DeviceCharacteristic, 0)
-
 	// wait on channel for characteristic discovery
 	select {
 	case <-s.device.charsChan:
@@ -185,6 +187,12 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 
 // Small helper to create a DeviceCharacteristic object.
 func (s DeviceService) makeCharacteristic(uuid UUID, dchar cbgo.Characteristic) DeviceCharacteristic {
+	// Reuse the existing object so its callback and pending operations keep working.
+	for _, char := range s.characteristics {
+		if char.characteristic == dchar {
+			return char
+		}
+	}
 	char := DeviceCharacteristic{
 		deviceCharacteristic: &deviceCharacteristic{
 			uuidWrapper:    uuid,
