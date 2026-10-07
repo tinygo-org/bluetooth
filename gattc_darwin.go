@@ -302,7 +302,9 @@ func (c DeviceCharacteristic) EnableNotifications(callback func(buf []byte)) err
 
 // GetMTU returns the MTU for the characteristic.
 func (c DeviceCharacteristic) GetMTU() (uint16, error) {
-	return uint16(c.service.device.prph.MaximumWriteValueLength(false)), nil
+	// CoreBluetooth only exposes the largest Write Command value, which is ATT_MTU minus 3 and at most 512.
+	// Core Specification 5.4, Vol 3, Part F, 3.4.5.3 and 3.2.9.
+	return uint16(c.service.device.prph.MaximumWriteValueLength(false)) + 3, nil
 }
 
 // Read reads the current characteristic value.
