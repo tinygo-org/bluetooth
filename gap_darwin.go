@@ -226,12 +226,12 @@ func (pd *peripheralDelegate) DidUpdateValueForCharacteristic(prph cbgo.Peripher
 		for _, char := range svc.characteristics {
 
 			if char.characteristic == chr && uuid == char.UUID() { // compare pointers
-				if err == nil && char.callback != nil {
-					char.callback(chr.Value())
-				}
-
+				// Reads and notifications both arrive here, so a pending read takes the update.
+				// https://developer.apple.com/documentation/corebluetooth/cbperipheraldelegate/peripheral(_:didupdatevaluefor:error:)-1xyna
 				if char.readChan != nil {
 					char.readChan <- err
+				} else if err == nil && char.callback != nil {
+					char.callback(chr.Value())
 				}
 			}
 
