@@ -52,7 +52,7 @@ func enable(this js.Value, args []js.Value) any {
 }
 
 // requestDevice opens the device picker and returns a Promise for an object
-// with the id and the name of the device that the user selects.
+// with the id and the name of the device that the user selects, or null.
 func requestDevice(this js.Value, args []js.Value) any {
 	var wanted []string
 	if list := arg(args, 0); list.Type() == js.TypeObject {
@@ -79,6 +79,9 @@ func requestDevice(this js.Value, args []js.Value) any {
 			result = r
 			a.StopScan()
 		})
+		if errors.Is(err, bluetooth.ErrScanCanceled) {
+			return nil, nil
+		}
 		if err != nil {
 			return nil, err
 		}

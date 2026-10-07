@@ -68,7 +68,7 @@ Every function returns a Promise. A function that JavaScript calls must not bloc
 | Function | Result |
 | --- | --- |
 | `ble.enable()` | Prepares the adapter. |
-| `ble.requestDevice(serviceUUIDs)` | Opens the device picker. Gives `{id, name}` for the device that the user selects. |
+| `ble.requestDevice(serviceUUIDs)` | Opens the device picker. Gives `{id, name}` for the device that the user selects, or `null` if the user closes the picker. |
 | `ble.connect(id)` | Connects to the device with that id. |
 | `ble.disconnect()` | Closes the connection. |
 | `ble.read(service, characteristic)` | Gives the value as a `Uint8Array`. |
@@ -83,6 +83,7 @@ Give every service that the page uses to `requestDevice`. The browser refuses ac
 globalThis.onBleReady = async () => {
 	await ble.enable();
 	const device = await ble.requestDevice(["0000180a-0000-1000-8000-00805f9b34fb"]);
+	if (!device) return;
 	await ble.connect(device.id);
 	console.log(await ble.readString(
 		"0000180a-0000-1000-8000-00805f9b34fb",

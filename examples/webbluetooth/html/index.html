@@ -102,6 +102,11 @@
                 const wanted = [DEVICE_INFO, $("notifyService").value.trim()].filter(Boolean);
                 log("Opening the device picker…");
                 const device = await ble.requestDevice(wanted);
+                if (!device) {
+                    log("No device selected.");
+                    $("connect").disabled = false;
+                    return;
+                }
                 log(`Selected ${device.name || "unnamed device"} (${device.id})`);
 
                 await ble.connect(device.id);
