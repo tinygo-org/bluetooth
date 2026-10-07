@@ -14,14 +14,8 @@ var (
 // struct method of the same name.
 type uuidWrapper = UUID
 
-// maxAttributeValueLength is the maximum length of an attribute value.
-//
-// The writeValue method of the Web Bluetooth specification rejects a longer
-// value: https://webbluetoothcg.github.io/web-bluetooth/#writecharacteristicvalue
-//
-//	If bytes is more than 512 bytes long (the maximum length of an attribute value,
-//	per Long Attribute Values) return a promise rejected with an "InvalidModificationError"
-//	DOMException and abort these steps.
+// maxAttributeValueLength is the longest value that writeValue accepts.
+// https://webbluetoothcg.github.io/web-bluetooth/#writecharacteristicvalue
 const maxAttributeValueLength = 512
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
