@@ -10,6 +10,7 @@ import "C"
 import (
 	"device/arm"
 	"errors"
+	"io"
 	"runtime/volatile"
 	"unsafe"
 )
@@ -457,7 +458,11 @@ func (c DeviceCharacteristic) Read(data []byte) (n int, err error) {
 	readingCharacteristic.handle_value.Set(0)
 	readingCharacteristic.length = 0
 
-	return
+	// The event handler copied only what fits in data.
+	if n > len(data) {
+		return len(data), io.ErrShortBuffer
+	}
+	return n, nil
 }
 
 // GetMTU returns the MTU for the characteristic.
