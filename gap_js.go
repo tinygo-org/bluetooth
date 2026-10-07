@@ -173,6 +173,8 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 
 	var listener js.Func
 	listener = js.FuncOf(func(this js.Value, args []js.Value) any {
+		defer listener.Release()
+
 		device := Device{
 			Address: d.Address,
 			adapter: a,
@@ -181,7 +183,6 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 		}
 
 		d.device.Call("removeEventListener", "gattserverdisconnected", listener)
-		listener.Release()
 		delete(a.disconnectListeners, deviceID)
 
 		// The browser drops the characteristics of the device.
