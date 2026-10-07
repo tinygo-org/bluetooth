@@ -33,6 +33,9 @@ func (ad Address) String() string {
 
 var _ GAPDevice = Device{}
 
+// ErrScanCanceled is the error from Scan when the user closes the device picker.
+var ErrScanCanceled = errors.New("bluetooth: the user closed the device picker")
+
 // Device is a connection to a remote peripheral via WebBluetooth.
 type Device struct {
 	Address Address
@@ -46,7 +49,7 @@ type Device struct {
 // with the device that the user selects.
 //
 // WebBluetooth has no continuous scan. Scan returns after the user selects a
-// device, and returns an error if the user closes the picker.
+// device, and returns ErrScanCanceled if the user closes the picker.
 //
 // requestDevice gives only the id and the name of the device, so the scan
 // result has an RSSI of 0 and a payload with only the local name.
@@ -81,6 +84,11 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 
 	promise := a.bluetooth.Call("requestDevice", options)
 	jsDevice, err := await(promise)
+	if isDOMError(err, "NotFoundError") {
+		// Enable checks the availability, so this means that the user chose no device.
+		// https://webbluetoothcg.github.io/web-bluetooth/#dom-bluetooth-requestdevice
+		return ErrScanCanceled
+	}
 	if err != nil {
 		return err
 	}

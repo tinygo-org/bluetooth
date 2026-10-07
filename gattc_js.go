@@ -289,10 +289,32 @@ func (c DeviceCharacteristic) GetMTU() (uint16, error) {
 	return maxAttributeValueLength, nil
 }
 
+// domError is a DOMException, or another JS Error, from a rejected Promise.
+type domError struct {
+	name    string
+	message string
+}
+
+func (e *domError) Error() string {
+	return e.name + ": " + e.message
+}
+
+// isDOMError reports whether err is a DOMException with the given name.
+func isDOMError(err error, name string) bool {
+	e, ok := err.(*domError)
+	return ok && e.name == name
+}
+
 // jsError converts the reason of a rejected Promise into an error.
 func jsError(reason js.Value) error {
 	if reason.IsUndefined() || reason.IsNull() {
 		return errors.New("bluetooth: promise rejected without a reason")
+	}
+	if reason.Type() == js.TypeObject && reason.Get("name").Type() == js.TypeString {
+		return &domError{
+			name:    reason.Get("name").String(),
+			message: reason.Get("message").String(),
+		}
 	}
 	return errors.New(reason.Call("toString").String())
 }
