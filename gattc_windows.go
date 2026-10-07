@@ -447,8 +447,7 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, err
 	}
 
-	copy(data, readBuffer)
-	return len(readBuffer), nil
+	return copyValue(data, readBuffer)
 }
 
 // EnableNotifications enables notifications or indicate in the Client Characteristic

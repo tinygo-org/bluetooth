@@ -2,7 +2,10 @@
 
 package bluetooth
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
 
 var (
 	// ErrServiceNotFound is returned by DiscoverServices when a requested service is not on the device.
@@ -31,7 +34,8 @@ type GATTCCharacteristic interface {
 	// UUID returns the UUID for this DeviceCharacteristic.
 	UUID() UUID
 
-	// Read reads the current characteristic value.
+	// Read reads the current characteristic value into data. It returns the number of
+	// bytes copied, and io.ErrShortBuffer when the value is longer than data.
 	Read(data []byte) (int, error)
 
 	// Write replaces the characteristic value with a new value.
@@ -48,4 +52,13 @@ type GATTCCharacteristic interface {
 
 	// GetMTU returns the MTU for this characteristic.
 	GetMTU() (uint16, error)
+}
+
+// copyValue copies a characteristic value into data and reports truncation.
+func copyValue(data, value []byte) (int, error) {
+	n := copy(data, value)
+	if n < len(value) {
+		return n, io.ErrShortBuffer
+	}
+	return n, nil
 }

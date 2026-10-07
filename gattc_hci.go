@@ -341,7 +341,5 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 		return 0, errReadFailed
 	}
 
-	copy(data, cd.Value)
-
-	return len(cd.Value), nil
+	return copyValue(data, cd.Value)
 }

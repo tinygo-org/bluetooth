@@ -325,6 +325,5 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	copy(data, result)
-	return len(result), nil
+	return copyValue(data, result)
 }

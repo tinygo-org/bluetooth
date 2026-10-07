@@ -330,6 +330,5 @@ func (c *deviceCharacteristic) Read(data []byte) (n int, err error) {
 		return 0, errors.New("timeout on Read()")
 	}
 
-	copy(data, c.characteristic.Value())
-	return len(c.characteristic.Value()), nil
+	return copyValue(data, c.characteristic.Value())
 }
