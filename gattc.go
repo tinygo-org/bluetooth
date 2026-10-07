@@ -2,6 +2,16 @@
 
 package bluetooth
 
+import "errors"
+
+var (
+	// ErrServiceNotFound is returned by DiscoverServices when a requested service is not on the device.
+	ErrServiceNotFound = errors.New("bluetooth: service not found")
+
+	// ErrCharacteristicNotFound is returned by DiscoverCharacteristics when a requested characteristic is not in the service.
+	ErrCharacteristicNotFound = errors.New("bluetooth: characteristic not found")
+)
+
 // GATTCService is the common interface that all platform-specific
 // DeviceService types must implement.
 type GATTCService interface {
@@ -10,8 +20,8 @@ type GATTCService interface {
 
 	// DiscoverCharacteristics discovers characteristics in this service.
 	// Pass a list of characteristic UUIDs you are interested in to this
-	// function. Either a list of all requested services is returned, or if
-	// some services could not be discovered an error is returned.
+	// function. Either all requested characteristics are returned, or
+	// ErrCharacteristicNotFound if one of them is not in the service.
 	DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error)
 }
 

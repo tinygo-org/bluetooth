@@ -69,7 +69,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		}
 
 		if slices.Contains(svcs, (DeviceService{})) {
-			return nil, errors.New("bluetooth: did not find all requested services")
+			return nil, ErrServiceNotFound
 		}
 
 		return svcs, nil
@@ -174,7 +174,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		}
 		for _, char := range chars {
 			if char == (DeviceCharacteristic{}) {
-				return nil, errors.New("bluetooth: did not find all requested characteristic")
+				return nil, ErrCharacteristicNotFound
 			}
 		}
 		return chars, nil
