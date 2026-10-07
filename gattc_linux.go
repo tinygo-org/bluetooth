@@ -125,7 +125,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	}
 
 	if servicesFound < len(uuids) {
-		return nil, errors.New("bluetooth: could not find some services")
+		return nil, ErrServiceNotFound
 	}
 
 	return services, nil
@@ -215,7 +215,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	// Check that we have found all characteristics.
 	for _, char := range chars {
 		if char == (DeviceCharacteristic{}) {
-			return nil, errors.New("bluetooth: could not find some characteristics")
+			return nil, ErrCharacteristicNotFound
 		}
 	}
 

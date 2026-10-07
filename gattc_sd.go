@@ -131,7 +131,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		if startHandle == 0 {
 			// The event handler will set the start handle to zero if the
 			// service was not found.
-			return nil, errNotFound
+			return nil, ErrServiceNotFound
 		}
 
 		// Store the discovered service.
@@ -311,7 +311,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	}
 
 	if len(uuids) > 0 && numFound != len(uuids) {
-		return nil, errNotFound
+		return nil, ErrCharacteristicNotFound
 	}
 
 	return characteristics, nil

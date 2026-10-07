@@ -113,6 +113,7 @@ type Connection uint16
 
 // GAPDevice is the shared interface that all platform-specific Device types must implement.
 type GAPDevice interface {
+	// DiscoverServices returns ErrServiceNotFound if a requested service is not on the device.
 	DiscoverServices(uuids []UUID) ([]DeviceService, error)
 	RequestConnectionParams(params ConnectionParams) error
 	Connected() (bool, error)

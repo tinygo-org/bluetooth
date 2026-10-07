@@ -17,8 +17,6 @@ var (
 	errReadFailed                = errors.New("bluetooth: read failed")
 	errNoNotify                  = errors.New("bluetooth: notify/indicate not permitted")
 	errEnableNotificationsFailed = errors.New("bluetooth: enable notifications failed")
-	errServiceNotFound           = errors.New("bluetooth: service not found")
-	errCharacteristicNotFound    = errors.New("bluetooth: characteristic not found")
 )
 
 var (
@@ -124,7 +122,7 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 		for _, uuid := range uuids {
 			s, ok := foundServices[uuid]
 			if !ok {
-				return nil, errServiceNotFound
+				return nil, ErrServiceNotFound
 			}
 
 			services = append(services, s)
@@ -231,7 +229,7 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 		for _, uuid := range uuids {
 			c, ok := foundCharacteristics[uuid]
 			if !ok {
-				return nil, errCharacteristicNotFound
+				return nil, ErrCharacteristicNotFound
 			}
 			characteristics = append(characteristics, c)
 		}
