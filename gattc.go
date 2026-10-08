@@ -21,6 +21,8 @@ type GATTCCharacteristic interface {
 	// UUID returns the UUID for this DeviceCharacteristic.
 	UUID() UUID
 
+	Permissions() CharacteristicPermissions
+
 	// Read reads the current characteristic value.
 	Read(data []byte) (int, error)
 
