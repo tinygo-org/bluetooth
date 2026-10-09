@@ -629,8 +629,13 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 }
 
 // ConnectionPriority tells the platform how to optimize a connection.
-// Windows accepts only these presets and not explicit parameters:
-// https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothlepreferredconnectionparameters
+//
+// Support on each platform:
+//   - Windows: TODO(#473)
+//   - Nordic SoftDevice: TODO(#474)
+//   - Linux, macOS and Web Bluetooth: no effect, because they have no API to
+//     change the connection parameters.
+//   - HCI: no effect yet.
 type ConnectionPriority uint8
 
 const (
