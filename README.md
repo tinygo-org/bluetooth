@@ -6,7 +6,7 @@
 
 Go Bluetooth is a cross-platform package for using [Bluetooth Low Energy](https://en.wikipedia.org/wiki/Bluetooth_Low_Energy) hardware from the Go programming language. 
 
-It works on typical operating systems such as [Linux](#linux), [macOS](#macos), and [Windows](#windows). 
+It works on typical operating systems such as [Linux](#linux), [macOS](#macos), and [Windows](#windows). It also works in the browser with [WASM](#wasm). 
 
 By using [TinyGo](https://tinygo.org/), it can also be used running "bare metal" on microcontrollers produced by [Nordic Semiconductor](https://www.nordicsemi.com/), on the [Espressif](https://www.espressif.com/) ESP32-C3 and ESP32-S3 with their onboard radio, or on boards that have a Bluetooth co-processor that uses the [Bluetooth Host Controller Interface (HCI)](https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-54/out/en/host-controller-interface/host-controller-interface-functional-specification.html).
 
@@ -107,17 +107,17 @@ func must(action string, err error) {
 
 ## Current support
 
-|                                  | Linux              | macOS              | Windows            | Nordic Semi        | ESP32 (NINA-FW)    | CYW43439 (RP2040-W) | ESP32-C3/S3 (espradio) |
-| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ | ------------------- | ---------------------- |
-| API used                         | BlueZ              | CoreBluetooth      | WinRT              | SoftDevice         | HCI         	    | HCI                 | HCI                    |
-| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
-| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
-| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
-| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
-| Advertisement                    | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
-| Local services                   | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
-| Local characteristics            | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
-| Send notifications               | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+|                                  | Linux              | macOS              | Windows            | WASM               | Nordic Semi        | ESP32 (NINA-FW)    | CYW43439 (RP2040-W) | ESP32-C3/S3 (espradio) |
+| -------------------------------- | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ | ------------------ | ------------------- | ---------------------- |
+| API used                         | BlueZ              | CoreBluetooth      | WinRT              | WebBluetooth       | SoftDevice         | HCI         	    | HCI                 | HCI                    |
+| Scanning                         | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Connect to peripheral            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Write peripheral characteristics | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Receive notifications            | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Advertisement                    | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Local services                   | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Local characteristics            | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
+| Send notifications               | :heavy_check_mark: | :x:                | :heavy_check_mark: | :x:                | :heavy_check_mark: | :heavy_check_mark: | :heavy_check_mark:  | :heavy_check_mark:     |
 
 ## Linux
 
@@ -190,6 +190,31 @@ After you have followed the installation, you should be able to compile/run the 
 
 	cd bluetooth
 	go run .\examples\scanner
+
+## WASM
+
+Go Bluetooth support for the browser uses the [Web Bluetooth API](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API). Chrome and Edge support this API. See the [browser compatibility table](https://developer.mozilla.org/en-US/docs/Web/API/Web_Bluetooth_API#browser_compatibility).
+
+WASM can only act as a BLE Central. The Web Bluetooth API has no peripheral role.
+
+The API has some other limits that come from the browser:
+
+* `Scan` opens the device picker of the browser instead of a continuous scan. The callback runs one time, for the device that the user selects.
+* `Address` holds an opaque device ID instead of a MAC address.
+* You must put every service that you want to use in `Adapter.RequestedServices` before you call `Scan`.
+* The browser handles the security prompt, so the user must select the device.
+
+### Installation
+
+You can compile with [TinyGo](https://tinygo.org/getting-started/install/) or with the standard Go compiler.
+
+You can obtain the Go Bluetooth package using Git:
+
+	git clone https://github.com/tinygo-org/bluetooth.git
+
+### Compiling
+
+The "webbluetooth" example shows how to build and serve a page. See [examples/webbluetooth/README.md](./examples/webbluetooth/README.md) for the steps.
 
 ## Nordic Semiconductor
 
