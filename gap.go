@@ -632,7 +632,8 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 // ConnectionPriority tells the platform how to optimize a connection.
 //
 // Support on each platform:
-//   - Windows: TODO(#473)
+//   - Windows: Connect and RequestConnectionParams send it to a WinRT preset,
+//     on Windows 11 build 22000 or later.
 //   - Nordic SoftDevice: TODO(#474)
 //   - Linux, macOS and Web Bluetooth: no effect, because they have no API to
 //     change the connection parameters.
