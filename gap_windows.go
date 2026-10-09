@@ -366,6 +366,9 @@ func (s *connectionParamsState) close() {
 // Connect starts a connection attempt to the given peripheral device address.
 //
 // On Linux and Windows, the IsRandom part of the address is ignored.
+//
+// Windows requests params.Priority after the connection, and ignores an error.
+// Call RequestConnectionParams to see the error.
 func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, error) {
 	var winAddr uint64
 	for i := range address.MAC {
@@ -468,6 +471,12 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	if err != nil {
 		_ = handler.Release()
 		return device, err
+	}
+
+	// WinRT has no priority at connection time. The connection stays if this
+	// fails, as on the platforms that have no priority.
+	if params.Priority != ConnectionPriorityUnspecified {
+		_ = device.RequestConnectionParams(params)
 	}
 
 	return device, nil
