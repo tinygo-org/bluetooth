@@ -8,6 +8,7 @@ package bluetooth
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -26,6 +27,10 @@ type Adapter struct {
 	defaultAdvertisement *Advertisement
 
 	connectHandler func(device Device, connected bool)
+
+	// Devices with a goroutine waiting for the end of their connection.
+	connWatchMtx sync.Mutex
+	connWatched  map[dbus.ObjectPath]struct{}
 }
 
 // NewAdapter creates a new Adapter with the given ID.

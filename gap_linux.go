@@ -520,6 +520,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		}
 	}
 
+	a.watchDisconnect(device)
+
 	if a.connectHandler != nil {
 		a.connectHandler(device, true)
 	}
@@ -528,15 +530,72 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
-// wait until the connection is fully gone.
+// wait until the connection is fully gone. For a device returned by Connect,
+// the connect handler is called once BlueZ reports the connection as gone.
 func (d Device) Disconnect() error {
-	if d.adapter.connectHandler != nil {
+	// Devices from Connect have a watcher that reports the disconnect.
+	watched := d.adapter.watchingDisconnect(d.device.Path())
+
+	err := d.device.Call("org.bluez.Device1.Disconnect", 0).Err
+
+	if !watched && d.adapter.connectHandler != nil {
 		d.adapter.connectHandler(d, false)
 	}
+	return err
+}
 
-	// we don't call our cancel function here, instead we wait for the
-	// property change in `watchForConnect` and cancel things then
-	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err
+// watchDisconnect calls the connect handler when the Connected property of
+// the device becomes false, whether the disconnect is local or remote.
+func (a *Adapter) watchDisconnect(device Device) {
+	path := device.device.Path()
+
+	a.connWatchMtx.Lock()
+	if a.connWatched == nil {
+		a.connWatched = make(map[dbus.ObjectPath]struct{})
+	}
+	if _, ok := a.connWatched[path]; ok {
+		a.connWatchMtx.Unlock()
+		return
+	}
+	a.connWatched[path] = struct{}{}
+	a.connWatchMtx.Unlock()
+
+	bus := a.bus
+	signal := make(chan *dbus.Signal)
+	bus.Signal(signal)
+	bus.AddMatchSignal(matchOptionsPropertiesChanged...)
+
+	go func() {
+		defer func() {
+			bus.RemoveMatchSignal(matchOptionsPropertiesChanged...)
+			bus.RemoveSignal(signal)
+
+			a.connWatchMtx.Lock()
+			delete(a.connWatched, path)
+			a.connWatchMtx.Unlock()
+		}()
+
+		for sig := range signal {
+			if sig.Path != path {
+				continue
+			}
+			if connected, ok := connectedChange(sig); ok && !connected {
+				break
+			}
+		}
+
+		if a.connectHandler != nil {
+			a.connectHandler(device, false)
+		}
+	}()
+}
+
+// watchingDisconnect reports whether watchDisconnect is active for the device.
+func (a *Adapter) watchingDisconnect(path dbus.ObjectPath) bool {
+	a.connWatchMtx.Lock()
+	defer a.connWatchMtx.Unlock()
+	_, ok := a.connWatched[path]
+	return ok
 }
 
 // connectedChange returns the new value of the Device1 Connected property
