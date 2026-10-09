@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"errors"
+	"io"
 	"syscall/js"
 )
 
@@ -166,19 +167,18 @@ func (c DeviceCharacteristic) UUID() UUID {
 }
 
 // Read reads the current characteristic value.
-//
-// Read gives the length of the value, which can be more than the length of
-// data. The other backends do the same.
 func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	result, err := await(c.characteristic.Call("readValue"))
 	if err != nil {
 		return 0, err
 	}
 
-	// CopyBytesToGo copies the smaller of the two lengths.
 	buf := uint8Array(result)
-	js.CopyBytesToGo(data, buf)
-	return buf.Get("length").Int(), nil
+	n := js.CopyBytesToGo(data, buf)
+	if n < buf.Get("length").Int() {
+		return n, io.ErrShortBuffer
+	}
+	return n, nil
 }
 
 // Write replaces the characteristic value with a new value. The
