@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -628,6 +629,46 @@ func (buf *rawAdvertisementPayload) addServiceUUID(uuid UUID) (ok bool) {
 	}
 }
 
+// ConnectionPriority tells the platform how to optimize a connection.
+//
+// Support on each platform:
+//   - Windows: TODO(#473)
+//   - Nordic SoftDevice: TODO(#474)
+//   - Linux, macOS and Web Bluetooth: no effect, because they have no API to
+//     change the connection parameters.
+//   - HCI: no effect yet.
+type ConnectionPriority uint8
+
+const (
+	// ConnectionPriorityUnspecified does not change the connection parameters.
+	ConnectionPriorityUnspecified ConnectionPriority = iota
+
+	// ConnectionPriorityThroughput gives fast data transfer and high power use.
+	ConnectionPriorityThroughput
+
+	// ConnectionPriorityBalanced gives a balance of speed and power use.
+	ConnectionPriorityBalanced
+
+	// ConnectionPriorityPowerSaving gives low power use and slow data transfer.
+	ConnectionPriorityPowerSaving
+)
+
+// String returns the name of the priority.
+func (p ConnectionPriority) String() string {
+	switch p {
+	case ConnectionPriorityThroughput:
+		return "throughput"
+	case ConnectionPriorityBalanced:
+		return "balanced"
+	case ConnectionPriorityPowerSaving:
+		return "power-saving"
+	case ConnectionPriorityUnspecified:
+		return "unspecified"
+	default:
+		return "ConnectionPriority(" + strconv.Itoa(int(p)) + ")"
+	}
+}
+
 // ConnectionParams are used when connecting to a peripherals or when changing
 // the parameters of an active connection.
 type ConnectionParams struct {
@@ -646,6 +687,10 @@ type ConnectionParams struct {
 	// communication, the connection is considered lost. If no timeout is
 	// specified, the timeout will be unchanged.
 	Timeout Duration
+
+	// Priority is an alternative to MinInterval, MaxInterval and Timeout for the
+	// platforms that accept only a priority. Set all four for a portable request.
+	Priority ConnectionPriority
 }
 
 type PHY int
