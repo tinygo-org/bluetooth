@@ -7,6 +7,8 @@ import (
 
 var _ BLEAdapter = (*Adapter)(nil)
 
+var errNotEnabled = errors.New("bluetooth: adapter is not enabled, call Enable first")
+
 // Adapter represents the WebBluetooth adapter accessed via navigator.bluetooth.
 type Adapter struct {
 	bluetooth      js.Value

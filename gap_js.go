@@ -65,6 +65,9 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 	if callback == nil {
 		return errors.New("bluetooth: must provide callback to Scan function")
 	}
+	if a.bluetooth.IsUndefined() {
+		return errNotEnabled
+	}
 	if a.scanning {
 		return errScanning
 	}
