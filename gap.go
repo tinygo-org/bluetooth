@@ -2,6 +2,7 @@ package bluetooth
 
 import (
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -661,8 +662,10 @@ func (p ConnectionPriority) String() string {
 		return "balanced"
 	case ConnectionPriorityPowerSaving:
 		return "power-saving"
-	default:
+	case ConnectionPriorityUnspecified:
 		return "unspecified"
+	default:
+		return "ConnectionPriority(" + strconv.Itoa(int(p)) + ")"
 	}
 }
 
