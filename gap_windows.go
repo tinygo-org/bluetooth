@@ -618,8 +618,10 @@ func connectionParamsRequestStatusString(status bluetooth.BluetoothLEPreferredCo
 		return "device not available"
 	case bluetooth.BluetoothLEPreferredConnectionParametersRequestStatusAccessDenied:
 		return "access denied"
-	default:
+	case bluetooth.BluetoothLEPreferredConnectionParametersRequestStatusUnspecified:
 		return "unspecified"
+	default:
+		return fmt.Sprintf("BluetoothLEPreferredConnectionParametersRequestStatus(%d)", status)
 	}
 }
 
