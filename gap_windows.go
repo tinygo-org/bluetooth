@@ -587,11 +587,21 @@ func preferredConnectionParameters(priority ConnectionPriority) (*bluetooth.Blue
 	default:
 		return nil, fmt.Errorf("bluetooth: unknown connection priority %d", priority)
 	}
-	if err != nil {
+	if isClassNotRegistered(err) {
 		// Windows 10 does not have the activation factory for these presets.
 		return nil, fmt.Errorf("bluetooth: connection priorities need Windows 11 build 22000 or later: %w", err)
 	}
+	if err != nil {
+		return nil, err
+	}
 	return preferred, nil
+}
+
+// isClassNotRegistered reports whether err is REGDB_E_CLASSNOTREG (0x80040154).
+// https://learn.microsoft.com/en-us/windows/win32/com/com-error-codes-1
+func isClassNotRegistered(err error) bool {
+	var oleErr *ole.OleError
+	return errors.As(err, &oleErr) && uint32(oleErr.Code()) == 0x80040154
 }
 
 // discardConnectionParamsRequest closes a request that the device does not keep.
