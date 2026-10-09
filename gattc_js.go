@@ -36,6 +36,11 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	if len(uuids) == 0 {
 		// Get all primary services.
 		result, err := await(d.server.Call("getPrimaryServices"))
+		if isDOMError(err, "NotFoundError") {
+			// The browser rejects an empty result.
+			// https://webbluetoothcg.github.io/web-bluetooth/#getgattchildren
+			return nil, nil
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -63,6 +68,9 @@ func (d Device) DiscoverServices(uuids []UUID) ([]DeviceService, error) {
 	services := make([]DeviceService, len(uuids))
 	for i, uuid := range uuids {
 		result, err := await(d.server.Call("getPrimaryService", uuid.String()))
+		if isDOMError(err, "NotFoundError") {
+			return nil, ErrServiceNotFound
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -107,6 +115,9 @@ func (s DeviceService) UUID() UUID {
 func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteristic, error) {
 	if len(uuids) == 0 {
 		result, err := await(s.service.Call("getCharacteristics"))
+		if isDOMError(err, "NotFoundError") {
+			return nil, nil
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -133,6 +144,9 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	chars := make([]DeviceCharacteristic, len(uuids))
 	for i, uuid := range uuids {
 		result, err := await(s.service.Call("getCharacteristic", uuid.String()))
+		if isDOMError(err, "NotFoundError") {
+			return nil, ErrCharacteristicNotFound
+		}
 		if err != nil {
 			return nil, err
 		}
