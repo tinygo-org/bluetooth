@@ -1,3 +1,5 @@
+//go:build js
+
 // This example gives the WebBluetooth backend to the page as a small
 // JavaScript API. The page in html/index.html does all of the display work.
 //
