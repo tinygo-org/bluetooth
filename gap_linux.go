@@ -506,8 +506,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 						if sig.Path != device.device.Path() {
 							continue
 						}
-						changes := sig.Body[1].(map[string]dbus.Variant)
-						if connected, ok := changes["Connected"].Value().(bool); ok && connected {
+						if connected, ok := connectedChange(sig); ok && connected {
 							close(connectChan)
 						}
 					}
@@ -538,6 +537,23 @@ func (d Device) Disconnect() error {
 	// we don't call our cancel function here, instead we wait for the
 	// property change in `watchForConnect` and cancel things then
 	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err
+}
+
+// connectedChange returns the new value of the Device1 Connected property
+// carried by a PropertiesChanged signal. ok is false for any other signal.
+func connectedChange(sig *dbus.Signal) (connected bool, ok bool) {
+	if sig.Name != dbusSignalPropertiesChanged {
+		return false, false
+	}
+	if interfaceName, ok := sig.Body[dbusPropertiesChangedInterfaceName].(string); !ok || interfaceName != bluezDevice1Interface {
+		return false, false
+	}
+	changes, ok := sig.Body[dbusPropertiesChangedDictionary].(map[string]dbus.Variant)
+	if !ok {
+		return false, false
+	}
+	connected, ok = changes[bluezDevice1Connected].Value().(bool)
+	return connected, ok
 }
 
 // Connected returns whether the device is currently connected.
@@ -613,20 +629,8 @@ func (a *Advertisement) handleDBusSignals() {
 					a.adapter.connectHandler(device, connected)
 				}
 			case dbusSignalPropertiesChanged:
-				// Skip any signals that are not the Device1 interface.
-				if interfaceName, ok := sig.Body[dbusPropertiesChangedInterfaceName].(string); !ok || interfaceName != bluezDevice1Interface {
-					continue
-				}
-
-				// Get all changed properties and skip any signals that are not
-				// compliant with the Device1 interface.
-				changes, ok := sig.Body[dbusPropertiesChangedDictionary].(map[string]dbus.Variant)
-				if !ok {
-					continue
-				}
-
 				// Call the connect handler if the Connected property has changed.
-				if connected, ok := changes[bluezDevice1Connected].Value().(bool); ok {
+				if connected, ok := connectedChange(sig); ok {
 					// The only property received is the changed property "Connected",
 					// so we have to get the other properties from D-Bus.
 					var props map[string]dbus.Variant
