@@ -680,8 +680,8 @@ type ConnectionParams struct {
 	// specified, the timeout will be unchanged.
 	Timeout Duration
 
-	// Priority is an alternative to the fields above. Platforms that do not
-	// accept explicit parameters use it. Set both to make a portable request.
+	// Priority is an alternative to MinInterval, MaxInterval and Timeout for the
+	// platforms that accept only a priority. Set all four for a portable request.
 	Priority ConnectionPriority
 }
 
