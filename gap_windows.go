@@ -339,25 +339,28 @@ type Device struct {
 	connParams                    *connectionParamsState
 }
 
+var errDeviceNotConnected = errors.New("bluetooth: device is not connected")
+
 // connectionParamsState keeps the open connection parameters request.
 // Windows applies the request only while the object is open:
 // https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.bluetoothledevice.requestpreferredconnectionparameters
 type connectionParamsState struct {
 	mu      sync.Mutex
 	request *bluetooth.BluetoothLEPreferredConnectionParametersRequest
+	closed  bool
 }
 
-// replace closes the open request and then keeps the new one.
-// A nil request only closes the open request and restores the system defaults.
-func (s *connectionParamsState) replace(request *bluetooth.BluetoothLEPreferredConnectionParametersRequest) {
+// close closes the open request, which restores the system defaults. A request
+// after this gets an error.
+func (s *connectionParamsState) close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	s.closed = true
 	if s.request != nil {
-		_ = s.request.Close()
-		s.request.Release()
+		discardConnectionParamsRequest(s.request)
+		s.request = nil
 	}
-	s.request = request
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
@@ -483,7 +486,7 @@ func (d Device) Disconnect() error {
 
 	// Close the request while the device is still open.
 	if d.connParams != nil {
-		d.connParams.replace(nil)
+		d.connParams.close()
 	}
 
 	if err := d.session.Close(); err != nil {
@@ -523,7 +526,14 @@ func (d Device) RequestConnectionParams(params ConnectionParams) error {
 		return nil
 	}
 	if d.device == nil || d.connParams == nil {
-		return errors.New("bluetooth: device is not connected")
+		return errDeviceNotConnected
+	}
+
+	// Disconnect waits for the lock, so the device stays open during the request.
+	d.connParams.mu.Lock()
+	defer d.connParams.mu.Unlock()
+	if d.connParams.closed {
+		return errDeviceNotConnected
 	}
 
 	preferred, err := preferredConnectionParameters(params.Priority)
@@ -550,8 +560,12 @@ func (d Device) RequestConnectionParams(params ConnectionParams) error {
 			connectionParamsRequestStatusString(status))
 	}
 
-	// Keep the request. Windows applies it only while the object is open.
-	d.connParams.replace(request)
+	// Keep the request and close the previous one. Windows applies a request
+	// only while the object is open.
+	if d.connParams.request != nil {
+		discardConnectionParamsRequest(d.connParams.request)
+	}
+	d.connParams.request = request
 
 	return nil
 }
