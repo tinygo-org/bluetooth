@@ -73,6 +73,7 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 	if err != nil {
 		return err
 	}
+	defer vec.Release()
 
 	for _, optManData := range options.ManufacturerData {
 		writer, err := streams.NewDataWriter()
@@ -90,11 +91,13 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		if err != nil {
 			return err
 		}
+		defer buf.Release()
 
 		manData, err := advertisement.BluetoothLEManufacturerDataCreate(optManData.CompanyID, buf)
 		if err != nil {
 			return err
 		}
+		defer manData.Release()
 
 		if err = vec.Append(unsafe.Pointer(&manData.IUnknown.RawVTable)); err != nil {
 			return err
