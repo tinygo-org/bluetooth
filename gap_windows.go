@@ -14,6 +14,7 @@ import (
 	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/advertisement"
 	"github.com/saltosystems/winrt-go/windows/devices/bluetooth/genericattributeprofile"
 	"github.com/saltosystems/winrt-go/windows/foundation"
+	"github.com/saltosystems/winrt-go/windows/foundation/collections"
 	"github.com/saltosystems/winrt-go/windows/storage/streams"
 )
 
@@ -263,12 +264,11 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 		defer serviceUuidsVector.Release()
 		size, _ := serviceUuidsVector.GetSize()
 		for i := uint32(0); i < size; i++ {
-			element, _ := serviceUuidsVector.GetAt(i)
-			// element is not a pointer, but a GUID struct. But we cannot convert
-			// unsafe.Pointer to a non-pointer type, so instead we are doing this:
-			serviceGUID := (*syscall.GUID)(unsafe.Pointer(&element))
-			uuid := GUIDToUUID(*serviceGUID)
-			serviceUUIDs = append(serviceUUIDs, uuid)
+			serviceGUID, err := guidVectorAt(serviceUuidsVector, i)
+			if err != nil {
+				continue
+			}
+			serviceUUIDs = append(serviceUUIDs, GUIDToUUID(serviceGUID))
 		}
 	}
 
@@ -283,6 +283,22 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 	}
 
 	return result
+}
+
+// IVector.GetAt has room for a pointer, but GetAt on an IVector<GUID> writes a 16 byte GUID.
+// See https://learn.microsoft.com/en-us/uwp/api/windows.foundation.collections.ivector-1.getat
+func guidVectorAt(v *collections.IVector, i uint32) (syscall.GUID, error) {
+	var guid syscall.GUID
+	hr, _, _ := syscall.SyscallN(
+		v.VTable().GetAt,
+		uintptr(unsafe.Pointer(v)),
+		uintptr(i),
+		uintptr(unsafe.Pointer(&guid)),
+	)
+	if hr != 0 {
+		return syscall.GUID{}, ole.NewError(hr)
+	}
+	return guid, nil
 }
 
 func GUIDToUUID(guid syscall.GUID) UUID {
