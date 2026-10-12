@@ -7,6 +7,7 @@ import (
 	"slices"
 	"sync"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/go-ole/go-ole"
@@ -18,6 +19,8 @@ import (
 	"github.com/saltosystems/winrt-go/windows/foundation/collections"
 	"github.com/saltosystems/winrt-go/windows/storage/streams"
 )
+
+const defaultConnectionTimeout time.Duration = 10 * time.Second
 
 // Address contains a Bluetooth MAC address.
 type Address struct {
@@ -564,12 +567,19 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		"cinterface(IInspectable)", // object
 	)
 
+	up := make(chan struct{}, 1)
 	handler := foundation.NewTypedEventHandler(ole.NewGUID(connectionStatusChangedGUID), func(instance *foundation.TypedEventHandler, sender, arg unsafe.Pointer) {
 		status, err := bleDevice.GetConnectionStatus()
 		if err != nil {
 			return
 		}
 
+		if status == bluetooth.BluetoothConnectionStatusConnected {
+			select {
+			case up <- struct{}{}:
+			default:
+			}
+		}
 		if a.connectHandler != nil {
 			a.connectHandler(device, status == bluetooth.BluetoothConnectionStatusConnected)
 		}
@@ -585,6 +595,17 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		return device, err
 	}
 
+	// MaintainConnection only starts connecting, so wait like the other backends do.
+	// See https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.genericattributeprofile.gattsession.maintainconnection
+	timeout := defaultConnectionTimeout
+	if params.ConnectionTimeout != 0 {
+		timeout = time.Duration(int64(params.ConnectionTimeout)*625) * time.Microsecond
+	}
+	if err := waitConnected(up, device.Connected, timeout); err != nil {
+		_ = device.Disconnect()
+		return Device{}, err
+	}
+
 	// WinRT has no priority at connection time. The connection stays if this
 	// fails, as on the platforms that have no priority.
 	if params.Priority != ConnectionPriorityUnspecified {
@@ -592,6 +613,21 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	return device, nil
+}
+
+// waitConnected returns once connected reports true or up receives, or fails after timeout.
+func waitConnected(up <-chan struct{}, connected func() (bool, error), timeout time.Duration) error {
+	if ok, err := connected(); err == nil && ok {
+		return nil
+	}
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	select {
+	case <-up:
+		return nil
+	case <-timer.C:
+		return errors.New("timeout on Connect")
+	}
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
