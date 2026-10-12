@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"syscall"
 	"testing"
+	"time"
 	"unsafe"
 
 	"github.com/saltosystems/winrt-go/windows/foundation/collections"
@@ -143,5 +144,33 @@ func TestScanCacheReturnsCopies(t *testing.T) {
 	}
 	if got.ManufacturerData[0].Data[0] != 1 {
 		t.Errorf("manufacturer data = %v after changing an earlier result, want [1]", got.ManufacturerData[0].Data)
+	}
+}
+
+func TestWaitConnected(t *testing.T) {
+	never := make(chan struct{})
+	connected := func(ok bool) func() (bool, error) {
+		return func() (bool, error) { return ok, nil }
+	}
+
+	if err := waitConnected(never, connected(true), time.Second); err != nil {
+		t.Errorf("already connected: %v", err)
+	}
+
+	ch := make(chan struct{}, 1)
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		ch <- struct{}{}
+	}()
+	if err := waitConnected(ch, connected(false), time.Second); err != nil {
+		t.Errorf("connected later: %v", err)
+	}
+
+	start := time.Now()
+	if err := waitConnected(never, connected(false), 50*time.Millisecond); err == nil {
+		t.Error("never connected: want an error")
+	}
+	if d := time.Since(start); d < 50*time.Millisecond {
+		t.Errorf("never connected returned after %s, want the timeout", d)
 	}
 }
