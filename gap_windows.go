@@ -452,6 +452,7 @@ type Device struct {
 	connectionStatusListenerToken foundation.EventRegistrationToken
 	connectionStatusListener      *foundation.TypedEventHandler
 	connParams                    *connectionParamsState
+	services                      *openServices
 }
 
 var errDeviceNotConnected = errors.New("bluetooth: device is not connected")
@@ -475,6 +476,30 @@ func (s *connectionParamsState) close() {
 	if s.request != nil {
 		discardConnectionParamsRequest(s.request)
 		s.request = nil
+	}
+}
+
+// openServices are the services DiscoverServices returned, which Disconnect closes.
+type openServices struct {
+	mu   sync.Mutex
+	list []*genericattributeprofile.GattDeviceService
+}
+
+func (s *openServices) add(srv *genericattributeprofile.GattDeviceService) {
+	s.mu.Lock()
+	if !slices.Contains(s.list, srv) {
+		s.list = append(s.list, srv)
+	}
+	s.mu.Unlock()
+}
+
+func (s *openServices) close() {
+	s.mu.Lock()
+	list := s.list
+	s.list = nil
+	s.mu.Unlock()
+	for _, srv := range list {
+		_ = srv.Close()
 	}
 }
 
@@ -557,6 +582,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		device:     bleDevice,
 		session:    newSession,
 		connParams: &connectionParamsState{},
+		services:   &openServices{},
 	}
 
 	// https://learn.microsoft.com/es-es/uwp/api/windows.devices.bluetooth.bluetoothledevice.connectionstatuschanged?view=winrt-26100
@@ -640,6 +666,7 @@ func (d Device) Disconnect() error {
 	}
 
 	d.cancel()
+	d.services.close()
 
 	// Close the request while the device is still open.
 	if d.connParams != nil {

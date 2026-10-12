@@ -123,10 +123,7 @@ func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 			services = append(services, makeService(serviceUuid, srv, d))
 		}
 
-		go func() {
-			<-d.ctx.Done()
-			srv.Close()
-		}()
+		d.services.add(srv)
 	}
 
 	if slices.Contains(services, (DeviceService{})) {
