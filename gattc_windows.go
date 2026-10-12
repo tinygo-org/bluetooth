@@ -215,6 +215,13 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 	gattCharResult := (*genericattributeprofile.GattCharacteristicsResult)(res)
 	defer gattCharResult.Release()
 
+	status, err := gattCharResult.GetStatus()
+	if err != nil {
+		return nil, err
+	} else if status != genericattributeprofile.GattCommunicationStatusSuccess {
+		return nil, fmt.Errorf("could not retrieve service characteristics, operation failed with code %d", status)
+	}
+
 	// IVectorView<GattCharacteristic>
 	charVector, err := gattCharResult.GetCharacteristics()
 	if err != nil {
