@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"syscall"
 	"unsafe"
@@ -159,9 +160,15 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) (err error) {
 		advertisement.SignatureBluetoothLEAdvertisementWatcher,
 		advertisement.SignatureBluetoothLEAdvertisementReceivedEventArgs,
 	)
+	var seen scanCache
 	handler := foundation.NewTypedEventHandler(ole.NewGUID(eventReceivedGuid), func(instance *foundation.TypedEventHandler, sender, arg unsafe.Pointer) {
 		args := (*advertisement.BluetoothLEAdvertisementReceivedEventArgs)(arg)
 		result := getScanResultFromArgs(args)
+		// WinRT reports a scan response as its own event, so fill in what a packet lacks from earlier ones.
+		// See https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.advertisement.bluetoothleadvertisementtype
+		if p, ok := result.AdvertisementPayload.(*advertisementFields); ok {
+			p.AdvertisementFields = seen.merge(result.Address, p.AdvertisementFields)
+		}
 		callback(a, result)
 	})
 	defer handler.Release()
@@ -283,6 +290,95 @@ func getScanResultFromArgs(args *advertisement.BluetoothLEAdvertisementReceivedE
 	}
 
 	return result
+}
+
+// scanCacheSize limits how many devices a scan keeps fields for.
+// When it is full, the device seen longest ago is dropped.
+const scanCacheSize = 256
+
+// scanCache keeps the advertisement fields each device has sent during a scan.
+type scanCache struct {
+	mu      sync.Mutex
+	tick    uint64
+	devices map[Address]*scanCacheEntry
+}
+
+type scanCacheEntry struct {
+	fields   AdvertisementFields
+	lastSeen uint64
+}
+
+// merge fills in what fields lack from the fields addr sent before, keeps the
+// result, and returns a copy of it that shares no memory with the cache.
+func (c *scanCache) merge(addr Address, fields AdvertisementFields) AdvertisementFields {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.tick++
+	e, ok := c.devices[addr]
+	if !ok {
+		if c.devices == nil {
+			c.devices = make(map[Address]*scanCacheEntry)
+		}
+		if len(c.devices) >= scanCacheSize {
+			c.dropOldest()
+		}
+		e = &scanCacheEntry{}
+		c.devices[addr] = e
+	}
+	e.fields = mergeAdvertisementFields(e.fields, fields)
+	e.lastSeen = c.tick
+	return cloneAdvertisementFields(e.fields)
+}
+
+func (c *scanCache) dropOldest() {
+	var oldest Address
+	var oldestSeen uint64
+	for addr, e := range c.devices {
+		if oldestSeen == 0 || e.lastSeen < oldestSeen {
+			oldest, oldestSeen = addr, e.lastSeen
+		}
+	}
+	delete(c.devices, oldest)
+}
+
+// mergeAdvertisementFields merges cur into last, with lists merged by key like BlueZ.
+// See https://github.com/bluez/bluez/blob/fa6ba55020dee3c3183041c854c347b4582448be/src/device.c#L2497-L2567
+func mergeAdvertisementFields(last, cur AdvertisementFields) AdvertisementFields {
+	if cur.LocalName == "" {
+		cur.LocalName = last.LocalName
+	}
+	cur.ServiceUUIDs = mergeByKey(last.ServiceUUIDs, cur.ServiceUUIDs, func(u UUID) UUID { return u })
+	cur.ManufacturerData = mergeByKey(last.ManufacturerData, cur.ManufacturerData, func(m ManufacturerDataElement) uint16 { return m.CompanyID })
+	cur.ServiceData = mergeByKey(last.ServiceData, cur.ServiceData, func(s ServiceDataElement) UUID { return s.UUID })
+	return cur
+}
+
+// mergeByKey returns a copy of last where each element of cur replaces the one with
+// the same key in place, or is appended, so the order stays stable.
+func mergeByKey[E any, K comparable](last, cur []E, key func(E) K) []E {
+	merged := slices.Clone(last)
+	for _, c := range cur {
+		if i := slices.IndexFunc(merged, func(m E) bool { return key(m) == key(c) }); i >= 0 {
+			merged[i] = c
+		} else {
+			merged = append(merged, c)
+		}
+	}
+	return merged
+}
+
+func cloneAdvertisementFields(f AdvertisementFields) AdvertisementFields {
+	f.ServiceUUIDs = slices.Clone(f.ServiceUUIDs)
+	f.ManufacturerData = slices.Clone(f.ManufacturerData)
+	for i := range f.ManufacturerData {
+		f.ManufacturerData[i].Data = slices.Clone(f.ManufacturerData[i].Data)
+	}
+	f.ServiceData = slices.Clone(f.ServiceData)
+	for i := range f.ServiceData {
+		f.ServiceData[i].Data = slices.Clone(f.ServiceData[i].Data)
+	}
+	return f
 }
 
 // IVector.GetAt has room for a pointer, but GetAt on an IVector<GUID> writes a 16 byte GUID.

@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"reflect"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -47,5 +48,100 @@ func TestGUIDVectorAt(t *testing.T) {
 
 	if _, err := guidVectorAt(v, 2); err == nil {
 		t.Error("guidVectorAt out of range: want an error")
+	}
+}
+
+func TestMergeAdvertisementFields(t *testing.T) {
+	service := New16BitUUID(0xcdab)
+	adv := AdvertisementFields{ServiceUUIDs: []UUID{service}}
+	scanResponse := AdvertisementFields{LocalName: "Frame"}
+
+	got := mergeAdvertisementFields(adv, scanResponse)
+	if got.LocalName != "Frame" || len(got.ServiceUUIDs) != 1 || got.ServiceUUIDs[0] != service {
+		t.Errorf("scan response after advertisement = %+v, want the name and the service", got)
+	}
+	got = mergeAdvertisementFields(got, AdvertisementFields{ServiceUUIDs: []UUID{service}})
+	if got.LocalName != "Frame" {
+		t.Errorf("advertisement after scan response = %+v, want the name kept", got)
+	}
+	got = mergeAdvertisementFields(got, AdvertisementFields{LocalName: "Renamed"})
+	if got.LocalName != "Renamed" {
+		t.Errorf("new name = %q, want Renamed", got.LocalName)
+	}
+}
+
+func TestMergeManufacturerDataByCompanyID(t *testing.T) {
+	adv := AdvertisementFields{ManufacturerData: []ManufacturerDataElement{
+		{CompanyID: 0x004c, Data: []byte{1}},
+		{CompanyID: 0xffff, Data: []byte{2}},
+	}}
+	scanResponse := AdvertisementFields{ManufacturerData: []ManufacturerDataElement{
+		{CompanyID: 0xffff, Data: []byte{3}},
+	}}
+
+	got := mergeAdvertisementFields(adv, scanResponse).ManufacturerData
+	want := []ManufacturerDataElement{
+		{CompanyID: 0x004c, Data: []byte{1}},
+		{CompanyID: 0xffff, Data: []byte{3}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("manufacturer data = %+v, want %+v", got, want)
+	}
+}
+
+func TestMergeKeepsOrder(t *testing.T) {
+	a, b := New16BitUUID(0xaaaa), New16BitUUID(0xbbbb)
+	adv := AdvertisementFields{ServiceUUIDs: []UUID{a}}
+	scanResponse := AdvertisementFields{ServiceUUIDs: []UUID{b}}
+
+	got := mergeAdvertisementFields(AdvertisementFields{}, adv)
+	got = mergeAdvertisementFields(got, scanResponse)
+	got = mergeAdvertisementFields(got, adv)
+	if want := []UUID{a, b}; !reflect.DeepEqual(got.ServiceUUIDs, want) {
+		t.Errorf("services = %v, want %v", got.ServiceUUIDs, want)
+	}
+}
+
+func testAddress(i int) Address {
+	return Address{MACAddress{MAC: MAC{0, 0, 0, 0, byte(i >> 8), byte(i)}}}
+}
+
+func TestScanCacheLimit(t *testing.T) {
+	var c scanCache
+	for i := 0; i < scanCacheSize; i++ {
+		c.merge(testAddress(i), AdvertisementFields{LocalName: "Device"})
+	}
+	// See device 0 again, so device 1 is now the one seen longest ago.
+	c.merge(testAddress(0), AdvertisementFields{})
+	c.merge(testAddress(scanCacheSize), AdvertisementFields{LocalName: "New"})
+
+	if len(c.devices) != scanCacheSize {
+		t.Errorf("cache has %d devices, want %d", len(c.devices), scanCacheSize)
+	}
+	if _, ok := c.devices[testAddress(1)]; ok {
+		t.Error("device seen longest ago was kept")
+	}
+	if _, ok := c.devices[testAddress(0)]; !ok {
+		t.Error("device seen recently was dropped")
+	}
+}
+
+func TestScanCacheReturnsCopies(t *testing.T) {
+	var c scanCache
+	addr := testAddress(0)
+	service := New16BitUUID(0xcdab)
+	first := c.merge(addr, AdvertisementFields{
+		ServiceUUIDs:     []UUID{service},
+		ManufacturerData: []ManufacturerDataElement{{CompanyID: 0xffff, Data: []byte{1}}},
+	})
+	first.ServiceUUIDs[0] = New16BitUUID(0x1234)
+	first.ManufacturerData[0].Data[0] = 9
+
+	got := c.merge(addr, AdvertisementFields{LocalName: "Frame"})
+	if got.ServiceUUIDs[0] != service {
+		t.Errorf("service = %s after changing an earlier result, want %s", got.ServiceUUIDs[0], service)
+	}
+	if got.ManufacturerData[0].Data[0] != 1 {
+		t.Errorf("manufacturer data = %v after changing an earlier result, want [1]", got.ManufacturerData[0].Data)
 	}
 }
