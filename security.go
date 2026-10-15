@@ -1,5 +1,9 @@
 package bluetooth
 
+import "errors"
+
+var errInvalidPasskey = errors.New("bluetooth: passkey must be 6 ASCII digits")
+
 // IOCapabilities describes this device's input and output capabilities for
 // pairing, which determine the pairing methods (association models) that can
 // be used.
@@ -26,7 +30,7 @@ const (
 
 // PairingError reports a failed pairing procedure. The value is the
 // stack-specific status code (the SMP failure reason / BLE_GAP_SEC_STATUS
-// value on Nordic SoftDevices).
+// value on Nordic SoftDevices, DevicePairingResultStatus on Windows).
 type PairingError uint8
 
 func (e PairingError) Error() string {
@@ -36,7 +40,7 @@ func (e PairingError) Error() string {
 }
 
 // PairingParams configures how the adapter responds to pairing initiated by a
-// connected central.
+// connected central, and how Device.Pair pairs with a peripheral.
 //
 // The handler callbacks are invoked outside interrupt context (on a dedicated
 // goroutine on SoftDevices), one at a time. A handler that blocks (for
@@ -76,4 +80,16 @@ type PairingParams struct {
 	// PairingCompleteHandler is called when the pairing procedure finishes:
 	// err is nil on success or a PairingError on failure.
 	PairingCompleteHandler func(device Device, err error)
+}
+
+func isValidPasskey(passkey string) bool {
+	if len(passkey) != 6 {
+		return false
+	}
+	for i := 0; i < 6; i++ {
+		if passkey[i] < '0' || passkey[i] > '9' {
+			return false
+		}
+	}
+	return true
 }
