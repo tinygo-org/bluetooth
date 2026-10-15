@@ -12,8 +12,6 @@ import (
 	"github.com/saltosystems/winrt-go/windows/foundation"
 )
 
-var errNoPairingRequest = errors.New("bluetooth: no pairing request is waiting for an answer")
-
 // Pair pairs and bonds this host with the connected peripheral, and blocks until
 // pairing ends. It returns nil on success, also when the device was already paired.
 func (d Device) Pair(params PairingParams) (err error) {
