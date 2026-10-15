@@ -25,6 +25,7 @@ var (
 	errNoWriteWithoutResponse    = errors.New("bluetooth: write without response not supported")
 	errWriteFailed               = errors.New("bluetooth: write failed")
 	errNoRead                    = errors.New("bluetooth: read not supported")
+	errReadFailed                = errors.New("bluetooth: read failed")
 	errNoNotify                  = errors.New("bluetooth: notify not supported")
 	errNoIndicate                = errors.New("bluetooth: indicate not supported")
 	errNoNotifyOrIndicate        = errors.New("bluetooth: notify or indicate not supported")
@@ -425,9 +426,21 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	result := (*genericattributeprofile.GattReadResult)(res)
 	defer result.Release()
 
+	// A failed read comes back as a non-success status with a nil value, not as an error.
+	// https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.genericattributeprofile.gattreadresult.status
+	status, err := result.GetStatus()
+	if err != nil {
+		return 0, err
+	} else if status != genericattributeprofile.GattCommunicationStatusSuccess {
+		return 0, fmt.Errorf("%w, operation failed with code %d", errReadFailed, status)
+	}
+
 	buffer, err := result.GetValue()
 	if err != nil {
 		return 0, err
+	}
+	if buffer == nil {
+		return 0, errReadFailed
 	}
 	defer buffer.Release()
 
