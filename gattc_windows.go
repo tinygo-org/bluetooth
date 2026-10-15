@@ -72,7 +72,7 @@ func (d Device) DiscoverServices(filterUUIDs []UUID) ([]DeviceService, error) {
 	if err != nil {
 		return nil, err
 	} else if status != genericattributeprofile.GattCommunicationStatusSuccess {
-		return nil, fmt.Errorf("could not retrieve device services, operation failed with code %d", status)
+		return nil, fmt.Errorf("could not retrieve device services: %w", statusError(status, servicesResult))
 	}
 
 	// IVectorView<GattDeviceService>
@@ -217,7 +217,7 @@ func (s DeviceService) DiscoverCharacteristics(filterUUIDs []UUID) ([]DeviceChar
 	if err != nil {
 		return nil, err
 	} else if status != genericattributeprofile.GattCommunicationStatusSuccess {
-		return nil, fmt.Errorf("could not retrieve service characteristics, operation failed with code %d", status)
+		return nil, fmt.Errorf("could not retrieve service characteristics: %w", statusError(status, gattCharResult))
 	}
 
 	// IVectorView<GattCharacteristic>
@@ -432,7 +432,7 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 	if err != nil {
 		return 0, err
 	} else if status != genericattributeprofile.GattCommunicationStatusSuccess {
-		return 0, fmt.Errorf("%w, operation failed with code %d", errReadFailed, status)
+		return 0, fmt.Errorf("%w: %w", errReadFailed, statusError(status, result))
 	}
 
 	buffer, err := result.GetValue()
@@ -582,4 +582,40 @@ func (c DeviceCharacteristic) EnableNotificationsWithMode(mode NotificationMode,
 	}
 
 	return nil
+}
+
+// protocolErrorResult is a GATT result that has the ATT error code of a ProtocolError status.
+type protocolErrorResult interface {
+	GetProtocolError() (*foundation.IReference, error)
+}
+
+// statusError returns the error for a non-success status, with the ATT error code if there is one.
+func statusError(status genericattributeprofile.GattCommunicationStatus, res protocolErrorResult) error {
+	if status == genericattributeprofile.GattCommunicationStatusProtocolError {
+		if code, ok := protocolError(res); ok {
+			return AttributeProtocolError(code)
+		}
+	}
+	return fmt.Errorf("operation failed with code %d", status)
+}
+
+// protocolError reads the ATT error code. The accessor panics before Windows 10 1703.
+// https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.genericattributeprofile.gattreadresult.protocolerror
+func protocolError(res protocolErrorResult) (code uint8, ok bool) {
+	defer func() {
+		if recover() != nil {
+			code, ok = 0, false
+		}
+	}()
+	ref, err := res.GetProtocolError()
+	if err != nil || ref == nil {
+		return 0, false
+	}
+	defer ref.Release()
+	// IReference<UInt8> writes the byte into the low byte of the value.
+	v, err := ref.GetValue()
+	if err != nil {
+		return 0, false
+	}
+	return uint8(uintptr(v)), true
 }
