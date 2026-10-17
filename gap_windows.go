@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 	"unsafe"
@@ -453,6 +454,7 @@ type Device struct {
 	connectionStatusListener      *foundation.TypedEventHandler
 	connParams                    *connectionParamsState
 	services                      *openServices
+	link                          *linkState
 }
 
 var errDeviceNotConnected = errors.New("bluetooth: device is not connected")
@@ -500,6 +502,18 @@ func (s *openServices) close() {
 	s.mu.Unlock()
 	for _, srv := range list {
 		_ = srv.Close()
+	}
+}
+
+// linkState calls the connect handler once for each change of the link.
+type linkState struct {
+	connected atomic.Bool
+	handler   func(device Device, connected bool)
+}
+
+func (s *linkState) report(d Device, connected bool) {
+	if s.connected.CompareAndSwap(!connected, connected) && s.handler != nil {
+		s.handler(d, connected)
 	}
 }
 
@@ -583,6 +597,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		session:    newSession,
 		connParams: &connectionParamsState{},
 		services:   &openServices{},
+		link:       &linkState{handler: a.connectHandler},
 	}
 
 	// https://learn.microsoft.com/es-es/uwp/api/windows.devices.bluetooth.bluetoothledevice.connectionstatuschanged?view=winrt-26100
@@ -606,9 +621,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			default:
 			}
 		}
-		if a.connectHandler != nil {
-			a.connectHandler(device, status == bluetooth.BluetoothConnectionStatusConnected)
-		}
+		device.link.report(device, status == bluetooth.BluetoothConnectionStatusConnected)
 	})
 
 	token, err := device.device.AddConnectionStatusChanged(handler)
@@ -631,6 +644,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		_ = device.Disconnect()
 		return Device{}, err
 	}
+	// The link can come up before the listener is added, which misses its event.
+	device.link.report(device, true)
 
 	// WinRT has no priority at connection time. The connection stays if this
 	// fails, as on the platforms that have no priority.
@@ -673,11 +688,12 @@ func (d Device) Disconnect() error {
 		d.connParams.close()
 	}
 
-	if err := d.session.Close(); err != nil {
+	err := d.session.Close()
+	_ = d.device.RemoveConnectionStatusChanged(d.connectionStatusListenerToken)
+	d.link.report(d, false)
+	if err != nil {
 		return err
 	}
-
-	_ = d.device.RemoveConnectionStatusChanged(d.connectionStatusListenerToken)
 
 	if err := d.device.Close(); err != nil {
 		return err
