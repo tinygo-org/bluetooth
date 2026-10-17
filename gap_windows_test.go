@@ -174,3 +174,19 @@ func TestWaitConnected(t *testing.T) {
 		t.Errorf("never connected returned after %s, want the timeout", d)
 	}
 }
+
+func TestLinkStateReportsChanges(t *testing.T) {
+	var got []bool
+	s := &linkState{handler: func(d Device, connected bool) { got = append(got, connected) }}
+
+	s.report(Device{}, false) // a failed Connect never reported true
+	s.report(Device{}, true)
+	s.report(Device{}, true) // Connect after the status change
+	s.report(Device{}, false)
+	s.report(Device{}, false) // Disconnect after a remote disconnect
+	s.report(Device{}, true)  // Windows reconnects while the session is open
+
+	if want := []bool{true, false, true}; !reflect.DeepEqual(got, want) {
+		t.Errorf("handler got %v, want %v", got, want)
+	}
+}
