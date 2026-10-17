@@ -11,7 +11,7 @@ require (
 	golang.org/x/crypto v0.26.0
 	golang.org/x/sys v0.23.0
 	tinygo.org/x/drivers v0.36.0
-	tinygo.org/x/espradio v0.3.1-0.20260925094528-b51c8a513407
+	tinygo.org/x/espradio v0.4.0
 	tinygo.org/x/tinyfont v0.6.0
 	tinygo.org/x/tinyterm v0.5.0
 )
@@ -19,7 +19,7 @@ require (
 require (
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/soypat/lneto v0.3.2 // indirect
+	github.com/soypat/lneto v0.4.0 // indirect
 	github.com/soypat/seqs v0.0.0-20260125140838-2c1c6b1bd69e // indirect
 	github.com/tinygo-org/pio v0.3.0 // indirect
 	golang.org/x/exp v0.0.0-20260727155853-b88d891fe743 // indirect
