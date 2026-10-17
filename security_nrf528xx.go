@@ -17,10 +17,7 @@ import (
 */
 import "C"
 
-var (
-	errPairingNotEnabled = errors.New("bluetooth: pairing is not enabled")
-	errInvalidPasskey    = errors.New("bluetooth: passkey must be 6 ASCII digits")
-)
+var errPairingNotEnabled = errors.New("bluetooth: pairing is not enabled")
 
 // Security event flags, set from the SoftDevice event handler (interrupt
 // context) and consumed by the security worker goroutine.
@@ -260,18 +257,6 @@ func (d Device) ConfirmPasskey(match bool) error {
 	}
 	errCode := C.sd_ble_gap_auth_key_reply(d.connectionHandle, keyType, nil)
 	return makeError(errCode)
-}
-
-func isValidPasskey(passkey string) bool {
-	if len(passkey) != 6 {
-		return false
-	}
-	for i := 0; i < 6; i++ {
-		if passkey[i] < '0' || passkey[i] > '9' {
-			return false
-		}
-	}
-	return true
 }
 
 func (io IOCapabilities) sdIOCaps() C.uint8_t {
