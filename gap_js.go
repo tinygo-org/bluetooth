@@ -161,7 +161,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	a.setDisconnectHandler(d)
-	a.connectHandler(d, true)
+	a.connectHandler(d, ConnectionState{Connected: true})
 
 	return d, nil
 }
@@ -194,7 +194,7 @@ func (a *Adapter) setDisconnectHandler(d Device) {
 
 		// A blocked JS callback stops the event loop, and every method in
 		// this package waits for a promise. See syscall/js.FuncOf.
-		go a.connectHandler(device, false)
+		go a.connectHandler(device, ConnectionState{})
 		return nil
 	})
 

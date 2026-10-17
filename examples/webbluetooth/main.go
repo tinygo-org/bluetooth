@@ -193,8 +193,8 @@ func onConnectionChange(this js.Value, args []js.Value) any {
 		return nil
 	}
 
-	adapter.SetConnectHandler(func(d bluetooth.Device, connected bool) {
-		callback.Invoke(connected)
+	adapter.SetConnectHandler(func(d bluetooth.Device, state bluetooth.ConnectionState) {
+		callback.Invoke(state.Connected)
 	})
 	return nil
 }

@@ -6,14 +6,25 @@ type BLEAdapter interface {
 	Enable() error
 	Reset() error
 	Scan(callback func(*Adapter, ScanResult)) (err error)
-	SetConnectHandler(c func(device Device, connected bool))
+	SetConnectHandler(c func(device Device, state ConnectionState))
 	StopScan() error
+}
+
+// ConnectionState is passed to the connect handler when a device connects or
+// disconnects.
+type ConnectionState struct {
+	// Connected is true when the device connected, and false when it disconnected.
+	Connected bool
+
+	// Err is why the device disconnected. It is nil when Connected is true,
+	// when this side ended the connection, or when the platform gives no reason.
+	Err error
 }
 
 // SetConnectHandler sets a handler function to be called whenever the adapter connects
 // or disconnects. You must call this before you call adapter.Connect() for centrals
 // or advertisement.Start() for peripherals in order for it to work.
-func (a *Adapter) SetConnectHandler(c func(device Device, connected bool)) {
+func (a *Adapter) SetConnectHandler(c func(device Device, state ConnectionState)) {
 	a.connectHandler = c
 }
 
