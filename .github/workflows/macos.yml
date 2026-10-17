@@ -12,9 +12,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  macos-14:
-    name: macos-14
-    runs-on: macos-14
+  macos-26:
+    name: macos-26
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@v7
