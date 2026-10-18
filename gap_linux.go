@@ -506,8 +506,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 						if sig.Path != device.device.Path() {
 							continue
 						}
-						changes := sig.Body[1].(map[string]dbus.Variant)
-						if connected, ok := changes["Connected"].Value().(bool); ok && connected {
+						if connected, ok := connectedChange(sig); ok && connected {
 							close(connectChan)
 						}
 					}
@@ -521,6 +520,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		}
 	}
 
+	a.watchDisconnect(device)
+
 	if a.connectHandler != nil {
 		a.connectHandler(device, true)
 	}
@@ -529,15 +530,89 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 }
 
 // Disconnect from the BLE device. This method is non-blocking and does not
-// wait until the connection is fully gone.
+// wait until the connection is fully gone. For a device returned by Connect,
+// the connect handler is called once BlueZ reports the connection as gone.
 func (d Device) Disconnect() error {
-	if d.adapter.connectHandler != nil {
+	// Devices from Connect have a watcher that reports the disconnect.
+	watched := d.adapter.watchingDisconnect(d.device.Path())
+
+	err := d.device.Call("org.bluez.Device1.Disconnect", 0).Err
+
+	if !watched && d.adapter.connectHandler != nil {
 		d.adapter.connectHandler(d, false)
 	}
+	return err
+}
 
-	// we don't call our cancel function here, instead we wait for the
-	// property change in `watchForConnect` and cancel things then
-	return d.device.Call("org.bluez.Device1.Disconnect", 0).Err
+// watchDisconnect calls the connect handler when the Connected property of
+// the device becomes false, whether the disconnect is local or remote.
+func (a *Adapter) watchDisconnect(device Device) {
+	path := device.device.Path()
+
+	a.connWatchMtx.Lock()
+	if a.connWatched == nil {
+		a.connWatched = make(map[dbus.ObjectPath]struct{})
+	}
+	if _, ok := a.connWatched[path]; ok {
+		a.connWatchMtx.Unlock()
+		return
+	}
+	a.connWatched[path] = struct{}{}
+	a.connWatchMtx.Unlock()
+
+	bus := a.bus
+	signal := make(chan *dbus.Signal)
+	bus.Signal(signal)
+	bus.AddMatchSignal(matchOptionsPropertiesChanged...)
+
+	go func() {
+		defer func() {
+			bus.RemoveMatchSignal(matchOptionsPropertiesChanged...)
+			bus.RemoveSignal(signal)
+
+			a.connWatchMtx.Lock()
+			delete(a.connWatched, path)
+			a.connWatchMtx.Unlock()
+		}()
+
+		for sig := range signal {
+			if sig.Path != path {
+				continue
+			}
+			if connected, ok := connectedChange(sig); ok && !connected {
+				break
+			}
+		}
+
+		if a.connectHandler != nil {
+			a.connectHandler(device, false)
+		}
+	}()
+}
+
+// watchingDisconnect reports whether watchDisconnect is active for the device.
+func (a *Adapter) watchingDisconnect(path dbus.ObjectPath) bool {
+	a.connWatchMtx.Lock()
+	defer a.connWatchMtx.Unlock()
+	_, ok := a.connWatched[path]
+	return ok
+}
+
+// connectedChange returns the new value of the Device1 Connected property
+// carried by a PropertiesChanged signal. ok is false for any other signal.
+func connectedChange(sig *dbus.Signal) (connected bool, ok bool) {
+	if sig.Name != dbusSignalPropertiesChanged {
+		return false, false
+	}
+	if interfaceName, ok := sig.Body[dbusPropertiesChangedInterfaceName].(string); !ok || interfaceName != bluezDevice1Interface {
+		return false, false
+	}
+	changes, ok := sig.Body[dbusPropertiesChangedDictionary].(map[string]dbus.Variant)
+	if !ok {
+		return false, false
+	}
+	connected, ok = changes[bluezDevice1Connected].Value().(bool)
+	return connected, ok
 }
 
 // Connected returns whether the device is currently connected.
@@ -613,20 +688,8 @@ func (a *Advertisement) handleDBusSignals() {
 					a.adapter.connectHandler(device, connected)
 				}
 			case dbusSignalPropertiesChanged:
-				// Skip any signals that are not the Device1 interface.
-				if interfaceName, ok := sig.Body[dbusPropertiesChangedInterfaceName].(string); !ok || interfaceName != bluezDevice1Interface {
-					continue
-				}
-
-				// Get all changed properties and skip any signals that are not
-				// compliant with the Device1 interface.
-				changes, ok := sig.Body[dbusPropertiesChangedDictionary].(map[string]dbus.Variant)
-				if !ok {
-					continue
-				}
-
 				// Call the connect handler if the Connected property has changed.
-				if connected, ok := changes[bluezDevice1Connected].Value().(bool); ok {
+				if connected, ok := connectedChange(sig); ok {
 					// The only property received is the changed property "Connected",
 					// so we have to get the other properties from D-Bus.
 					var props map[string]dbus.Variant
