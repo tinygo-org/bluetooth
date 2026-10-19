@@ -453,6 +453,10 @@ type Device struct {
 	connectionStatusListener      *foundation.TypedEventHandler
 	connParams                    *connectionParamsState
 	services                      *openServices
+
+	// pairing holds a pairing request waiting for EnterPasskey or
+	// ConfirmPasskey. It is shared by every copy of this Device.
+	pairing *pairingRequest
 }
 
 var errDeviceNotConnected = errors.New("bluetooth: device is not connected")
@@ -583,6 +587,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 		session:    newSession,
 		connParams: &connectionParamsState{},
 		services:   &openServices{},
+
+		pairing: &pairingRequest{},
 	}
 
 	// https://learn.microsoft.com/es-es/uwp/api/windows.devices.bluetooth.bluetoothledevice.connectionstatuschanged?view=winrt-26100

@@ -143,6 +143,7 @@ smoketest-linux:
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/nusserver
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/scanner
 	GOOS=linux go build -o /tmp/go-build-discard ./examples/discover
+	GOOS=linux go build -o /tmp/go-build-discard ./examples/pair
 
 smoketest-windows:
 	# Test on Windows.
@@ -152,6 +153,7 @@ smoketest-windows:
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/heartrate-monitor
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/advertisement
 	GOOS=windows go build -o /tmp/go-build-discard ./examples/heartrate
+	GOOS=windows go build -o /tmp/go-build-discard ./examples/pair
 
 smoketest-wasm:
 	# Test on WASM.
