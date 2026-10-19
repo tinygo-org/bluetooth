@@ -1,4 +1,4 @@
-//go:build !windows && !softdevice
+//go:build !windows && !softdevice && (!linux || baremetal)
 
 package bluetooth
 

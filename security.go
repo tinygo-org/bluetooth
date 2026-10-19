@@ -2,7 +2,10 @@ package bluetooth
 
 import "errors"
 
-var errInvalidPasskey = errors.New("bluetooth: passkey must be 6 ASCII digits")
+var (
+	errInvalidPasskey   = errors.New("bluetooth: passkey must be 6 ASCII digits")
+	errNoPairingRequest = errors.New("bluetooth: no pairing request is waiting for an answer")
+)
 
 // IOCapabilities describes this device's input and output capabilities for
 // pairing, which determine the pairing methods (association models) that can
