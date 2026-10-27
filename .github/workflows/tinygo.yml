@@ -1,0 +1,36 @@
+name: TinyGo
+
+on:
+  pull_request:
+  push:
+    branches:
+      - dev
+      - release
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/tinygo-org/tinygo-dev
+      options: --user root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: TinyGo version check
+        run: tinygo version
+      - name: Add required GOFLAGS
+        run: go env -w GOFLAGS=-buildvcs=false
+      - name: Get the TinyGo cache key
+        id: tinygo-cache
+        run: |
+          echo "dir=$(tinygo env GOCACHE)" >> "$GITHUB_OUTPUT"
+          echo "version=$(tinygo version | md5sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Cache the TinyGo build
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.tinygo-cache.outputs.dir }}
+          key: tinygo-${{ steps.tinygo-cache.outputs.version }}-${{ hashFiles('go.sum', '**/*.go') }}
+          restore-keys: tinygo-${{ steps.tinygo-cache.outputs.version }}-
+      - name: Run TinyGo smoke tests
+        run: make smoketest-tinygo

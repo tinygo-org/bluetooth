@@ -8,7 +8,7 @@ smoketest-tinygo:
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/advertisement
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/advertisement
-	@md5sum test.hex
+	@md5sum test.uf2
 	# beacon-lowpower calls EnableDCSupply and SetTxPower, so build it for each
 	# SoftDevice and for a board that uses the stubs.
 	$(TINYGO) build -o test.hex -size=short -target=pca10056-s140v7 -serial=none ./examples/beacon-lowpower
@@ -20,11 +20,11 @@ smoketest-tinygo:
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040           ./examples/beacon-lowpower
 	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/circuitplay
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.hex -size=short -target=circuitplay-bluefruit ./examples/connparams
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-bluefruit ./examples/discover
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.hex -size=short -target=pca10040-s132v6       ./examples/heartrate
 	@md5sum test.hex
 	$(TINYGO) build -o test.hex -size=short -target=reelboard-s140v7      ./examples/ledcolor
@@ -75,19 +75,19 @@ smoketest-tinygo:
 	$(TINYGO) build -o test.hex -size=short -target=microbit-v2-s113v7    ./examples/nusserver
 	@md5sum test.hex
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/discover
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=arduino-nano33 		  ./examples/discover
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=pyportal	          ./examples/discover
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=nano-rp2040 		  ./examples/advertisement
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=circuitplay-express -tags="hci hci_uart" ./examples/advertisement
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=pico-w	./examples/discover
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.uf2 -size=short -target=badger2040-w	./examples/advertisement
-	@md5sum test.hex
+	@md5sum test.uf2
 	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3	./examples/advertisement
 	@md5sum test.bin
 	$(TINYGO) build -o test.bin -size=short -target=xiao-esp32c3	./examples/discover

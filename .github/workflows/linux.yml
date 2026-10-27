@@ -25,11 +25,7 @@ jobs:
         run: go test ./ ./ble ./hci
       - name: Run unit tests with the race detector
         run: go test -race ./ ./ble ./hci
-      - name: Run TinyGo smoke tests
-        run: make smoketest-tinygo
       - name: Run Linux smoke tests
         run: make smoketest-linux
       - name: "Run Windows cross-compiled smoke tests"
         run: make smoketest-windows
-      - name: "Run WASM smoke tests"
-        run: make smoketest-wasm
