@@ -12,7 +12,7 @@ var errNotEnabled = errors.New("bluetooth: adapter is not enabled, call Enable f
 // Adapter represents the WebBluetooth adapter accessed via navigator.bluetooth.
 type Adapter struct {
 	bluetooth      js.Value
-	connectHandler func(device Device, connected bool)
+	connectHandler func(device Device, state ConnectionState)
 
 	// devices holds the BluetoothDevice objects returned by Scan, keyed by
 	// device ID, because Connect needs them again.
@@ -39,7 +39,7 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
-	connectHandler: func(device Device, connected bool) {},
+	connectHandler: func(device Device, state ConnectionState) {},
 }
 
 // Enable configures the BLE stack. It must be called before any

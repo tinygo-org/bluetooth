@@ -508,12 +508,12 @@ func (s *openServices) close() {
 // linkState calls the connect handler once for each change of the link.
 type linkState struct {
 	connected atomic.Bool
-	handler   func(device Device, connected bool)
+	handler   func(device Device, state ConnectionState)
 }
 
 func (s *linkState) report(d Device, connected bool) {
 	if s.connected.CompareAndSwap(!connected, connected) && s.handler != nil {
-		s.handler(d, connected)
+		s.handler(d, ConnectionState{Connected: connected})
 	}
 }
 

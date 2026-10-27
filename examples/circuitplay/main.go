@@ -38,8 +38,8 @@ func main() {
 	neo.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	ws = ws2812.New(neo)
 
-	adapter.SetConnectHandler(func(d bluetooth.Device, c bool) {
-		connected = c
+	adapter.SetConnectionStateHandler(func(d bluetooth.Device, state bluetooth.ConnectionState) {
+		connected = state.Connected
 
 		if !connected && !disconnected {
 			clearLEDS()

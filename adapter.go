@@ -10,11 +10,35 @@ type BLEAdapter interface {
 	StopScan() error
 }
 
-// SetConnectHandler sets a handler function to be called whenever the adapter connects
+// ConnectionState is passed to the connect handler when a device connects or
+// disconnects.
+type ConnectionState struct {
+	// Connected is true when the device connected, and false when it disconnected.
+	Connected bool
+
+	// Err is why the device disconnected. It is nil when Connected is true,
+	// when this side ended the connection, or when the platform gives no reason.
+	Err error
+}
+
+// SetConnectionStateHandler sets a handler function to be called whenever the adapter connects
 // or disconnects. You must call this before you call adapter.Connect() for centrals
 // or advertisement.Start() for peripherals in order for it to work.
-func (a *Adapter) SetConnectHandler(c func(device Device, connected bool)) {
+func (a *Adapter) SetConnectionStateHandler(c func(device Device, state ConnectionState)) {
 	a.connectHandler = c
+}
+
+// SetConnectHandler sets a handler that only gets whether the device is connected.
+//
+// Deprecated: Use SetConnectionStateHandler, and run go fix to update callers.
+//
+//go:fix inline
+func (a *Adapter) SetConnectHandler(c func(device Device, connected bool)) {
+	a.SetConnectionStateHandler(func(device Device, state ConnectionState) {
+		if c != nil {
+			c(device, state.Connected)
+		}
+	})
 }
 
 // DCSupplyStage selects a regulator stage. The two stages are in series,
