@@ -6,7 +6,7 @@ require (
 	github.com/go-ole/go-ole v1.2.6
 	github.com/godbus/dbus/v5 v5.1.0
 	github.com/saltosystems/winrt-go v0.0.0-20261015065339-8ef619c103a3
-	github.com/soypat/cyw43439 v0.1.2-0.20260731160358-f2a6af121857
+	github.com/soypat/cyw43439 v0.2.0
 	github.com/tinygo-org/cbgo v0.1.0
 	golang.org/x/crypto v0.26.0
 	golang.org/x/sys v0.23.0

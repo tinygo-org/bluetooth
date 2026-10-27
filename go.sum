@@ -16,8 +16,8 @@ github.com/saltosystems/winrt-go v0.0.0-20261015065339-8ef619c103a3/go.mod h1:CI
 github.com/sirupsen/logrus v1.5.0/go.mod h1:+F7Ogzej0PZc/94MaYx/nvG9jOFMD2osvC3s+Squfpo=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
-github.com/soypat/cyw43439 v0.1.2-0.20260731160358-f2a6af121857 h1:FupkkbuNKByxNhVcFMOu7ZT3v4b+et0sE4ZzC66hIl0=
-github.com/soypat/cyw43439 v0.1.2-0.20260731160358-f2a6af121857/go.mod h1:hStbAH1nOOWlo1ltrPd6V1GoIQYoW5/L6HcKZRlVp04=
+github.com/soypat/cyw43439 v0.2.0 h1:xG85waKoeFgwToHMdExVPMZdITNdbdO9gUuDZk3WrHs=
+github.com/soypat/cyw43439 v0.2.0/go.mod h1:PXS9E4wJ2f3BK3Vqf//gw1tE2kipMlNuubNm5au5RGc=
 github.com/soypat/lneto v0.4.0 h1:oBTcMnhEIBERXmAfwK4uDpItRaF7RiT1K2pljFVxtQc=
 github.com/soypat/lneto v0.4.0/go.mod h1:Be5PjwoYukvHFiUXxpYi8+ppH2F/gw/vjGBvFdv+Ti8=
 github.com/soypat/seqs v0.0.0-20260125140838-2c1c6b1bd69e h1:xF3R+8683ngGNUeIy8PHJZiJZ/XIw+hlGgxg572P0Mw=
