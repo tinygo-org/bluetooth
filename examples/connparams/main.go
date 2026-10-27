@@ -24,9 +24,9 @@ func main() {
 	must("enable BLE stack", adapter.Enable())
 
 	newDevice = make(chan bluetooth.Device, 1)
-	adapter.SetConnectHandler(func(device bluetooth.Device, connected bool) {
+	adapter.SetConnectionStateHandler(func(device bluetooth.Device, state bluetooth.ConnectionState) {
 		// If this is a new device, signal it to the separate goroutine.
-		if connected {
+		if state.Connected {
 			select {
 			case newDevice <- device:
 			default:

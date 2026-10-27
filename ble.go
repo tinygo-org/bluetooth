@@ -18,6 +18,26 @@ type (
 	// AttributeProtocolError represents an ATT error code as defined in the
 	// Bluetooth Core Specification, Section 3.4.1.1 (ATT_ERROR_RSP), Table 3.4.
 	AttributeProtocolError = ble.AttributeProtocolError
+
+	// DisconnectReason is the HCI error code that Nordic and HCI adapters report when
+	// a device disconnects. See Bluetooth Core Specification v5.4, Vol 1, Part F, Table 1.1.
+	DisconnectReason = ble.DisconnectReason
+)
+
+// HCI error codes that end a connection, from Vol 1, Part F, Table 1.1.
+const (
+	DisconnectAuthenticationFailure    = ble.DisconnectAuthenticationFailure
+	DisconnectKeyMissing               = ble.DisconnectKeyMissing
+	DisconnectTimeout                  = ble.DisconnectTimeout
+	DisconnectRemoteUser               = ble.DisconnectRemoteUser
+	DisconnectRemoteLowResources       = ble.DisconnectRemoteLowResources
+	DisconnectRemotePowerOff           = ble.DisconnectRemotePowerOff
+	DisconnectUnsupportedRemoteFeature = ble.DisconnectUnsupportedRemoteFeature
+	DisconnectResponseTimeout          = ble.DisconnectResponseTimeout
+	DisconnectInstantPassed            = ble.DisconnectInstantPassed
+	DisconnectUnacceptableParameters   = ble.DisconnectUnacceptableParameters
+	DisconnectMICFailure               = ble.DisconnectMICFailure
+	DisconnectFailedToEstablish        = ble.DisconnectFailedToEstablish
 )
 
 // ATT error codes from the Bluetooth Core Specification, Table 3.4.

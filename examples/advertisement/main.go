@@ -13,13 +13,16 @@ func main() {
 	must("enable BLE stack", adapter.Enable())
 
 	ctx, cancel := context.WithCancel(context.Background())
-	adapter.SetConnectHandler(func(device bluetooth.Device, connected bool) {
-		if connected {
+	adapter.SetConnectionStateHandler(func(device bluetooth.Device, state bluetooth.ConnectionState) {
+		if state.Connected {
 			println("device connected:", device.Address.String())
 			return
 		}
 
 		println("device disconnected:", device.Address.String())
+		if state.Err != nil {
+			println("reason:", state.Err.Error())
+		}
 		cancel()
 	})
 

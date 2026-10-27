@@ -177,7 +177,7 @@ func TestWaitConnected(t *testing.T) {
 
 func TestLinkStateReportsChanges(t *testing.T) {
 	var got []bool
-	s := &linkState{handler: func(d Device, connected bool) { got = append(got, connected) }}
+	s := &linkState{handler: func(d Device, state ConnectionState) { got = append(got, state.Connected) }}
 
 	s.report(Device{}, false) // a failed Connect never reported true
 	s.report(Device{}, true)
