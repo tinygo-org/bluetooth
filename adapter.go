@@ -7,6 +7,7 @@ type BLEAdapter interface {
 	Reset() error
 	Scan(callback func(*Adapter, ScanResult)) (err error)
 	SetConnectHandler(c func(device Device, connected bool))
+	SetConnectionStateHandler(c func(device Device, state ConnectionState))
 	StopScan() error
 }
 
