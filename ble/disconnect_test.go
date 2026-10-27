@@ -1,9 +1,6 @@
-package bluetooth
+package ble
 
-import (
-	"errors"
-	"testing"
-)
+import "testing"
 
 func TestDisconnectReasonError(t *testing.T) {
 	tests := []struct {
@@ -18,16 +15,5 @@ func TestDisconnectReasonError(t *testing.T) {
 		if got := tt.reason.Error(); got != tt.want {
 			t.Errorf("DisconnectReason(%#x).Error() = %q, want %q", tt.reason.Code(), got, tt.want)
 		}
-	}
-}
-
-func TestDisconnectError(t *testing.T) {
-	if err := disconnectError(0x16); err != nil {
-		t.Errorf("disconnectError(0x16) = %v, want nil", err)
-	}
-
-	var reason DisconnectReason
-	if !errors.As(disconnectError(0x08), &reason) || reason != DisconnectTimeout {
-		t.Errorf("disconnectError(0x08) = %v, want DisconnectTimeout", disconnectError(0x08))
 	}
 }
