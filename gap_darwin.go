@@ -144,6 +144,9 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 				if connectionError != nil {
 					return Device{}, connectionError
 				}
+				// CoreBluetooth may still be connecting after a stale disconnect.
+				// Cancel it so it does not leave a link that no Device owns.
+				a.cm.CancelConnect(prphs[0])
 				if res.err != nil {
 					return Device{}, res.err
 				}
