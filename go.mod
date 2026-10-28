@@ -10,8 +10,8 @@ require (
 	github.com/tinygo-org/cbgo v0.1.0
 	golang.org/x/crypto v0.26.0
 	golang.org/x/sys v0.23.0
-	tinygo.org/x/drivers v0.36.0
-	tinygo.org/x/espradio v0.4.0
+	tinygo.org/x/drivers v0.37.0
+	tinygo.org/x/espradio v0.5.0
 	tinygo.org/x/tinyfont v0.6.0
 	tinygo.org/x/tinyterm v0.5.0
 )
