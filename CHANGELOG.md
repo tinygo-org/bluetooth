@@ -1,38 +1,95 @@
-unreleased
+0.17.0
 ---
 * **core**
   - ble: move `UUID`, `MAC` and `MACAddress` into a new `ble` subpackage. The
     `bluetooth` package aliases them, so `bluetooth.UUID` and `ble.UUID` are the
-    same type and existing code keeps working.
+    same type and existing code keeps working. (#477)
   - ble: move `AttributeProtocolError` and the `ErrAtt*` codes into the `ble`
     subpackage, aliased in the same way. ATT now uses them instead of a second
-    copy of the same 17 codes.
+    copy of the same 17 codes. (#477)
   - ble: rename `UUID.bytes()` to `UUID.BytesLittleEndian()`, and add
-    `ble.UUIDFromBytes` and `ble.NewMACAddress`.
+    `ble.UUIDFromBytes` and `ble.NewMACAddress`. (#477)
+  - adapter: add `SetConnectionStateHandler`, which gives the handler a
+    `ConnectionState` with the disconnect reason. `SetConnectHandler` is
+    deprecated, and `go fix` rewrites its callers. (#518)
+  - gap: add `ConnectionPriority` to `ConnectionParams` (#472)
+  - gattc: export `ErrServiceNotFound` and `ErrCharacteristicNotFound`, and
+    return them from every backend. (#501)
+  - gattc: fix `Read`, which returned the length of the value instead of the
+    bytes copied, so a small buffer caused a panic. It now returns
+    `io.ErrShortBuffer` when the value does not fit. (#497)
 * **hci**
   - hci: move the HCI, L2CAP and ATT protocol code into a new `hci` subpackage
     that has no build tags, so it builds and unit tests on the host. A board
-    supplies an `hci.Transport` and calls `hci.NewStack`.
+    supplies an `hci.Transport` and calls `hci.NewStack`. (#478)
   - hci: add `SetEventHandler` and `SetLEEventHandler`, so that a controller can
     consume an event or an LE subevent that the package does not know, and
     `SendVendorCommand` for the matching commands. Vendor extensions no longer
-    need to live in this repository.
-  - hci: add unit tests, at 87 percent statement coverage.
+    need to live in this repository. (#478)
+  - hci: add unit tests, at 87 percent statement coverage. (#476)
   - hci: fix a panic on a Find Information Response, whose format byte was
-    treated as an entry length.
+    treated as an entry length. (#476)
   - hci: bounds check the entry length of a Read By Type Response and a Read By
-    Group Type Response, which came off the wire unchecked.
+    Group Type Response, which came off the wire unchecked. (#476)
   - hci: reject an ATT protocol data unit that is too short for its opcode,
-    rather than reading past the end of it.
-  - hci: fix `ReadBdAddr`, which copied the event header into the address.
+    rather than reading past the end of it. (#476)
+  - hci: fix `ReadBdAddr`, which copied the event header into the address. (#476)
   - hci: fix `ReadLEBufferSize`, which read the raw packet buffer and raised the
-    maximum MTU far above what the response buffers hold.
-  - hci: fix `MTUReq`, which asked for an MTU of zero.
+    maximum MTU far above what the response buffers hold. (#476)
+  - hci: fix `MTUReq`, which asked for an MTU of zero. (#476)
   - hci: track the negotiated ATT MTU, so `GetMTU` reports it and a discovery
-    response carries more than one attribute.
+    response carries more than one attribute. (#476)
   - hci: reject a truncated L2CAP connection parameter update request, which was
-    answered as accepted with zeroed parameters.
-  - hci: `Transport` drops `ReadByte`, which nothing called.
+    answered as accepted with zeroed parameters. (#476)
+  - hci: `Transport` drops `ReadByte`, which nothing called. (#478)
+  - hci: report the disconnect reason to the connection state handler (#518)
+* **nordic semi**
+  - nrf528xx: add `SetTxPower` to set the advertising transmit power (#475)
+  - nrf528xx: add `EnableDCSupply` to control the DC/DC converters (#475)
+  - nrf52840: add `Adapter.USBVBusPresent` to detect USB cable removal (#487)
+  - nrf52: add `Adapter.Flash`, a flash block device that uses the
+    SoftDevice (#489)
+  - sd: report the disconnect reason to the connection state handler (#518)
+  - softdevice: move the vendored SDK directories into a `softdevice`
+    subdirectory (#482)
+* **espradio**
+  - espradio: add the classic ESP32 (#483)
+* **wasm**
+  - add a central role backend that uses the Web Bluetooth API (#436)
+* **darwin**
+  - darwin: keep services found by earlier `DiscoverServices` calls (#491)
+  - darwin: do not deliver read results to the notification callback (#493)
+  - darwin: return ATT errors as `AttributeProtocolError` (#499)
+  - darwin: pass the CoreBluetooth error as the disconnect reason (#518)
+* **windows**
+  - windows: do not disconnect in the connection status handler (#481)
+  - windows: use `ConnectionPriority` for the preferred connection
+    parameters (#473)
+  - windows: return whole service UUIDs in scan results (#504)
+  - windows: merge scan responses into scan results (#505)
+  - windows: wait for the link in `Connect` (#507)
+  - windows: return an error when characteristic discovery fails (#508)
+  - windows: close discovered services when disconnecting (#509)
+  - windows: check the read status before using its value, which fixes a
+    panic on a refused read (#510)
+  - windows: report the ATT error code of a refused read or discovery (#511)
+  - windows: call the connect handler when disconnecting (#520)
+* **examples**
+  - add a low power beacon example (#475)
+  - add the `usbvbus` example (#487)
+  - add the `flash` example (#489)
+  - add a Web Bluetooth example (#436)
+* **build**
+  - ci: test every package, and add a faster HCI smoke test (#476)
+  - ci: update to the latest Go and use the TinyGo dev container (#486)
+  - ci: move the macos-14 job to macos-26 (#517)
+  - ci: move the TinyGo and WebAssembly smoke tests to separate
+    workflows (#521)
+* **dependencies**
+  - update cbgo to v0.1.0 (#499)
+  - update winrt-go to 8ef619c (#511)
+  - update cyw43439 to v0.2.0 (#522)
+  - update espradio to v0.5.0 and drivers to v0.37.0 (#523)
 
 0.16.0
 ---
