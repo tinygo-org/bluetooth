@@ -8,6 +8,7 @@ package bluetooth
 import (
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/godbus/dbus/v5"
 )
@@ -44,10 +45,31 @@ func NewAdapter(id string) *Adapter {
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = NewAdapter(defaultAdapter)
 
+var (
+	systemBusLock sync.Mutex
+	systemBusConn *dbus.Conn
+)
+
+// systemBus returns a shared system bus connection like dbus.SystemBus, but one that delivers signals in order.
+// The default godbus signal handler can reorder them, see https://github.com/godbus/dbus/blob/v5.1.0/default_handler.go#L320-L337
+func systemBus() (*dbus.Conn, error) {
+	systemBusLock.Lock()
+	defer systemBusLock.Unlock()
+	if systemBusConn != nil && systemBusConn.Connected() {
+		return systemBusConn, nil
+	}
+	conn, err := dbus.ConnectSystemBus(dbus.WithSignalHandler(dbus.NewSequentialSignalHandler()))
+	if err != nil {
+		return nil, err
+	}
+	systemBusConn = conn
+	return conn, nil
+}
+
 // Enable configures the BLE stack. It must be called before any
 // Bluetooth-related calls (unless otherwise indicated).
 func (a *Adapter) Enable() (err error) {
-	bus, err := dbus.SystemBus()
+	bus, err := systemBus()
 	if err != nil {
 		return err
 	}
