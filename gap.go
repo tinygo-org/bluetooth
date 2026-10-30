@@ -427,7 +427,7 @@ func (buf *rawAdvertisementPayload) ServiceData() []ServiceDataElement {
 			var uuidArray [16]byte
 			copy(uuidArray[:], field[:16])
 			serviceData = append(serviceData, ServiceDataElement{
-				UUID: NewUUID(uuidArray),
+				UUID: UUIDFromBytes(uuidArray),
 				Data: field[16:],
 			})
 		}
