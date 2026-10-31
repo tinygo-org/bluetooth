@@ -22,11 +22,17 @@ type Adapter struct {
 	scanChan               chan error
 	poweredChan            chan error
 
-	// connectMap is a mapping of peripheralId -> chan cbgo.Peripheral,
+	// connectMap is a mapping of peripheralId -> chan connectResult,
 	// used to allow multiple callers to call Connect concurrently.
 	connectMap sync.Map
 
 	connectHandler func(device Device, state ConnectionState)
+}
+
+// connectResult is what the central manager delegate sends to a pending Connect.
+type connectResult struct {
+	prph cbgo.Peripheral
+	err  error
 }
 
 // DefaultAdapter is the default adapter on the system.
@@ -99,11 +105,11 @@ func (a *Adapter) Reset() error {
 		_ = a.StopScan()
 	}
 
-	// Unblock goroutines parked in Connect — closing the chan
-	// yields a zero Peripheral so Connect returns an error.
+	// Unblock goroutines parked in Connect. Closing the chan
+	// makes Connect return an error.
 	a.connectMap.Range(func(key, value any) bool {
 		a.connectMap.Delete(key)
-		if ch, ok := value.(chan cbgo.Peripheral); ok {
+		if ch, ok := value.(chan connectResult); ok {
 			defer func() { _ = recover() }()
 			close(ch)
 		}
@@ -172,7 +178,11 @@ func (cmd *centralManagerDelegate) DidDisconnectPeripheral(cmgr cbgo.CentralMana
 	// like with DidConnectPeripheral, check if we have a chan allocated for this and send through the peripheral
 	// this will only be true if the receiving side is still waiting for a connection to complete
 	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
-		ch.(chan cbgo.Peripheral) <- prph
+		// The disconnect of a previous connection can arrive here with no error.
+		if err == nil {
+			err = errors.New("Connect failed: peripheral disconnected")
+		}
+		ch.(chan connectResult) <- connectResult{prph: prph, err: err}
 	}
 }
 
@@ -188,7 +198,7 @@ func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager
 	// ignore this connection.
 	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
 		// Unblock now that we're connected.
-		ch.(chan cbgo.Peripheral) <- prph
+		ch.(chan connectResult) <- connectResult{prph: prph}
 	}
 }
 
@@ -196,10 +206,11 @@ func (cmd *centralManagerDelegate) DidConnectPeripheral(cmgr cbgo.CentralManager
 func (cmd *centralManagerDelegate) DidFailToConnectPeripheral(cmgr cbgo.CentralManager, prph cbgo.Peripheral, err error) {
 	id := prph.Identifier().String()
 
-	// Send the peripheral through so Connect can check its state
-	// and return the appropriate error.
 	if ch, ok := cmd.a.connectMap.LoadAndDelete(id); ok {
-		ch.(chan cbgo.Peripheral) <- prph
+		if err == nil {
+			err = errors.New("Connect failed")
+		}
+		ch.(chan connectResult) <- connectResult{prph: prph, err: err}
 	}
 }
 

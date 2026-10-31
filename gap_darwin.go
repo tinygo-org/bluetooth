@@ -121,9 +121,9 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	id := prphs[0].Identifier().String()
-	prphCh := make(chan cbgo.Peripheral)
+	resultCh := make(chan connectResult)
 
-	a.connectMap.Store(id, prphCh)
+	a.connectMap.Store(id, resultCh)
 	defer a.connectMap.Delete(id)
 
 	a.cm.Connect(prphs[0], nil)
@@ -133,11 +133,24 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	for {
 		// wait on channel for connect
 		select {
-		case p := <-prphCh:
+		case res, ok := <-resultCh:
+			if !ok {
+				return Device{}, errors.New("Connect canceled by adapter Reset")
+			}
+			p := res.prph
 
-			// check if we have received a disconnected peripheral
-			if p.State() == cbgo.PeripheralStateDisconnected {
-				return Device{}, connectionError
+			// check if we have received a failure or a disconnected peripheral
+			if res.err != nil || p.State() == cbgo.PeripheralStateDisconnected {
+				if connectionError != nil {
+					return Device{}, connectionError
+				}
+				// CoreBluetooth may still be connecting after a stale disconnect.
+				// Cancel it so it does not leave a link that no Device owns.
+				a.cm.CancelConnect(prphs[0])
+				if res.err != nil {
+					return Device{}, res.err
+				}
+				return Device{}, errors.New("Connect failed: peripheral disconnected")
 			}
 
 			d := Device{
