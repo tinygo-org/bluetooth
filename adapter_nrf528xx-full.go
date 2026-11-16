@@ -94,6 +94,7 @@ func handleEvent() {
 			// callback.
 			scanReportBuffer.len = byte(advReport.data.len)
 			globalScanResult.RSSI = int16(advReport.rssi)
+			globalScanResult.Directed = advReport._type.bitfield_directed() != 0
 			globalScanResult.Address = Address{
 				makeMACAddress(advReport.peer_addr),
 			}
