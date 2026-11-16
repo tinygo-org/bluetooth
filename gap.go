@@ -130,6 +130,9 @@ type ScanResult struct {
 	// Signal strength of the  advertisement packet.
 	RSSI int16
 
+	// Directed reports a directed advertisement.
+	Directed bool
+
 	// The data obtained from the advertisement data, which may contain many
 	// different properties.
 	// Warning: this data may only stay valid until the next event arrives. If
