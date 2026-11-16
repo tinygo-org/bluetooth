@@ -692,6 +692,25 @@ type ConnectionParams struct {
 	Priority ConnectionPriority
 }
 
+func (params ConnectionParams) withDefaults() ConnectionParams {
+	if params.ConnectionTimeout == 0 {
+		params.ConnectionTimeout = NewDuration(4 * time.Second)
+	}
+
+	// Defaults follow Apple's BLE connection guidance at
+	// https://developer.apple.com/library/archive/qa/qa1931/.
+	if params.MinInterval == 0 {
+		params.MinInterval = NewDuration(15 * time.Millisecond)
+	}
+	if params.MaxInterval == 0 {
+		params.MaxInterval = NewDuration(150 * time.Millisecond)
+	}
+	if params.Timeout == 0 {
+		params.Timeout = NewDuration(2 * time.Second)
+	}
+	return params
+}
+
 type PHY int
 
 const (

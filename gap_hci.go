@@ -198,16 +198,17 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	if a.hci.Address().IsRandom() {
 		localRandom = GAPAddressTypeRandomStatic
 	}
+	params = params.withDefaults()
 	if err := a.hci.LECreateConn(0x0060, // interval
 		0x0030,                       // window
 		0x00,                         // initiatorFilter
 		peerRandom,                   // peerBdaddrType
 		makeNINAAddress(address.MAC), // peerBdaddr
 		localRandom,                  // ownBdaddrType
-		0x0006,                       // minInterval
-		0x000c,                       // maxInterval
+		uint16(params.MinInterval/2), // minInterval
+		uint16(params.MaxInterval/2), // maxInterval
 		0x0000,                       // latency
-		0x00c8,                       // supervisionTimeout
+		uint16(params.Timeout/16),    // supervisionTimeout
 		0x0004,                       // minCeLength
 		0x0006); err != nil {         // maxCeLength
 
@@ -215,7 +216,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	// are we connected?
-	start := time.Now().UnixNano()
+	start := time.Now()
+	timeout := params.ConnectionTimeout.Duration()
 	for {
 		if err := a.hci.Poll(); err != nil {
 			return Device{}, err
@@ -250,7 +252,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 		} else {
 			// check for timeout
-			if (time.Now().UnixNano()-start)/int64(time.Second) > 5 {
+			if time.Since(start) >= timeout {
 				break
 			}
 
