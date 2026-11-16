@@ -638,7 +638,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	// See https://learn.microsoft.com/en-us/uwp/api/windows.devices.bluetooth.genericattributeprofile.gattsession.maintainconnection
 	timeout := defaultConnectionTimeout
 	if params.ConnectionTimeout != 0 {
-		timeout = time.Duration(int64(params.ConnectionTimeout)*625) * time.Microsecond
+		timeout = params.ConnectionTimeout.Duration()
 	}
 	if err := waitConnected(up, device.Connected, timeout); err != nil {
 		_ = device.Disconnect()
