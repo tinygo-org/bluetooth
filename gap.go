@@ -109,6 +109,11 @@ func NewDuration(interval time.Duration) Duration {
 	return Duration(uint64(interval / (625 * time.Microsecond)))
 }
 
+// Duration returns the duration as a time.Duration.
+func (d Duration) Duration() time.Duration {
+	return time.Duration(d) * 625 * time.Microsecond
+}
+
 // Connection is a numeric identifier that indicates a connection handle.
 type Connection uint16
 
@@ -685,6 +690,25 @@ type ConnectionParams struct {
 	// Priority is an alternative to MinInterval, MaxInterval and Timeout. A platform
 	// that accepts those fields uses the ones that are set instead of Priority.
 	Priority ConnectionPriority
+}
+
+func (params ConnectionParams) withDefaults() ConnectionParams {
+	if params.ConnectionTimeout == 0 {
+		params.ConnectionTimeout = NewDuration(4 * time.Second)
+	}
+
+	// Defaults follow Apple's BLE connection guidance at
+	// https://developer.apple.com/library/archive/qa/qa1931/.
+	if params.MinInterval == 0 {
+		params.MinInterval = NewDuration(15 * time.Millisecond)
+	}
+	if params.MaxInterval == 0 {
+		params.MaxInterval = NewDuration(150 * time.Millisecond)
+	}
+	if params.Timeout == 0 {
+		params.Timeout = NewDuration(2 * time.Second)
+	}
+	return params
 }
 
 type PHY int

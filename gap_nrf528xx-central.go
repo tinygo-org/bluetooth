@@ -129,17 +129,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	}
 
 	// Pick default values if some parameters aren't specified.
-	if params.ConnectionTimeout == 0 {
-		params.ConnectionTimeout = NewDuration(4 * time.Second)
-	}
-	if params.MinInterval == 0 && params.MaxInterval == 0 {
-		// Pick some semi-arbitrary range if these values haven't been
-		// configured. The values have been picked to be compliant with the
-		// guidelines from Apple (section 35.6 Connection Parameters):
-		// https://developer.apple.com/accessories/Accessory-Design-Guidelines.pdf
-		params.MinInterval = NewDuration(15 * time.Millisecond)
-		params.MaxInterval = NewDuration(150 * time.Millisecond)
-	}
+	params = params.withDefaults()
 
 	// Set scan params, presumably these parameters are used to re-scan for the
 	// device to connect to because only right after an advertisement has been
@@ -154,11 +144,8 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 	connectionParams := C.ble_gap_conn_params_t{
 		min_conn_interval: C.uint16_t(params.MinInterval) / 2,
 		max_conn_interval: C.uint16_t(params.MaxInterval) / 2,
-		slave_latency:     0,   // mostly relevant to connected keyboards etc
-		conn_sup_timeout:  200, // 2 seconds (in 10ms units), the minimum recommended by Apple
-	}
-	if params.Timeout != 0 {
-		connectionParams.conn_sup_timeout = uint16(params.Timeout / 16)
+		slave_latency:     0, // mostly relevant to connected keyboards etc
+		conn_sup_timeout:  C.uint16_t(params.Timeout / 16),
 	}
 
 	// Flag to the event handler that we are waiting for incoming connections.
