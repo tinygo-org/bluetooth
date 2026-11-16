@@ -110,6 +110,11 @@ func NewDuration(interval time.Duration) Duration {
 	return Duration(uint64(interval / (625 * time.Microsecond)))
 }
 
+// Duration returns the duration as a time.Duration.
+func (d Duration) Duration() time.Duration {
+	return time.Duration(d) * 625 * time.Microsecond
+}
+
 // Connection is a numeric identifier that indicates a connection handle.
 type Connection uint16
 

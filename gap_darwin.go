@@ -126,7 +126,7 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 
 	timeout := defaultConnectionTimeout
 	if params.ConnectionTimeout != 0 {
-		timeout = time.Duration(int64(params.ConnectionTimeout)*625) * time.Microsecond
+		timeout = params.ConnectionTimeout.Duration()
 	}
 
 	id := prphs[0].Identifier().String()
