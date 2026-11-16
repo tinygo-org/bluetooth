@@ -139,7 +139,8 @@ func (a *Adapter) Scan(callback func(*Adapter, ScanResult)) error {
 				Address: Address{
 					NewMACAddress(makeAddress(rep.Address), random),
 				},
-				RSSI: int16(rep.RSSI),
+				RSSI:     int16(rep.RSSI),
+				Directed: rep.Type == 0x01,
 				AdvertisementPayload: &advertisementFields{
 					AdvertisementFields: adf,
 				},
