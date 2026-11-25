@@ -175,6 +175,28 @@ type deviceCharacteristic struct {
 	listener       js.Func
 }
 
+// Permissions returns the permissions of this characteristic on the remote
+// device. See https://webbluetoothcg.github.io/web-bluetooth/#characteristicproperties-interface
+func (c DeviceCharacteristic) Permissions() (p CharacteristicPermissions) {
+	props := c.characteristic.Get("properties")
+
+	// The names are in permission bit order.
+	for i, name := range [...]string{
+		"broadcast",
+		"read",
+		"writeWithoutResponse",
+		"write",
+		"notify",
+		"indicate",
+	} {
+		if props.Get(name).Bool() {
+			p |= CharacteristicPermissions(1) << i
+		}
+	}
+
+	return p
+}
+
 // UUID returns the UUID for this DeviceCharacteristic.
 func (c DeviceCharacteristic) UUID() UUID {
 	return c.uuidWrapper
