@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"syscall/js"
 )
@@ -131,6 +132,13 @@ func (a *Adapter) StopScan() error {
 	}
 	a.scanning = false
 	return nil
+}
+
+// ConnectWithContext is Connect, abandoning the attempt if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Connect.
+func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error) {
+	return Device{}, errNotYetImplmented
 }
 
 // Connect starts a connection attempt to the given peripheral device address.
