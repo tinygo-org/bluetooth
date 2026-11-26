@@ -33,8 +33,6 @@ type Adapter struct {
 //
 // Make sure to call Enable() before using it to initialize the adapter.
 var DefaultAdapter = &Adapter{
-	cm:         cbgo.NewCentralManager(nil),
-	pm:         cbgo.NewPeripheralManager(nil),
 	connectMap: sync.Map{},
 
 	connectHandler: func(device Device, state ConnectionState) {
@@ -53,6 +51,11 @@ func (a *Adapter) Enable() error {
 	}
 
 	a.poweredChan = make(chan error, 1)
+
+	if a.cm == (cbgo.CentralManager{}) {
+		a.cm = cbgo.NewCentralManager(nil)
+		a.pm = cbgo.NewPeripheralManager(nil)
+	}
 
 	// Set delegate before checking state — a fresh CBCentralManager
 	// can fire DidUpdateState before SetDelegate, losing the event.
@@ -110,8 +113,8 @@ func (a *Adapter) Reset() error {
 		return true
 	})
 
-	a.cm = cbgo.NewCentralManager(nil)
-	a.pm = cbgo.NewPeripheralManager(nil)
+	a.cm = cbgo.CentralManager{}
+	a.pm = cbgo.PeripheralManager{}
 	a.cmd = nil
 	a.pmd = nil
 	a.poweredChan = nil
