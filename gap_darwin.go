@@ -139,18 +139,14 @@ func (a *Adapter) Connect(address Address, params ConnectionParams) (Device, err
 			}
 			p := res.prph
 
-			// check if we have received a failure or a disconnected peripheral
-			if res.err != nil || p.State() == cbgo.PeripheralStateDisconnected {
+			if res.err != nil {
 				if connectionError != nil {
 					return Device{}, connectionError
 				}
 				// CoreBluetooth may still be connecting after a stale disconnect.
 				// Cancel it so it does not leave a link that no Device owns.
 				a.cm.CancelConnect(prphs[0])
-				if res.err != nil {
-					return Device{}, res.err
-				}
-				return Device{}, errors.New("Connect failed: peripheral disconnected")
+				return Device{}, res.err
 			}
 
 			d := Device{
