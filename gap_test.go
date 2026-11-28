@@ -285,3 +285,95 @@ func TestMalformedAdvertisementPayload(t *testing.T) {
 		}
 	})
 }
+
+func TestBuildHCIPayloads(t *testing.T) {
+	service, _ := ParseUUID("12345678-9abc-def0-1234-56789abcdef0")
+	scanResponse := AdvertisementFields{
+		LocalName: "sensor",
+		ManufacturerData: []ManufacturerDataElement{
+			{CompanyID: 0xffff, Data: []byte("id-42")},
+		},
+	}
+	const scanResponseRaw = "\x07\x09sensor" +
+		"\x08\xff\xff\xffid-42"
+	const serviceRaw = "\xf0\xde\xbc\x9a\x78\x56\x34\x12\xf0\xde\xbc\x9a\x78\x56\x34\x12"
+
+	tests := []struct {
+		name    string
+		options AdvertisementOptions
+		adv     string
+		rsp     string
+		err     error
+	}{
+		{
+			name:    "local name goes into the scan response by default",
+			options: AdvertisementOptions{LocalName: "foobar"},
+			adv:     "\x02\x01\x06",
+			rsp:     "\x07\x09foobar",
+		},
+		{
+			name: "128-bit service UUID with scan response",
+			options: AdvertisementOptions{
+				ServiceUUIDs: []UUID{service},
+				ScanResponse: scanResponse,
+			},
+			adv: "\x02\x01\x06" +
+				"\x11\x07" + serviceRaw,
+			rsp: scanResponseRaw,
+		},
+		{
+			name: "128-bit service data that fills the advertisement",
+			options: AdvertisementOptions{
+				ServiceData: []ServiceDataElement{{
+					UUID: service,
+					Data: []byte("0123456789"),
+				}},
+				ScanResponse: scanResponse,
+			},
+			adv: "\x02\x01\x06" +
+				"\x1b\x21" + serviceRaw + "0123456789",
+			rsp: scanResponseRaw,
+		},
+		{
+			name: "non-connectable manufacturer data that fills the advertisement",
+			options: AdvertisementOptions{
+				AdvertisementType: AdvertisingTypeNonConnInd,
+				ManufacturerData: []ManufacturerDataElement{
+					{CompanyID: 0x004c, Data: []byte("0123456789abcdefghijklmnopq")},
+				},
+			},
+			adv: "\x1e\xff\x4c\x00" + "0123456789abcdefghijklmnopq",
+			rsp: "",
+		},
+		{
+			name: "advertisement too long",
+			options: AdvertisementOptions{
+				ServiceUUIDs: []UUID{service, service},
+			},
+			err: errAdvertisementPacketTooBig,
+		},
+		{
+			name:    "scan response too long",
+			options: AdvertisementOptions{LocalName: "a local name that is far too long"},
+			err:     errScanResponseTooBig,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var adv, rsp rawAdvertisementPayload
+			err := buildHCIPayloads(tc.options, &adv, &rsp)
+			if err != tc.err {
+				t.Fatalf("got error %v, want %v", err, tc.err)
+			}
+			if err != nil {
+				return
+			}
+			if string(adv.Bytes()) != tc.adv {
+				t.Errorf("advertisement\ngot  %x\nwant %x", adv.Bytes(), tc.adv)
+			}
+			if string(rsp.Bytes()) != tc.rsp {
+				t.Errorf("scan response\ngot  %x\nwant %x", rsp.Bytes(), tc.rsp)
+			}
+		})
+	}
+}
