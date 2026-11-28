@@ -136,6 +136,10 @@ func TestCreateAdvertisementPayload(t *testing.T) {
 		if !reflect.DeepEqual(mdata, tc.parsed.ManufacturerData) {
 			t.Errorf("ManufacturerData was not parsed as expected:\nexpected: %#v\nactual:   %#v", tc.parsed.ManufacturerData, mdata)
 		}
+		sdata := raw.ServiceData()
+		if !reflect.DeepEqual(sdata, tc.parsed.ServiceData) {
+			t.Errorf("ServiceData was not parsed as expected:\nexpected: %#v\nactual:   %#v", tc.parsed.ServiceData, sdata)
+		}
 	}
 }
 
