@@ -12,9 +12,19 @@ nrf_nvic_state_t nrf_nvic_state = {0};
 */
 import "C"
 
+import "context"
+
 // Transmit power levels in dBm that every part with this SoftDevice accepts.
 // See the sd_ble_gap_tx_power_set note in ble_gap.h.
 var txPowerLevels = []int8{-40, -20, -16, -12, -8, -4, 0, 3, 4}
+
+// ConnectWithContext starts a connection attempt to the given peripheral device
+// address, abandoning the attempt if ctx is cancelled.
+//
+// s113v7 is a peripheral-only device, so this is not supported.
+func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error) {
+	return Device{}, errNotSupported
+}
 
 // Connect starts a connection attempt to the given peripheral device address.
 //

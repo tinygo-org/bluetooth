@@ -13,6 +13,8 @@ import "C"
 
 import "unsafe"
 
+import "context"
+
 //export assertHandler
 func assertHandler(pc uint32, line_number uint16, p_file_name *byte) {
 	println("SoftDevice assert")
@@ -124,6 +126,14 @@ func (a *Adapter) Address() (MACAddress, error) {
 // Convert a C.ble_gap_addr_t to a MACAddress struct.
 func makeMACAddress(addr C.ble_gap_addr_t) MACAddress {
 	return NewMACAddress(makeAddress(addr.addr), addr.addr_type != 0)
+}
+
+// ConnectWithContext starts a connection attempt to the given peripheral device
+// address, abandoning the attempt if ctx is cancelled.
+//
+// Not yet implemented on the nrf51.
+func (a *Adapter) ConnectWithContext(ctx context.Context, address Address, params ConnectionParams) (Device, error) {
+	return Device{}, errNotYetImplmented
 }
 
 // Connect starts a connection attempt to the given peripheral device address.

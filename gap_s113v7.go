@@ -9,11 +9,21 @@ package bluetooth
 */
 import "C"
 
+import "context"
+
 // Disconnect from the BLE device.
 //
 // s113v7 is a peripheral-only device, so this is not supported.
 func (d Device) Disconnect() error {
 	return errNotSupported
+}
+
+// DiscoverServicesWithContext starts a service discovery procedure, abandoning
+// it if ctx is cancelled.
+//
+// s113v7 is a peripheral-only device, so this is not supported.
+func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
+	return nil, errNotSupported
 }
 
 // DiscoverServices starts a service discovery procedure.

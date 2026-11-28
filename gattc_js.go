@@ -1,6 +1,7 @@
 package bluetooth
 
 import (
+	"context"
 	"errors"
 	"io"
 	"syscall/js"
@@ -18,6 +19,14 @@ type uuidWrapper = UUID
 // maxAttributeValueLength is the longest value that writeValue accepts.
 // https://webbluetoothcg.github.io/web-bluetooth/#writecharacteristicvalue
 const maxAttributeValueLength = 512
+
+// DiscoverServicesWithContext is DiscoverServices, abandoning the discovery if
+// ctx is cancelled.
+//
+// Not yet implemented on this platform; use DiscoverServices.
+func (d Device) DiscoverServicesWithContext(ctx context.Context, uuids []UUID) ([]DeviceService, error) {
+	return nil, errNotYetImplmented
+}
 
 // DiscoverServices starts a service discovery procedure. Pass a list of service
 // UUIDs you are interested in to this function. Either a slice of all services
@@ -161,6 +170,14 @@ func (s DeviceService) DiscoverCharacteristics(uuids []UUID) ([]DeviceCharacteri
 	return chars, nil
 }
 
+// DiscoverCharacteristicsWithContext is DiscoverCharacteristics, abandoning the
+// discovery if ctx is cancelled.
+//
+// Not yet implemented on this platform; use DiscoverCharacteristics.
+func (s DeviceService) DiscoverCharacteristicsWithContext(ctx context.Context, uuids []UUID) ([]DeviceCharacteristic, error) {
+	return nil, errNotYetImplmented
+}
+
 // DeviceCharacteristic is a BLE characteristic on a connected peripheral
 // device. It wraps a BluetoothRemoteGATTCharacteristic JS object.
 type DeviceCharacteristic struct {
@@ -193,6 +210,28 @@ func (c DeviceCharacteristic) Read(data []byte) (int, error) {
 		return n, io.ErrShortBuffer
 	}
 	return n, nil
+}
+
+// ReadWithContext is Read, abandoning the read if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Read.
+func (c DeviceCharacteristic) ReadWithContext(ctx context.Context, data []byte) (int, error) {
+	return 0, errNotYetImplmented
+}
+
+// WriteWithContext is Write, abandoning the write if ctx is cancelled.
+//
+// Not yet implemented on this platform; use Write.
+func (c DeviceCharacteristic) WriteWithContext(ctx context.Context, p []byte) (int, error) {
+	return 0, errNotYetImplmented
+}
+
+// WriteWithoutResponseWithContext is WriteWithoutResponse, abandoning the write
+// if ctx is cancelled.
+//
+// Not yet implemented on this platform; use WriteWithoutResponse.
+func (c DeviceCharacteristic) WriteWithoutResponseWithContext(ctx context.Context, p []byte) (int, error) {
+	return 0, errNotYetImplmented
 }
 
 // Write replaces the characteristic value with a new value. The
