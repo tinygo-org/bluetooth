@@ -4,10 +4,7 @@ package bluetooth
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
-	"slices"
-	"strconv"
 	"time"
 )
 
@@ -355,11 +352,10 @@ type Advertisement struct {
 	adapter *Adapter
 
 	advertisementType  AdvertisingType
-	localName          []byte
-	serviceUUIDs       []UUID
 	interval           uint16
-	manufacturerData   []ManufacturerDataElement
-	serviceData        []ServiceDataElement
+	advData            rawAdvertisementPayload
+	scanResponseData   rawAdvertisementPayload
+	advertising        bool
 	stop               chan struct{}
 	genericServiceInit bool
 }
@@ -375,15 +371,28 @@ func (a *Adapter) DefaultAdvertisement() *Advertisement {
 	return &defaultAdvertisement
 }
 
-// Configure this advertisement.
+// Configure this advertisement. While it is running, only the advertising and
+// scan response data change. The type and interval apply at the next Start.
 func (a *Advertisement) Configure(options AdvertisementOptions) error {
-	a.advertisementType = options.AdvertisementType
-
-	if options.LocalName != "" {
-		a.localName = []byte(options.LocalName)
+	var advData, scanResponseData rawAdvertisementPayload
+	if err := buildHCIPayloads(options, &advData, &scanResponseData); err != nil {
+		return err
 	}
 
-	a.serviceUUIDs = append([]UUID{}, options.ServiceUUIDs...)
+	// The controller uses new data in the next advertising events, so it can
+	// change without a stop. See Core v5.4 Vol 4 Part E sections 7.8.7 and 7.8.8.
+	if a.advertising {
+		if err := a.adapter.hci.LESetAdvertisingData(advData.Bytes()); err != nil {
+			return err
+		}
+		if err := a.adapter.hci.LESetScanResponseData(scanResponseData.Bytes()); err != nil {
+			return err
+		}
+	}
+	a.advData = advData
+	a.scanResponseData = scanResponseData
+
+	a.advertisementType = options.AdvertisementType
 	if options.Interval == 0 {
 		// Pick an advertisement interval recommended by Apple (section 35.5
 		// Advertising Interval):
@@ -391,22 +400,24 @@ func (a *Advertisement) Configure(options AdvertisementOptions) error {
 		options.Interval = NewDuration(152500 * time.Microsecond) // 152.5ms
 	}
 	a.interval = uint16(options.Interval)
-	a.manufacturerData = append([]ManufacturerDataElement{}, options.ManufacturerData...)
-	a.serviceData = append([]ServiceDataElement{}, options.ServiceData...)
 
-	a.configureGenericServices(string(a.localName), 0x0540) // Generic Sensor. TODO: make this configurable
+	if !a.genericServiceInit {
+		name := options.LocalName
+		if name == "" {
+			name = options.ScanResponse.LocalName
+		}
+		appearance := options.Appearance
+		if appearance == 0 {
+			appearance = 0x0540 // Generic Sensor
+		}
+		a.configureGenericServices(name, appearance)
+	}
 
 	return nil
 }
 
-// via https://www.bluetooth.com/wp-content/uploads/Files/Specification/HTML/Core-54/out/en/low-energy-controller/link-layer-specification.html
-// 4.4.3.5. Advertising reports
-// The maximum size of the advertising report is 31 bytes.
-const maxAdvLen = 31
-
 // Start advertisement. May only be called after it has been configured.
 func (a *Advertisement) Start() error {
-	// uint8_t type = (_connectable) ? 0x00 : (_localName ? 0x02 : 0x03);
 	typ := uint8(a.advertisementType)
 
 	localRandom := uint8(0)
@@ -419,65 +430,18 @@ func (a *Advertisement) Start() error {
 		return err
 	}
 
-	var advertisingData [maxAdvLen]byte
-	advertisingDataLen := uint8(0)
-
-	// flags, only if not non-connectable
-	if a.advertisementType != AdvertisingTypeNonConnInd {
-		advertisingData[0] = 0x02 // length
-		advertisingData[1] = ADFlags
-		advertisingData[2] = ADTypeGeneralDiscoverable + ADTypeFlagsBREDRNotSupported
-		advertisingDataLen += 3
-	}
-
-	// TODO: handle multiple service UUIDs
-	if len(a.serviceUUIDs) == 1 {
-		uuid := a.serviceUUIDs[0]
-		var sz uint8
-
-		switch {
-		case uuid.Is16Bit():
-			sz = 2
-			binary.LittleEndian.PutUint16(advertisingData[5:], uuid.Get16Bit())
-		case uuid.Is32Bit():
-			sz = 6
-			data := uuid.BytesLittleEndian()
-			slices.Reverse(data[:])
-			copy(advertisingData[5:], data[:])
-		}
-
-		advertisingData[advertisingDataLen] = 0x03 // length
-		advertisingData[advertisingDataLen+1] = ADCompleteAdvertisedService16
-		advertisingDataLen += sz + 2
-	}
-
-	if len(a.manufacturerData) > 0 {
-		for _, md := range a.manufacturerData {
-			if advertisingDataLen+4+uint8(len(md.Data)) > maxAdvLen {
-				return errors.New("ManufacturerData too long:" + strconv.Itoa(int(advertisingDataLen+4+uint8(len(md.Data)))))
-			}
-
-			advertisingData[advertisingDataLen] = 3 + uint8(len(md.Data)) // length
-			advertisingData[advertisingDataLen+1] = ADManufacturerData
-
-			binary.LittleEndian.PutUint16(advertisingData[advertisingDataLen+2:], md.CompanyID)
-
-			copy(advertisingData[advertisingDataLen+4:], md.Data)
-			advertisingDataLen += 4 + uint8(len(md.Data))
-		}
-	}
-
-	if err := a.adapter.hci.LESetAdvertisingData(advertisingData[:advertisingDataLen]); err != nil {
+	if err := a.adapter.hci.LESetAdvertisingData(a.advData.Bytes()); err != nil {
 		return err
 	}
 
-	if err := a.setServiceData(a.serviceData); err != nil {
+	if err := a.adapter.hci.LESetScanResponseData(a.scanResponseData.Bytes()); err != nil {
 		return err
 	}
 
 	if err := a.adapter.hci.LESetAdvertiseEnable(true); err != nil {
 		return err
 	}
+	a.advertising = true
 
 	// go routine to poll for HCI events while advertising
 	go func() {
@@ -548,59 +512,12 @@ func (a *Advertisement) Stop() error {
 	if err != nil {
 		return err
 	}
+	a.advertising = false
 
 	time.Sleep(5 * time.Millisecond)
 	// stop the go routine that polls for HCI events
 	a.adapter.att.ClearLocalData()
 	a.stop <- struct{}{}
-	return nil
-}
-
-// SetServiceData sets the service data for the advertisement.
-func (a *Advertisement) setServiceData(sd []ServiceDataElement) error {
-	a.serviceData = sd
-
-	var scanResponseData [31]byte
-	scanResponseDataLen := uint8(0)
-
-	switch {
-	case len(a.localName) > 29:
-		scanResponseData[0] = 1 + 29 // length
-		scanResponseData[1] = ADCompleteLocalName
-		copy(scanResponseData[2:], a.localName[:29])
-		scanResponseDataLen = 31
-	case len(a.localName) > 0:
-		scanResponseData[0] = uint8(1 + len(a.localName)) // length
-		scanResponseData[1] = ADShortLocalName
-		copy(scanResponseData[2:], a.localName)
-		scanResponseDataLen = uint8(2 + len(a.localName))
-	}
-
-	if len(a.serviceData) > 0 {
-		for _, sde := range a.serviceData {
-			if scanResponseDataLen+4+uint8(len(sde.Data)) > 31 {
-				return errors.New("ServiceData too long")
-			}
-
-			switch {
-			case sde.UUID.Is16Bit():
-				binary.LittleEndian.PutUint16(scanResponseData[scanResponseDataLen+2:], sde.UUID.Get16Bit())
-			case sde.UUID.Is32Bit():
-				return errors.New("32-bit ServiceData UUIDs not yet supported")
-			}
-
-			scanResponseData[scanResponseDataLen] = 3 + uint8(len(sde.Data)) // length
-			scanResponseData[scanResponseDataLen+1] = ADServiceData
-
-			copy(scanResponseData[scanResponseDataLen+4:], sde.Data)
-			scanResponseDataLen += 4 + uint8(len(sde.Data))
-		}
-	}
-
-	if err := a.adapter.hci.LESetScanResponseData(scanResponseData[:scanResponseDataLen]); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -619,7 +536,7 @@ func (a *Advertisement) configureGenericServices(name string, appearance uint16)
 				{
 					UUID:  CharacteristicUUIDDeviceName,
 					Flags: CharacteristicReadPermission,
-					Value: a.localName,
+					Value: []byte(name),
 				},
 				{
 					UUID:  CharacteristicUUIDAppearance,

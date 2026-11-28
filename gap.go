@@ -12,6 +12,7 @@ var (
 	errNotScanning               = errors.New("bluetooth: there is no scan in progress")
 	errScanStopped               = errors.New("bluetooth: scan was stopped unexpectedly")
 	errAdvertisementPacketTooBig = errors.New("bluetooth: advertisement packet overflows")
+	errScanResponseTooBig        = errors.New("bluetooth: scan response packet overflows")
 	errNotYetImplmented          = errors.New("bluetooth: not implemented")
 	errNotSupported              = errors.New("bluetooth: not supported")
 	errInvalidTxPower            = errors.New("bluetooth: invalid transmit power level")
@@ -73,6 +74,10 @@ type AdvertisementOptions struct {
 	// characteristic, which hosts use to recognize device types such as HID
 	// keyboards. The zero value omits it.
 	Appearance uint16
+
+	// ScanResponse is sent in reply to an active scan. Platforms that do not
+	// support it ignore it.
+	ScanResponse AdvertisementFields
 }
 
 // Manufacturer data that's part of an advertisement packet.
@@ -470,30 +475,71 @@ func (buf *rawAdvertisementPayload) addFromOptions(options AdvertisementOptions)
 			return false
 		}
 	}
+	return buf.addFields(AdvertisementFields{
+		ServiceUUIDs:     options.ServiceUUIDs,
+		ManufacturerData: options.ManufacturerData,
+		ServiceData:      options.ServiceData,
+	})
+}
+
+// addFields adds the advertisement fields to the payload. It returns true if
+// they fit, false otherwise.
+func (buf *rawAdvertisementPayload) addFields(fields AdvertisementFields) (ok bool) {
+	if fields.LocalName != "" {
+		if !buf.addCompleteLocalName(fields.LocalName) {
+			return false
+		}
+	}
 	// TODO: if there are multiple 16-bit UUIDs, they should be listed in
 	// one field.
 	// This is not possible for 128-bit service UUIDs (at least not in
 	// legacy advertising) because of the 31-byte advertisement packet
 	// limit.
-	for _, uuid := range options.ServiceUUIDs {
+	for _, uuid := range fields.ServiceUUIDs {
 		if !buf.addServiceUUID(uuid) {
 			return false
 		}
 	}
 
-	for _, element := range options.ManufacturerData {
+	for _, element := range fields.ManufacturerData {
 		if !buf.addManufacturerData(element.CompanyID, element.Data) {
 			return false
 		}
 	}
 
-	for _, element := range options.ServiceData {
+	for _, element := range fields.ServiceData {
 		if !buf.addServiceData(element.UUID, element.Data) {
 			return false
 		}
 	}
 
 	return true
+}
+
+// isEmpty reports whether no field is set.
+func (fields *AdvertisementFields) isEmpty() bool {
+	return fields.LocalName == "" && len(fields.ServiceUUIDs) == 0 &&
+		len(fields.ManufacturerData) == 0 && len(fields.ServiceData) == 0
+}
+
+// buildHCIPayloads builds the advertising data and the scan response data for
+// an HCI controller. Without a ScanResponse the local name goes into the scan
+// response, as it always has on HCI.
+func buildHCIPayloads(options AdvertisementOptions, adv, rsp *rawAdvertisementPayload) error {
+	adv.reset()
+	rsp.reset()
+	scanResponse := options.ScanResponse
+	if scanResponse.isEmpty() {
+		scanResponse.LocalName = options.LocalName
+		options.LocalName = ""
+	}
+	if !adv.addFromOptions(options) {
+		return errAdvertisementPacketTooBig
+	}
+	if !rsp.addFields(scanResponse) {
+		return errScanResponseTooBig
+	}
+	return nil
 }
 
 // addAppearance adds an Appearance field to the advertisement buffer. It
